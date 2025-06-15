@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Material Selector</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Bootstrap JS Bundle (includes Popper) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+.card {
+    animation: fadeIn 0.4s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+}
+        .wrap-text {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+        .sidebar {
+            float: left;
+            width: 200px;
+            padding: 20px;
+            background-color: #f4f4f4;
+            height: 100vh;
+        }
+        .main-content {
+            margin-left: 220px;
+            padding: 20px;
+        }
+        .sidebar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .sidebar li {
+            cursor: pointer;
+            padding: 8px;
+            margin-bottom: 5px;
+            background-color: #ddd;
+        }
+        .sidebar li:hover {
+            background-color: #ccc;
+        }
+        .active {
+            background-color: #bbb;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-spinner" style="display:none;">
+        <img src="loading.gif" alt="Loading..." />
+    </div>
+    <div class="sidebar">
+        <ul id="category-type-list">
+            <li data-value="Panel">Panel</li>
+            <li data-value="Metal">Metal</li>
+            <li data-value="Other">Other</li>
+        </ul>
+
+        <h6>Categories</h6>
+        <ul id="category-list">
+            <!-- Categories will be populated here -->
+        </ul>
+
+        <h6>Types</h6>
+        <ul id="type-list" style="display:none;">
+            <!-- Types will be populated here -->
+        </ul>
+
+        <h6>Models</h6>
+        <ul id="model-list" style="display:none;">
+            <!-- Models will be populated here -->
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <h3>Materials</h3>
+        <ul id="material-list" class="row list-unstyled"></ul>
+            <!-- Wooden/Metal/Other materials will be listed here based on model -->
+       
+    </div>
+
+    <script>
+// Loader controls
+function showLoader() { $('#loading-spinner').show(); }
+function hideLoader() { $('#loading-spinner').hide(); }
+
+// Track selections in variables (global scope)
+let selectedCategoryType = null;
+let selectedCategoryId = null;
+let selectedTypeId = null;
+
+// Fetch categories based on type
+function fetchCategoriesByType(type) {
+    showLoader();
+    $.ajax({
+        url: '/material/categories/',
+        method: 'GET',
+        data: { select: type },
+        success: function(data) {
+            $('#category-list').empty();
+            data.forEach(function(category) {
+                $('#category-list').append(`<li class="wrap-text" data-id="${category.id}" data-select="${category.select}">${category.name}</li>`);
+            });
+            resetModelsAndTypes();
+            hideLoader();
+        },
+        error: function(xhr, status, error) {
+            console.error("Error fetching categories:", status, error);
+            alert("An error occurred while fetching categories.");
+            hideLoader();
+        }
+    });
+}
+
+// Reset dependent lists
+function resetModelsAndTypes() {
+    $('#type-list').empty().hide();
+    $('#model-list').empty().hide();
+    $('#material-list').empty();
+    selectedTypeId = null;
+}
+
+// Category type click
+$('#category-type-list').on('click', 'li', function () {
+    $('#category-type-list li').removeClass('active');
+    $(this).addClass('active');
+    selectedCategoryType = $(this).data('value');
+    selectedCategoryId = null;
+    selectedTypeId = null;
+    fetchCategoriesByType(selectedCategoryType);
+});
+
+// Category click
+$('#category-list').on('click', 'li', function () {
+    $('#category-list li').removeClass('active');
+    $(this).addClass('active');
+    selectedCategoryId = $(this).data('id');
+    selectedTypeId = null;
+
+    resetModelsAndTypes();
+    showLoader();
+
+    $.ajax({
+        url: `/material/categorytypes/?category=${selectedCategoryId}`,
+        method: 'GET',
+        success: function (data) {
+            $('#type-list').empty().show();
+            data.results.forEach(function (type) {
+                $('#type-list').append(`<li class="wrap-text" data-id="${type.id}" data-name="${type.name}">${type.name}</li>`);
+            });
+            hideLoader();
+        },
+        error: function (xhr, status, error) {
+            console.error("Error fetching types:", status, error);
+            alert("An error occurred while fetching types.");
+            hideLoader();
+        }
+    });
+});
+
+// Type click
+$('#type-list').on('click', 'li', function () {
+    $('#type-list li').removeClass('active');
+    $(this).addClass('active');
+    selectedTypeId = $(this).data('id');
+
+    
+    showLoader();
+
+    $.ajax({
+        url: `/material/category-models/?model_category=${selectedTypeId}`,
+        method: 'GET',
+        success: function (data) {
+            $('#model-list').empty().show();
+            if (data.results && data.results.length > 0) {
+                data.results.forEach(function (model) {
+                    $('#model-list').append(`<li class="wrap-text"  data-id="${model.id}">${model.name}</li>`);
+                });
+            } else {
+                alert("No models found for this type.");
+            }
+            hideLoader();
+        },
+        error: function (xhr, status, error) {
+            console.error("Error fetching models:", status, error);
+            alert("An error occurred while fetching models.");
+            hideLoader();
+        }
+    });
+});
+
+// Model click
+$('#model-list').on('click', 'li', function () {
+    const modelId = $(this).data('id');
+    if (!modelId) {
+        alert('Please select a model.');
+        return;
+    }
+
+    showLoader();
+
+    const typeUrls = {
+        'Panel': '/material/wooden/',
+        'Metal': '/material/metals/',
+        'Other': '/material/other-materials/'
+    };
+
+    const queryParams = {
+        'Panel': 'model_id',
+        'Other': 'model_id',
+        'Metal': 'metal_shape'
+    };
+
+    const paramKey = queryParams[selectedCategoryType];
+    const url = `${typeUrls[selectedCategoryType]}?${paramKey}=${modelId}`;
+
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function (response) {
+            $('#material-list').empty();
+
+            const materials = Array.isArray(response)
+                ? response
+                : (response.results || [response]);
+
+            let filteredMaterials = materials;
+
+            // ✅ Apply manual filtering only for Panel & Other
+            if (selectedCategoryType === 'Panel' || selectedCategoryType === 'Other') {
+                filteredMaterials = materials.filter(m => {
+                    const model = m.material_model;
+                    return (typeof model === 'object' ? model.id : model) == modelId;
+                });
+            }
+
+            if (!filteredMaterials.length) {
+                alert("No materials found for this model.");
+                hideLoader();
+                return;
+            }
+
+            filteredMaterials.forEach(function (material) {
+                const image = material.image || '';
+                const card = `
+                    <li class="col-md-4 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            ${image ? `<img src="${image}" class="card-img-top" alt="${material.name || 'Material'}">` : ''}
+                            <div class="card-body">
+                                <h5 class="card-title">${material.name}</h5>
+                                <ul class="list-group list-group-flush">
+                                    ${renderMaterialFields(material)}
+                                </ul>
+                                <a href="/material/${material.id}/" class="btn btn-sm btn-primary mt-2">View Details</a>
+                            </div>
+                        </div>
+                    </li>
+                `;
+                $('#material-list').append(card);
+            });
+
+            hideLoader();
+        },
+        error: function () {
+            alert('Failed to load materials.');
+            hideLoader();
+        }
+    });
+});
+
+
+
+// Function to format keys
+function formatKey(key) {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+// Function to render material fields
+function renderMaterialFields(material) {
+    let flatFields = '';
+    let nestedFields = '';
+    
+    for (const key in material) {
+        if (Object.hasOwnProperty.call(material, key)) {
+            const value = material[key];
+            
+            if (key === 'image' || value === null || value === '') continue;
+
+            if (typeof value === 'object') {
+                nestedFields += `<li><strong>${formatKey(key)}:</strong> ${renderNestedObject(value)}</li>`;
+            } else {
+                flatFields += `<li><strong>${formatKey(key)}:</strong> ${value}</li>`;
+            }
+        }
+    }
+
+    return flatFields + nestedFields;
+}
+
+// Function to render nested objects
+function renderNestedObject(obj) {
+    let nestedHTML = '<ul>';
+    for (const key in obj) {
+        if (Object.hasOwnProperty.call(obj, key)) {
+            const value = obj[key];
+            if (value === null || value === '') continue;
+            nestedHTML += `<li><strong>${formatKey(key)}:</strong> ${value}</li>`;
+        }
+    }
+    nestedHTML += '</ul>';
+    return nestedHTML;
+}
+
+    </script>
+    
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Cart</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Your Cart</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Price</th>
+                <th>Quantity</th>
+                <th>Total</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in cart_items %}
+            <tr data-cart-item-id="{{ item.id }}">
+                <td>{{ item.product.name }}</td>
+                <td>${{ item.product.price }}</td>
+                <td>
+                    <input type="number" class="quantity" value="{{ item.quantity }}" min="1">
+                </td>
+                <td>${{ item.total_price }}</td>
+                <td>
+                    <button class="update-cart">Update</button>
+                    <button class="remove-cart">Remove</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <h2>Total Price: $<span id="total-price">{{ total_price }}</span></h2>
+
+    <script>
+        $(document).ready(function() {
+            $('.update-cart').on('click', function() {
+                var row = $(this).closest('tr');
+                var cart_item_id = row.data('cart-item-id');
+                var quantity = row.find('.quantity').val();
+
+                $.ajax({
+                    url: '{% url "update_cart" %}',
+                    type: 'POST',
+                    data: {
+                        'cart_item_id': cart_item_id,
+                        'quantity': quantity,
+                        'csrfmiddlewaretoken': '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        alert(response.message);
+                        location.reload(); // Reload to update cart
+                    }
+                });
+            });
+
+            $('.remove-cart').on('click', function() {
+                var row = $(this).closest('tr');
+                var cart_item_id = row.data('cart-item-id');
+
+                $.ajax({
+                    url: '{% url "remove_from_cart" %}',
+                    type: 'POST',
+                    data: {
+                        'cart_item_id': cart_item_id,
+                        'csrfmiddlewaretoken': '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        alert(response.message);
+                        location.reload(); // Reload to update cart
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

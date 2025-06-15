@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block content %}
+<head>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Manage Order Products</h1>
+
+        <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#orderProductModal">
+            Add Product to Order
+        </button>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Product Name</th>
+                    <th>Quantity</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="order-product-list"></tbody>
+        </table>
+    </div>
+
+    <!-- Modal for Add/Edit Order Product -->
+    <div class="modal fade" id="orderProductModal" tabindex="-1" role="dialog" aria-labelledby="orderProductModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="orderProductModalLabel">Add/Edit Order Product</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="order-product-form">
+                        <input type="hidden" id="order-product-id">
+                        <div class="form-group">
+                            <label for="order-select">Order</label>
+                            <select class="form-control" id="order-select"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="product-select">Product</label>
+                            <select class="form-control" id="product-select"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantity">Quantity</label>
+                            <input type="number" class="form-control" id="quantity" required>
+                        </div>
+                        <button type="submit" class="btn btn-success">Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = '/api/order-products/'; // Adjust this to your API endpoint
+        const orderApiUrl = '/api/orders/'; // Adjust this to your API endpoint for orders
+        const productApiUrl = '/api/products/'; // Adjust this to your API endpoint for products
+
+        $(document).ready(function() {
+            fetchOrderProducts();
+            fetchOrders();
+            fetchProducts();
+
+            // Fetch all order products
+            function fetchOrderProducts() {
+                $.ajax({
+                    url: apiUrl,
+                    method: 'GET',
+                    success: function(data) {
+                        const orderProductList = $('#order-product-list');
+                        orderProductList.empty();
+                        data.forEach(item => {
+                            orderProductList.append(`
+                                <tr>
+                                    <td>${item.order.id}</td>
+                                    <td>${item.product.name}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm" onclick="editOrderProduct(${item.id})">Edit</button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteOrderProduct(${item.id})">Delete</button>
+                                    </td>
+                                </tr>
+                            `);
+                        });
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error fetching order products:', textStatus, errorThrown);
+                    }
+                });
+            }
+
+            // Fetch all orders for the dropdown
+            function fetchOrders() {
+                $.ajax({
+                    url: orderApiUrl,
+                    method: 'GET',
+                    success: function(data) {
+                        const orderSelect = $('#order-select');
+                        orderSelect.empty();
+                        data.forEach(order => {
+                            orderSelect.append(`<option value="${order.id}">Order #${order.id}</option>`);
+                        });
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error fetching orders:', textStatus, errorThrown);
+                    }
+                });
+            }
+
+            // Fetch all products for the dropdown
+            function fetchProducts() {
+                $.ajax({
+                    url: productApiUrl,
+                    method: 'GET',
+                    success: function(data) {
+                        const productSelect = $('#product-select');
+                        productSelect.empty();
+                        data.forEach(product => {
+                            productSelect.append(`<option value="${product.id}">${product.name}</option>`);
+                        });
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error fetching products:', textStatus, errorThrown);
+                    }
+                });
+            }
+
+            // Handle form submission for adding/editing an order product
+            $('#order-product-form').on('submit', function(e) {
+                e.preventDefault();
+                const id = $('#order-product-id').val();
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `${apiUrl}${id}/` : apiUrl;
+
+                const orderProductData = {
+                    order: $('#order-select').val(),
+                    product: $('#product-select').val(),
+                    quantity: $('#quantity').val(),
+                };
+
+                $.ajax({
+                    url: url,
+                    method: method,
+                    contentType: 'application/json',
+                    data: JSON.stringify(orderProductData),
+                    headers: {
+                        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function() {
+                        fetchOrderProducts();
+                        $('#orderProductModal').modal('hide');
+                        $('#order-product-form')[0].reset();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error saving order product:', textStatus, errorThrown);
+                    }
+                });
+            });
+        });
+
+        // Edit order product function
+        window.editOrderProduct = function(id) {
+            $.ajax({
+                url: `${apiUrl}${id}/`,
+                method: 'GET',
+                success: function(item) {
+                    $('#order-product-id').val(item.id);
+                    $('#order-select').val(item.order.id);
+                    $('#product-select').val(item.product.id);
+                    $('#quantity').val(item.quantity);
+                    $('#orderProductModal').modal('show');
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error fetching order product for edit:', textStatus, errorThrown);
+                }
+            });
+        };
+
+        // Delete order product function
+        window.deleteOrderProduct = function(id) {
+            if (confirm('Are you sure you want to delete this order product?')) {
+                $.ajax({
+                    url: `${apiUrl}${id}/`,
+                    method: 'DELETE',
+                    success: function() {
+                        fetchOrderProducts();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error deleting order product:', textStatus, errorThrown);
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+{% endblock %}

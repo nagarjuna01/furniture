@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block title %}Our Products{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Product Catalog</h1>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="d-flex">
+            <select id="category-filter" class="form-select me-2">
+                <option value="">All Categories</option>
+                {% for category in categories %}
+                    <option value="{{ category.id }}" {% if initial_category_id == category.id|stringformat:"s" %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+            </select>
+            <select id="product-type-filter" class="form-select">
+                <option value="">All Types</option>
+                <option value="Standard" {% if initial_product_type == 'Standard' %}selected{% endif %}>Standard</option>
+                <option value="Modular" {% if initial_product_type == 'Modular' %}selected{% endif %}>Modular</option>
+                <option value="Custom" {% if initial_product_type == 'Custom' %}selected{% endif %}>Custom</option>
+            </select>
+            {# Optionally add a search input for JS #}
+            {# <input type="text" id="search-input" class="form-control ms-2" placeholder="Search..." value=""> #}
+            {# <button id="apply-filters-btn" class="btn btn-primary ms-2">Apply</button> #}
+        </div>
+    </div>
+</div>
+
+<div id="products-container" class="row">
+    <div class="col-12 text-center text-muted py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading products...</span>
+        </div>
+        <p class="mt-2">Loading products...</p>
+    </div>
+</div>
+
+<div id="pagination-container" class="mt-4">
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    const productsApiUrl = '/products/api/products/';
+    const productsContainer = $('#products-container');
+    const paginationContainer = $('#pagination-container');
+    const categoryFilter = $('#category-filter');
+    const productTypeFilter = $('#product-type-filter');
+    // const searchInput = $('#search-input'); // If you add search
+
+    let currentPage = 1;
+
+    function getQueryParams() {
+        const params = new URLSearchParams(window.location.search);
+        let currentCategory = categoryFilter.val();
+        let currentProductType = productTypeFilter.val();
+
+        // Use initial values if URL params exist on first load
+        if (!params.has('category') && '{{ initial_category_id }}') {
+            currentCategory = '{{ initial_category_id }}';
+            categoryFilter.val(currentCategory); // Set dropdown
+        }
+        if (!params.has('product_type') && '{{ initial_product_type }}') {
+            currentProductType = '{{ initial_product_type }}';
+            productTypeFilter.val(currentProductType); // Set dropdown
+        }
+
+        const query = { page: currentPage };
+        if (currentCategory) {
+            query.category = currentCategory;
+        }
+        if (currentProductType) {
+            query.product_type = currentProductType;
+        }
+        // if (searchInput.val()) {
+        //     query.search = searchInput.val();
+        // }
+        return query;
+    }
+
+    function updateURLParams() {
+        const query = getQueryParams();
+        const urlParams = new URLSearchParams();
+        for (const key in query) {
+            if (query[key]) { // Only add non-empty parameters
+                urlParams.append(key, query[key]);
+            }
+        }
+        history.pushState(null, '', `?${urlParams.toString()}`);
+    }
+
+    function fetchProducts() {
+        productsContainer.html(`
+            <div class="col-12 text-center text-muted py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading products...</span>
+                </div>
+                <p class="mt-2">Loading products...</p>
+            </div>
+        `);
+        paginationContainer.empty();
+
+        const params = getQueryParams();
+
+        $.ajax({
+            url: productsApiUrl,
+            method: 'GET',
+            data: params,
+            success: function(response) {
+                productsContainer.empty();
+                if (response.results.length === 0) {
+                    productsContainer.html(`
+                        <div class="col-12">
+                            <div class="alert alert-info" role="alert">
+                                No products found matching your criteria.
+                            </div>
+                        </div>
+                    `);
+                    return;
+                }
+
+                $.each(response.results, function(index, product) {
+                    const productPrice = product.display_selling_price ?
+                        `<strong>Price: $${parseFloat(product.display_selling_price).toFixed(2)}</strong>` :
+                        `Price: N/A (Contact Us)`;
+
+                    let productDetailUrl = `/products/catalog/${product.slug}/`;
+                    let actionButton = `<a href="${productDetailUrl}" class="btn btn-outline-primary btn-sm">View Details</a>`;
+
+                    if (product.product_type === 'Modular') {
+                        productDetailUrl = `/products/configurator/${product.id}/`;
+                        actionButton = `<a href="${productDetailUrl}" class="btn btn-primary btn-sm">Configure Product</a>`;
+                    }
+
+                    const imageUrl = product.image ? product.image : 'https://via.placeholder.com/200x200?text=No+Image';
+
+                    const productCard = `
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100 shadow-sm">
+                                <img src="${imageUrl}" class="card-img-top" alt="${product.name}" style="height: 200px; object-fit: cover;">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">${product.name}</h5>
+                                    <p class="card-text text-muted mb-1">${product.product_type}</p>
+                                    <p class="card-text">${productPrice}</p>
+                                    <div class="mt-auto">
+                                        ${actionButton}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    productsContainer.append(productCard);
+                });
+
+                renderPagination(response);
+                updateURLParams(); // Update URL in browser history
+            },
+            error: function(xhr, status, error) {
+                productsContainer.html(`
+                    <div class="col-12">
+                        <div class="alert alert-danger" role="alert">
+                            Failed to load products: ${xhr.statusText || error}. Please try again later.
+                        </div>
+                    </div>
+                `);
+                console.error("Error fetching products:", xhr.responseText);
+            }
+        });
+    }
+
+    function renderPagination(response) {
+        paginationContainer.empty();
+        const paginationHtml = `
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    ${response.previous ? `<li class="page-item"><a class="page-link" href="#" data-page="1">&laquo; first</a></li>` : ''}
+                    ${response.previous ? `<li class="page-item"><a class="page-link" href="#" data-page="${currentPage - 1}">previous</a></li>` : ''}
+
+                    <li class="page-item active"><span class="page-link">Page ${currentPage} of ${Math.ceil(response.count / {{ settings.REST_FRAMEWORK.PAGE_SIZE|default:10 }})}</span></li>
+
+                    ${response.next ? `<li class="page-item"><a class="page-link" href="#" data-page="${currentPage + 1}">next</a></li>` : ''}
+                    ${response.next ? `<li class="page-item"><a class="page-link" href="#" data-page="${Math.ceil(response.count / {{ settings.REST_FRAMEWORK.PAGE_SIZE|default:10 }})}">last &raquo;</a></li>` : ''}
+                </ul>
+            </nav>
+        `;
+        paginationContainer.html(paginationHtml);
+
+        paginationContainer.find('.page-link').on('click', function(e) {
+            e.preventDefault();
+            currentPage = $(this).data('page');
+            fetchProducts();
+        });
+    }
+
+    // Event Listeners for Filters
+    categoryFilter.on('change', function() {
+        currentPage = 1;
+        fetchProducts();
+    });
+    productTypeFilter.on('change', function() {
+        currentPage = 1;
+        fetchProducts();
+    });
+    // $('#apply-filters-btn').on('click', function() { // If you use a button
+    //     currentPage = 1;
+    //     fetchProducts();
+    // });
+    // searchInput.on('keyup', function(e) { // If you use search
+    //     if (e.key === 'Enter') {
+    //         currentPage = 1;
+    //         fetchProducts();
+    //     }
+    // });
+
+    // Initial fetch on page load
+    // Check URL params to set initial page and filters
+    const urlParams = new URLSearchParams(window.location.search);
+    currentPage = parseInt(urlParams.get('page')) || 1;
+    if (urlParams.has('category')) {
+        categoryFilter.val(urlParams.get('category'));
+    }
+    if (urlParams.has('product_type')) {
+        productTypeFilter.val(urlParams.get('product_type'));
+    }
+    fetchProducts();
+});
+</script>
+{% endblock %}

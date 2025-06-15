@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+{%  block content %}
+<head>
+    <meta charset="UTF-8">
+    <title>Material Explorer</title>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .top-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 30px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 180px;
+        }
+        
+        .filter-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .inline-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 0;
+            list-style: none;
+            margin: 0;
+        }
+        
+        .inline-list li {
+            padding: 5px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #fff;
+            transition: background 0.3s;
+        }
+        
+        .inline-list li:hover {
+            background-color: #eee;
+        }
+        
+        .inline-list li.active {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .card {
+            flex: 1 1 calc(20% - 20px); /* 5 per row */
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            transition: transform 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card-title {
+            font-size: 1.25rem;
+            margin-bottom: 10px;
+        }
+        
+        .card-body {
+            padding: 10px 0;
+        }
+        
+        .card-footer {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        
+        
+    </style>
+</head>
+<body>
+
+    
+
+    <!-- 🔝 TOP FILTER BAR -->
+    <div class="top-bar">
+        <div class="filter-group">
+            <label>Category Type</label>
+            <ul id="category-type-list" class="segment-list">
+                <li data-value="Panel">Panel</li>
+                <li data-value="Metal">Metal</li>
+                <li data-value="Other">Other</li>
+            </ul>
+        </div>
+    
+        <div class="filter-group">
+            <label>Category</label>
+            <ul id="category-list" class="segment-list"></ul>
+        </div>
+    
+        <div class="filter-group">
+            <label>Type</label>
+            <ul id="type-list" class="segment-list"></ul>
+        </div>
+    
+        <div class="filter-group">
+            <label>Model</label>
+            <ul id="model-list" class="segment-list"></ul>
+        </div>
+    </div>
+    
+    <!-- 🧾 MATERIAL LIST -->
+    <h3>Materials</h3>
+    <div class="row" id="material-list"></div>
+    
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header border-0">
+          <h5 class="modal-title" id="imageModalLabel">Preview</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img id="modalImage" src="" class="img-fluid rounded" alt="Full Preview">
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+<script>
+    
+    
+    let fullHierarchy = [];
+let selectedCategoryType = null;
+let selectedCategory = null;
+let selectedType = null;
+
+let adminWindows = {
+    category: null,
+    type: null,
+    model: null
+};
+
+let lastOpenedIds = {
+    categoryType: null,
+    category: null,
+    type: null
+};
+
+// Reset lists based on the level of navigation (all, types, models, materials)
+function resetLists(level) {
+    if (level === 'all') {
+        $('#category-list, #type-list, #model-list, #material-list').empty();
+        selectedCategory = null;
+        selectedType = null;
+    } else if (level === 'types') {
+        $('#type-list, #model-list, #material-list').empty();
+        selectedType = null;
+    } else if (level === 'models') {
+        $('#model-list, #material-list').empty();
+    } else if (level === 'materials') {
+        $('#material-list').empty();
+    }
+}
+
+// Function to add "Add" button for categories, types, and models
+function addAddButton(targetListId, type, url, refetchFn) {
+    if (!$(`#${targetListId} .add-btn`).length) {
+        $(`#${targetListId}`).append(
+            `<li class="add-btn" style="cursor:pointer;" onclick="openAdminTab('${type}', '${url}', ${refetchFn.name})">+ Add</li>`
+        );
+    }
+}
+
+// Open the admin window for adding a new item (category, type, model, material)
+function openAdminTab(type, url, refetchFn) {
+    adminWindows[type] = window.open(url, '_blank');
+    const interval = setInterval(() => {
+        if (adminWindows[type] && adminWindows[type].closed) {
+            adminWindows[type] = null;
+            clearInterval(interval);
+            refetchFn(); // Refresh the corresponding list
+        }
+    }, 800);
+}
+
+// 1. On Category Type Click
+$('#category-type-list').on('click', 'li', function () {
+    $('#category-type-list li').removeClass('active');
+    $(this).addClass('active');
+
+    selectedCategoryType = $(this).data('value');
+    lastOpenedIds.categoryType = selectedCategoryType;
+    resetLists('all');
+    
+    fetchCategories();
+});
+
+// Fetch and display categories based on selected category type
+function fetchCategories() {
+    $.get(`/material/material-router/fetch_hierarchy/?select=${selectedCategoryType}`, function (data) {
+        fullHierarchy = data;
+        $('#category-list').empty();
+        data.forEach(category => {
+            $('#category-list').append(`<li data-id="${category.id}">${category.name}</li>`);
+        });
+        addAddButton('category-list', 'category', `/admin/material/category/add/?select=${selectedCategoryType}`, fetchCategories);
+    });
+}
+
+// 2. On Category Click
+$('#category-list').on('click', 'li', function () {
+    $('#category-list li').removeClass('active');
+    $(this).addClass('active');
+
+    selectedCategory = parseInt($(this).data('id'));
+    lastOpenedIds.category = selectedCategory;
+    resetLists('types');
+
+    fetchTypes();
+});
+
+// Fetch and display types based on selected category
+function fetchTypes() {
+    const selectedCatData = fullHierarchy.find(c => c.id === selectedCategory);
+    $('#type-list').empty();
+    if (selectedCatData?.types) {
+        selectedCatData.types.forEach(type => {
+            $('#type-list').append(`<li data-id="${type.id}">${type.name}</li>`);
+        });
+        addAddButton('type-list', 'type', `/admin/material/categorytypes/add/?category=${selectedCategory}`, fetchTypes);
+    }
+}
+
+// 3. On Type Click
+$('#type-list').on('click', 'li', function () {
+    $('#type-list li').removeClass('active');
+    $(this).addClass('active');
+
+    selectedType = parseInt($(this).data('id'));
+    lastOpenedIds.type = selectedType;
+    resetLists('models');
+
+    fetchModels();
+});
+
+// Fetch and display models based on selected type
+function fetchModels() {
+    const selectedCatData = fullHierarchy.find(c => c.id === selectedCategory);
+    const selectedTypeData = selectedCatData?.types?.find(t => t.id === selectedType);
+    $('#model-list').empty();
+    if (selectedTypeData?.models) {
+        selectedTypeData.models.forEach(model => {
+            $('#model-list').append(`<li data-id="${model.id}">${model.name}</li>`);
+        });
+        addAddButton('model-list', 'model', `/admin/material/categorymodel/add/?model_category=${selectedType}`, fetchModels);
+    }
+}
+
+// 4. On Model Click
+$('#model-list').on('click', 'li', function () {
+    $('#model-list li').removeClass('active');
+    $(this).addClass('active');
+
+    const modelId = $(this).data('id');
+    resetLists('materials');
+
+    fetchMaterials(modelId);
+});
+
+function fetchMaterials(modelId) {
+    $('#material-list').empty();
+
+    $.get(`/material/material-router/fetch_materials/?select=${selectedCategoryType}&model_id=${modelId}`, function (materials) {
+        console.log("Materials Data:", materials);  // Add this line to inspect the response
+        if (materials.length === 0) {
+            $('#material-list').html('<div class="alert alert-warning">No materials found.</div>');
+            return;
+        }
+
+        materials.forEach(m => {
+            let brand = (m.brand?.name || m.metal_brand?.name || m.material_brand?.name || 'N/A');
+            let cardDetails = '';
+
+            if (selectedCategoryType === 'Panel') {
+                const grainMap = {
+                    '0': 'Horizontal',
+                    '1': 'None',
+                    '2': 'Vertical'
+                };
+
+                cardDetails = `
+                    <p><strong>Type:</strong> ${m.material_type?.name}</p>
+                    <p><strong>Brand:</strong> ${brand}</p>
+                    <p><strong>Grain:</strong> ${grainMap[m.grain] ?? 'N/A'}</p>
+                    <p><strong>Dimensions:</strong> ${m.length}${m.length_unit} × ${m.width}${m.width_unit} × ${m.thickness}${m.thickness_unit}</p>
+                    <p><strong>Color:</strong> ${m.color || 'N/A'}</p>
+                    <p><strong>Cost Price:</strong> ₹${m.cost_price || m.p_price || 0} (${m.costprice_type})<br>
+                       <small>• Panel: ₹${m.p_price || 0}</small><br>
+                       <small>• Sqft: ₹${m.p_price_sft || 0}</small>
+                    </p>
+                    <p><strong>Selling Price:</strong> ₹${m.sell_price || m.s_price || 0} (${m.sellprice_type})<br>
+                       <small>• Panel: ₹${m.s_price || 0}</small><br>
+                       <small>• Sqft: ₹${m.s_price_sft || 0}</small>
+                    </p>
+                    ${Array.isArray(m.compatible_thicknesses) && m.compatible_thicknesses.length > 0 ?
+                        `<p><strong>Compatible Thicknesses:</strong> ${m.compatible_thicknesses.join(', ')}</p>` : ''}
+                `;
+            } else if (selectedCategoryType === 'Metal') {
+                let associatedBeams = m.associated_beams?.map(beam => beam.name).join(', ') || 'No associated beams';
+                let associatedLegs = m.associated_legs?.map(leg => leg.name).join(', ') || 'No associated legs';
+
+                cardDetails = `
+                    ${m.image ? `
+                        <div class="mb-2" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#imageModal" onclick="document.getElementById('modalImage').src='${m.image}'">
+                            <img src="${m.image}" alt="${m.name}" class="img-thumbnail" style="max-width: 100px;">
+                        </div>` : ''}
+                    <p><strong>Shape:</strong> ${m.metal_shape?.name ?? 'N/A'}</p>
+                    <p><strong>Section:</strong> ${m.section ?? 'N/A'}</p>
+                    <p><strong>Dimensions:</strong> ${m.length ?? '-'} × ${m.width ?? '-'} × ${m.height ?? '-'} ${m.dunit ?? ''}</p>
+                    <p><strong>Brand:</strong> ${m.metal_brand?.name ?? 'N/A'}</p>
+                    <p><strong>Cost Price:</strong> ₹${m.p_price ?? 'N/A'} ${m.p_unit ?? ''}</p>
+                    <p><strong>Selling Price:</strong> ₹${m.s_price ?? m.sl_price ?? 'N/A'} ${m.p_unit ?? ''}</p>
+                    <p><strong>Associated Beams:</strong> ${associatedBeams}</p>
+                    <p><strong>Associated Legs:</strong> ${associatedLegs}</p>
+                `;
+            } else if (selectedCategoryType === 'Other') {
+                cardDetails = `
+                    <p><strong>Model:</strong> ${m.material_model?.name ?? 'N/A'}</p>
+                    <p><strong>Brand:</strong> ${m.material_brand?.name ?? 'N/A'}</p>
+                    <p><strong>Dimensions:</strong> ${m.length} × ${m.width} × ${m.thickness}</p>
+                    <p><strong>Price:</strong> ₹${m.s_price || m.sl_price || m.p_price || 'N/A'}</p>
+                `;
+            }
+
+            $('#material-list').append(`
+    <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2 d-flex">
+        <div class="card flex-fill">
+            <div class="card-body">
+                <h5 class="card-title">${m.name}</h5>
+                ${cardDetails}
+            </div>
+        </div>
+    </div>
+`);
+
+        });
+
+        const adminUrlMap = {
+            'Panel': `/admin/material/wooden/add/?model_id=${modelId}`,
+            'Metal': `/admin/material/metal/add/?model_id=${modelId}`,
+            'Other': `/admin/material/othmaterial/add/?model_id=${modelId}`
+        };
+        
+        addAddButton(
+            'material-list',
+            selectedCategoryType,
+            adminUrlMap[selectedCategoryType],
+            fetchMaterials
+        );
+    });
+}
+
+// Function to open the image in the modal
+function openImageModal(imageSrc) {
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    modal.style.display = 'flex';
+    modalImage.src = imageSrc;
+}
+
+// Function to close the image modal
+function closeImageModal() {
+    const modal = document.getElementById('imageModal');
+    modal.style.display = 'none';
+}
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+{ {% endblock %}}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+<head>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Create Shipping Order</h1>
+
+        <form id="shipping-order-form">
+            <div class="form-group">
+                <label for="order-id">Order ID</label>
+                <input type="text" class="form-control" id="order-id" required>
+            </div>
+            <div class="form-group">
+                <label for="customer-name">Customer Name</label>
+                <input type="text" class="form-control" id="customer-name" required>
+            </div>
+            <div class="form-group">
+                <label for="shipping-address">Shipping Address</label>
+                <textarea class="form-control" id="shipping-address" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Shipping Order</button>
+        </form>
+
+        <h2 class="mt-5">Existing Shipping Orders</h2>
+        <table class="table table-bordered mt-3" id="shipping-orders-list">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer Name</th>
+                    <th>Shipping Address</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="shipping-orders"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const apiUrl = '/api/create-shipping-order/'; // Adjust this to your API endpoint
+        const shippingOrdersUrl = '/api/shipping-orders/'; // Adjust this to your endpoint for fetching existing orders
+
+        $(document).ready(function() {
+            fetchShippingOrders();
+
+            // Fetch existing shipping orders
+            function fetchShippingOrders() {
+                $.ajax({
+                    url: shippingOrdersUrl,
+                    method: 'GET',
+                    success: function(data) {
+                        const shippingOrdersList = $('#shipping-orders');
+                        shippingOrdersList.empty();
+                        data.forEach(order => {
+                            shippingOrdersList.append(`
+                                <tr>
+                                    <td>${order.order_id}</td>
+                                    <td>${order.customer_name}</td>
+                                    <td>${order.shipping_address}</td>
+                                    <td>${order.status}</td>
+                                </tr>
+                            `);
+                        });
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error fetching shipping orders:', textStatus, errorThrown);
+                    }
+                });
+            }
+
+            // Handle form submission for creating a shipping order
+            $('#shipping-order-form').on('submit', function(e) {
+                e.preventDefault();
+
+                const orderData = {
+                    order_id: $('#order-id').val(),
+                    customer_name: $('#customer-name').val(),
+                    shipping_address: $('#shipping-address').val(),
+                };
+
+                $.ajax({
+                    url: apiUrl,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(orderData),
+                    headers: {
+                        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        alert('Shipping order created successfully!');
+                        fetchShippingOrders(); // Refresh the order list
+                        $('#shipping-order-form')[0].reset(); // Reset the form
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error creating shipping order:', textStatus, errorThrown);
+                        alert('Failed to create shipping order. Please try again.');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+{% endblock %}

@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block content %}
+<head>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #444;
+        }
+        #category-model-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        #category-model-list li {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        .edit-category-model, .delete-category-model {
+            background-color: #007bff;
+            margin-left: 5px;
+        }
+        .edit-category-model:hover {
+            background-color: #0056b3;
+        }
+        .delete-category-model {
+            background-color: #dc3545;
+        }
+        .delete-category-model:hover {
+            background-color: #c82333;
+        }
+        .form-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>Category Models</h3>
+    <div class="form-container">
+        <h4 id="model-form-title">Add Category Model</h4>
+        <select id="model-category-select" required>
+            <option value="">Select a Category Type</option>
+            <!-- Category types will be populated here -->
+        </select>
+        <input type="text" id="model-name" placeholder="Category Model Name" required>
+        <button id="add-category-model">Add Category Model</button>
+        <input type="hidden" id="update-model-id">
+        <button id="update-category-model" style="display:none;">Update</button>
+        <button id="cancel-model-form" style="margin-top: 10px;">Cancel</button>
+    </div>
+
+    <h6>Category Model List</h6>
+    <ul id="category-model-list"></ul>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        const categoryModelApiUrl = '/material/category-models/';
+        const categoryTypeApiUrl = '/material/category-types/';
+
+        // Fetch Category Types for Model Selection
+        function fetchCategoryTypes() {
+            $.ajax({
+                url: categoryTypeApiUrl,
+                method: 'GET',
+                success: function(data) {
+                    const categorySelect = $('#model-category-select');
+                    categorySelect.empty().append('<option value="">Select a Category Type</option>');
+
+                    // Populate category types
+                    if (Array.isArray(data)) {
+                        data.forEach(type => {
+                            categorySelect.append(`<option value="${type.id}">${type.name}</option>`);
+                        });
+                    } else if (data.results && Array.isArray(data.results)) {
+                        data.results.forEach(type => {
+                            categorySelect.append(`<option value="${type.id}">${type.name}</option>`);
+                        });
+                    } else {
+                        console.error("Unexpected data format:", data);
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error("Error fetching category types:", textStatus, errorThrown);
+                }
+            });
+        }
+
+        // Function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^http:.*/.test(settings.url) && !/^https:.*/.test(settings.url)) {
+                    xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
+                }
+            }
+        });
+
+        // Fetch Category Models based on selected category type
+        function fetchCategoryModels() {
+            const selectedCategoryTypeId = $('#model-category-select').val();
+            if (!selectedCategoryTypeId) return;
+
+            $.ajax({
+                url: `${categoryModelApiUrl}?category_type=${selectedCategoryTypeId}`,
+                method: 'GET',
+                success: function(data) {
+                    const categoryModelList = $('#category-model-list');
+                    categoryModelList.empty();
+
+                    if (data.results && Array.isArray(data.results)) {
+                        data.results.forEach(model => {
+                            categoryModelList.append(`<li data-id="${model.id}">
+                                ${model.name} - ${model.model_category}
+                                <div>
+                                    <button class="edit-category-model"><i class="fas fa-edit"></i></button>
+                                    <button class="delete-category-model"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </li>`);
+                        });
+                    } else {
+                        categoryModelList.append('<li>No models found.</li>');
+                    }
+                },
+                error: function() {
+                    console.error("Error fetching category models:", textStatus, errorThrown);
+                }
+            });
+        }
+
+        // Add Category Model
+        $('#add-category-model').click(function() {
+            const modelName = $('#model-name').val().trim();
+            const categoryId = $('#model-category-select').val();
+
+            if (!modelName || !categoryId) {
+                alert('Please fill all fields.');
+                return;
+            }
+
+            $.ajax({
+                url: categoryModelApiUrl,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ name: modelName, model_category: categoryId }),
+                success: function() {
+                    fetchCategoryModels();
+                    $('#model-name').val('');
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error("Error adding category model:", textStatus, errorThrown);
+                    alert("Error adding model. Please try again.");
+                }
+                
+            });
+        });
+
+        // Event delegation for editing and deleting category models
+        $('#category-model-list').on('click', '.edit-category-model', function() {
+            const modelId = $(this).closest('li').data('id');
+            const modelName = $(this).closest('li').text().trim().split(' - ')[0];
+
+            $('#model-name').val(modelName);
+            $('#update-model-id').val(modelId);
+            $('#add-category-model').hide();
+            $('#update-category-model').show();
+        });
+
+        // Update Category Model
+        $('#update-category-model').click(function() {
+            const modelId = $('#update-model-id').val();
+            const modelName = $('#model-name').val().trim();
+            const categoryId = $('#model-category-select').val();
+
+            $.ajax({
+                url: `${categoryModelApiUrl}${modelId}/`,
+                method: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ name: modelName, model_category: categoryId }),
+                success: function() {
+                    fetchCategoryModels();
+                    $('#model-name').val('');
+                    $('#update-model-id').val('');
+                    $('#add-category-model').show();
+                    $('#update-category-model').hide();
+                }
+                
+            });
+        });
+
+        // Delete Category Model
+        $('#category-model-list').on('click', '.delete-category-model', function() {
+            const modelId = $(this).closest('li').data('id');
+
+            if (confirm('Are you sure you want to delete this category model?')) {
+                $.ajax({
+                    url: `${categoryModelApiUrl}${modelId}/`,
+                    method: 'DELETE',
+                    success: function() {
+                        fetchCategoryModels();
+                    },
+                    error: function() {
+                        console.error("Error deleting category model:", textStatus, errorThrown);
+                        alert("Error deleting model. Please try again.");
+                    }
+                });
+            }
+        });
+
+        $(document).ready(function() {
+            fetchCategoryTypes(); // Fetch category types on page load
+            fetchCategoryModels(); // Fetch initial category models (optional)
+        });
+    </script>
+</body>
+{% endblock %}

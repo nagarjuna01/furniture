@@ -1,0 +1,636 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Wooden Products - Furniture Store{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <h1 class="text-3xl font-extrabold text-gray-900 mb-6">Wooden Products</h1>
+
+    <div class="bg-gray-100 p-4 shadow-md sticky top-0 z-10 mb-6">
+    <form id="filter-form" class="flex items-center space-x-4 overflow-x-auto whitespace-nowrap">
+        {# Removed flex-wrap, added space-x-4 for consistent spacing, overflow-x-auto for horizontal scrolling, and whitespace-nowrap to prevent wrapping #}
+        <div>
+            <label for="brand-filter" class="block text-sm font-medium text-gray-700 sr-only">Brand:</label>
+            <select id="brand-filter" name="brand" class="block w-full min-w-[120px] pl-3 pr-8 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                <option value="">All Brands</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="material-group-filter" class="block text-sm font-medium text-gray-700 sr-only">Material Group:</label>
+            <select id="material-group-filter" name="material_grp" class="block w-full min-w-[150px] pl-3 pr-8 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                <option value="">All Material Groups</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="material-type-filter" class="block text-sm font-medium text-gray-700 sr-only">Material Type:</label>
+            <select id="material-type-filter" name="material_type" class="block w-full min-w-[150px] pl-3 pr-8 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled>
+                <option value="">All Material Types</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="material-model-filter" class="block text-sm font-medium text-gray-700 sr-only">Material Model:</label>
+            <select id="material-model-filter" name="material_model" class="block w-full min-w-[150px] pl-3 pr-8 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled>
+                <option value="">All Material Models</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="thickness-filter" class="block text-sm font-medium text-gray-700 sr-only">Thickness:</label>
+            <input type="text" id="thickness-filter" name="thickness" placeholder="Thickness (e.g., 18)" class="block w-full min-w-[100px] shadow-sm sm:text-sm border-gray-300 rounded-md">
+        </div>
+
+        <div class="flex space-x-2"> {# Removed flex-col / sm:flex-row to force inline #}
+            <label class="block text-sm font-medium text-gray-700 sr-only">Price Range ($):</label>
+            <input type="number" id="min-sell-price-filter" name="min_sell_price" placeholder="Min Price" class="block w-full min-w-[90px] shadow-sm sm:text-sm border-gray-300 rounded-md">
+            <input type="number" id="max-sell-price-filter" name="max_sell_price" placeholder="Max Price" class="block w-full min-w-[90px] shadow-sm sm:text-sm border-gray-300 rounded-md">
+        </div>
+
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md">Apply</button>
+        <button type="button" id="clear-filters-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-md">Clear</button>
+    </form>
+</div>
+    <div class="flex justify-end mb-6"> {# Added mb-6 for spacing below button #}
+        <button onclick="openProductModal()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-200">Add New Product</button>
+    </div>
+
+    <main class="flex-1 p-6" id="main-content">
+        <h2 class="text-3xl font-bold text-gray-800 mb-6 sr-only">Wooden Product List</h2> {# Changed to sr-only if you prefer the h1 at the top #}
+        <div id="loading-message" class="text-center text-gray-500 py-4">Loading products...</div>
+        <div id="error-message" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative hidden" role="alert">
+            <strong class="font-bold">Error!</strong>
+            <span class="block sm:inline" id="error-text"></span>
+        </div>
+        <div id="wooden-products-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {# Product cards will be rendered here by JavaScript #}
+        </div>
+    </main>
+
+    <div id="product-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl mx-auto max-h-[95vh] overflow-y-auto">
+            <h2 id="modal-title" class="text-2xl font-bold mb-5 text-gray-900">Add New Product</h2>
+
+            <form id="product-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+                <input type="hidden" id="product-id"> {# Hidden input for product ID for edit operations #}
+
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+                    <input type="text" id="name" name="name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label for="modal-brand" class="block text-sm font-medium text-gray-700">Brand</label>
+                    <select id="modal-brand" name="brand" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        {# Options will be populated by JavaScript #}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="modal-material_grp" class="block text-sm font-medium text-gray-700">Material Group</label>
+                    <select id="modal-material_grp" name="material_grp" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        {# Options will be populated by JavaScript #}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="modal-material_type" class="block text-sm font-medium text-gray-700">Material Type</label>
+                    <select id="modal-material_type" name="material_type" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        {# Options will be populated by JavaScript #}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="modal-material_model" class="block text-sm font-medium text-gray-700">Material Model (Optional)</label>
+                    <select id="modal-material_model" name="material_model" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">None</option>
+                        {# Options will be populated by JavaScript #}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="color" class="block text-sm font-medium text-gray-700">Color</label>
+                    <input type="text" id="color" name="color" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+
+                {# Dimensions - Each dimension group (length, width, thickness) still uses its own 2-column grid, and now spans 3 columns of the *main* form grid #}
+                <div class="grid grid-cols-2 gap-4 col-span-full">
+                    <div>
+                        <label for="length" class="block text-sm font-medium text-gray-700">Length</label>
+                        <input type="number" id="length" name="length" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="length_unit" class="block text-sm font-medium text-gray-700">Unit</label>
+                        <select id="length_unit" name="length_unit" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="mm">mm</option>
+                            <option value="cm">cm</option>
+                            <option value="m">m</option>
+                            <option value="inch">inch</option>
+                            <option value="ft">ft</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 col-span-full">
+                    <div>
+                        <label for="width" class="block text-sm font-medium text-gray-700">Width</label>
+                        <input type="number" id="width" name="width" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="width_unit" class="block text-sm font-medium text-gray-700">Unit</label>
+                        <select id="width_unit" name="width_unit" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="mm">mm</option>
+                            <option value="cm">cm</option>
+                            <option value="m">m</option>
+                            <option value="inch">inch</option>
+                            <option value="ft">ft</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 col-span-full">
+                    <div>
+                        <label for="thickness" class="block text-sm font-medium text-gray-700">Thickness</label>
+                        <input type="number" id="thickness" name="thickness" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="thickness_unit" class="block text-sm font-medium text-gray-700">Unit</label>
+                        <select id="thickness_unit" name="thickness_unit" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="mm">mm</option>
+                            <option value="cm">cm</option>
+                            <option value="m">m</option>
+                            <option value="inch">inch</option>
+                            <option value="ft">ft</option>
+                        </select>
+                    </div>
+                </div>
+
+                {# Price fields now in two columns as well #}
+                <div>
+                    <label for="cost_price" class="block text-sm font-medium text-gray-700">Cost Price</label>
+                    <input type="number" id="cost_price" name="cost_price" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="costprice_type" class="block text-sm font-medium text-gray-700">Cost Price Type</label>
+                    <select id="costprice_type" name="costprice_type" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="panel">Panel Price</option>
+                        <option value="sft">Price Per Sqft</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="sell_price" class="block text-sm font-medium text-gray-700">Sell Price</label>
+                    <input type="number" id="sell_price" name="sell_price" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="sellprice_type" class="block text-sm font-medium text-gray-700">Sell Price Type</label>
+                    <select id="sellprice_type" name="sellprice_type" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="panel">Panel Price</option>
+                        <option value="sft">Price Per Sqft</option>
+                    </select>
+                </div>
+
+                {# Grain selection #}
+                <div>
+                    <label for="grain" class="block text-sm font-medium text-gray-700">Grain Direction</label>
+                    <select id="grain" name="grain" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="2">Vertical</option>
+                        <option value="0">Horizontal</option>
+                        <option value="1">None</option>
+                    </select>
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-4 col-span-full">
+                    <button type="button" onclick="closeProductModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition duration-200">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition duration-200">Save Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productsContainer = document.getElementById('wooden-products-container');
+    const loadingMessage = document.getElementById('loading-message');
+    const errorMessage = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    const filterForm = document.getElementById('filter-form');
+    const clearFiltersBtn = document.getElementById('clear-filters-btn');
+    const brandFilter = document.getElementById('brand-filter'); // For sidebar filter
+    const materialGroupFilter = document.getElementById('material-group-filter'); // For sidebar filter
+    const materialTypeFilter = document.getElementById('material-type-filter'); // New Material Type sidebar filter
+    const materialModelFilter = document.getElementById('material-model-filter'); // New Material Model sidebar filter
+    const thicknessFilter = document.getElementById('thickness-filter'); // New Thickness sidebar filter (could be select or input)
+    const minSellPriceFilter = document.getElementById('min-sell-price-filter'); // New Min Price sidebar filter
+    const maxSellPriceFilter = document.getElementById('max-sell-price-filter'); // New Max Price sidebar filter
+    // Modal elements
+    const productModal = document.getElementById('product-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const productForm = document.getElementById('product-form');
+    const productIdInput = document.getElementById('product-id');
+
+    // Modal form fields
+    const nameInput = document.getElementById('name');
+    const modalBrandSelect = document.getElementById('modal-brand'); // For modal brand selection
+    const modalMaterialGrpSelect = document.getElementById('modal-material_grp');
+    const modalMaterialTypeSelect = document.getElementById('modal-material_type');
+    const modalMaterialModelSelect = document.getElementById('modal-material_model');
+    const colorInput = document.getElementById('color');
+    const lengthInput = document.getElementById('length');
+    const lengthUnitSelect = document.getElementById('length_unit');
+    const widthInput = document.getElementById('width');
+    const widthUnitSelect = document.getElementById('width_unit');
+    const thicknessInput = document.getElementById('thickness');
+    const thicknessUnitSelect = document.getElementById('thickness_unit');
+    const costPriceInput = document.getElementById('cost_price');
+    const costPriceTypeSelect = document.getElementById('costprice_type');
+    const sellPriceInput = document.getElementById('sell_price');
+    const sellPriceTypeSelect = document.getElementById('sellprice_type');
+    const grainSelect = document.getElementById('grain');
+   
+    const API_URL = 'http://127.0.0.1:8000/material/woodens/';
+    const BRANDS_API_URL = 'http://127.0.0.1:8000/material/brands/';
+    const CATEGORIES_API_URL = 'http://127.0.0.1:8000/material/categories/'; // This is Material Groups
+    const CATEGORY_TYPES_API_URL = 'http://127.0.0.1:8000/material/category-types/'; // This is Material Types
+    const CATEGORY_MODELS_API_URL = 'http://127.0.0.1:8000/material/category-models/'; // This is Material Models
+
+    // --- Helper Functions ---
+
+    // Function to get CSRF token
+    function getCsrfToken() {
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        return csrfMeta ? csrfMeta.getAttribute('content') : '';
+    }
+
+    // Helper function to fetch data
+    async function fetchData(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            return data.results || data; // Handle both paginated and direct array responses
+        } catch (error) {
+            console.error("Error fetching data from:", url, error);
+            // Optionally, show a user-friendly error message
+            return []; // Return empty array on error
+        }
+    }
+
+    // Helper function to populate a select element
+    function populateSelect(selectElement, options, defaultText, initialValue = '', includeNoneOption = false) {
+        selectElement.innerHTML = ''; // Clear existing options
+
+        if (includeNoneOption) {
+            const noneOption = document.createElement('option');
+            noneOption.value = '';
+            noneOption.textContent = defaultText; // e.g., "None"
+            selectElement.appendChild(noneOption);
+        } else {
+            // Add a default disabled option for required fields
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = defaultText; // e.g., "Select..."
+            defaultOption.disabled = true;
+            selectElement.appendChild(defaultOption);
+        }
+
+        options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.id;
+            opt.textContent = option.name;
+            selectElement.appendChild(opt);
+        });
+
+        // Set initial selected value if provided and exists
+        if (initialValue && selectElement.querySelector(`option[value="${initialValue}"]`)) {
+            selectElement.value = initialValue;
+        } else if (!includeNoneOption && options.length > 0) {
+            // If it's a required field and no initial value, select the first valid option
+            selectElement.value = options[0].id;
+        } else {
+            // Otherwise, ensure the default option is selected or 'None'
+            selectElement.value = '';
+        }
+
+        // Disable if no options other than the default/none are available
+        selectElement.disabled = (options.length === 0 && !includeNoneOption);
+    }
+
+    // --- Modal Dependent Dropdown Logic ---
+
+    // Function to load Material Types based on selected Material Group
+    async function loadModalMaterialTypes(selectedGroupId, initialTypeId = null) {
+        const url = selectedGroupId ? `${CATEGORY_TYPES_API_URL}?category=${selectedGroupId}` : null;
+        const types = url ? await fetchData(url) : [];
+        
+        populateSelect(modalMaterialTypeSelect, types, 'Select Material Type', initialTypeId);
+        
+        // After populating types, trigger loading models for the first valid type or the initialTypeId
+        const currentSelectedTypeId = modalMaterialTypeSelect.value;
+        await loadModalMaterialModels(currentSelectedTypeId, initialTypeId ? initialTypeId : null);
+    }
+
+    // Function to load Material Models based on selected Material Type
+    async function loadModalMaterialModels(selectedTypeId, initialModelId = null) {
+        const url = selectedTypeId ? `${CATEGORY_MODELS_API_URL}?model_category=${selectedTypeId}` : null;
+        const models = url ? await fetchData(url) : [];
+        
+        populateSelect(modalMaterialModelSelect, models, 'None', initialModelId, true); // Material Model is optional
+    }
+
+    // Event listeners for modal dropdowns
+    modalMaterialGrpSelect.addEventListener('change', async () => {
+        const selectedGroupId = modalMaterialGrpSelect.value;
+        await loadModalMaterialTypes(selectedGroupId);
+    });
+
+    modalMaterialTypeSelect.addEventListener('change', async () => {
+        const selectedTypeId = modalMaterialTypeSelect.value;
+        await loadModalMaterialModels(selectedTypeId);
+    });
+
+
+    // --- Main Functions ---
+
+    // Function to fetch and render products
+    async function fetchAndRenderProducts(filters = {}) {
+        loadingMessage.classList.remove('hidden');
+        productsContainer.innerHTML = ''; // Clear previous products
+        errorMessage.classList.add('hidden'); // Hide any previous errors
+
+        let queryString = new URLSearchParams(filters).toString();
+        let fetchUrl = `${API_URL}?${queryString}`;
+
+        try {
+            const data = await fetchData(fetchUrl); // Use the helper fetchData
+            loadingMessage.classList.add('hidden');
+
+            let productsToDisplay = data || []; // fetchData already handles .results or direct array
+
+            if (productsToDisplay.length === 0) {
+                productsContainer.innerHTML = '<p class="text-center text-gray-600 col-span-full">No wooden products found matching your criteria.</p>';
+                return;
+            }
+
+            productsToDisplay.forEach(product => {
+                const productCard = `
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden transition-shadow duration-300 hover:shadow-xl">
+                        <div class="p-6">
+                            <h2 class="text-xl font-semibold text-gray-900 mb-2">${product.name || 'N/A'}</h2>
+                            <p class="text-gray-700 mb-1">
+                                <strong class="font-medium">Brand:</strong> ${product.brand ? product.brand.name : 'N/A'}
+                            </p>
+                            <p class="text-gray-700 mb-1">
+                                <strong class="font-medium">Material Group:</strong> ${product.material_grp ? product.material_grp.name : 'N/A'}
+                            </p>
+                            <p class="text-gray-700 mb-1">
+                                <strong class="font-medium">Material Type:</strong> ${product.material_type ? product.material_type.name : 'N/A'}
+                            </p>
+                            ${product.material_model ? `<p class="text-gray-700 mb-1"><strong class="font-medium">Model:</strong> ${product.material_model.name}</p>` : ''}
+                            <p class="text-gray-700 mb-1">
+                                <strong class="font-medium">Dimensions:</strong> ${product.length || 'N/A'}${product.length_unit} x ${product.width || 'N/A'}${product.width_unit} x ${product.thickness || 'N/A'}${product.thickness_unit}
+                            </p>
+                            <p class="text-gray-700 mb-1">
+                                <strong class="font-medium">Color:</strong> ${product.color || 'N/A'}
+                            </p>
+                            <div class="mt-4 pt-4 border-t border-gray-200">
+                                <p class="text-2xl font-bold text-indigo-600">
+                                    Price: $${product.sell_price || 'N/A'}
+                                    <span class="text-sm text-gray-500">(${product.sellprice_type === 'sft' ? 'per Sqft' : 'Panel Price'})</span>
+                                </p>
+                                ${product.s_price_sft ? `<p class="text-sm text-gray-600">($${product.s_price_sft} per Sqft)</p>` : ''}
+                            </div>
+                            <div class="mt-4 flex space-x-2">
+                                <button onclick="editProduct(${product.id})" class="bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded">Edit</button>
+                                <button onclick="deleteProduct(${product.id})" class="bg-red-500 hover:bg-red-600 text-white text-sm py-1 px-3 rounded">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                productsContainer.innerHTML += productCard;
+            });
+        } catch (error) {
+            console.error('Error fetching wooden products:', error);
+            loadingMessage.classList.add('hidden');
+            errorMessage.classList.remove('hidden');
+            errorText.textContent = `Could not load wooden products: ${error.message}. Please try again later.`;
+        }
+    }
+
+    // Function to populate filter dropdowns (sidebar) - Unchanged, assuming these are static filters
+    async function populateFilters() {
+        try {
+            // Fetch Brands for sidebar filter
+            const brands = await fetchData(BRANDS_API_URL);
+            populateSelect(brandFilter, brands, 'All Brands', '', true); // Include 'All Brands' option
+
+            // Fetch Material Groups (Categories) for sidebar filter
+            const categories = await fetchData(CATEGORIES_API_URL);
+            populateSelect(materialGroupFilter, categories, 'All Material Groups', '', true); // Include 'All Material Groups' option
+
+        } catch (error) {
+            console.error('Error populating sidebar filters:', error);
+        }
+    }
+
+
+    // Function to populate initial dropdowns within the ADD/EDIT MODAL (Brands and Material Groups only)
+    async function populateModalInitialDropdowns() {
+        try {
+            // Fetch Brands for the modal
+            const brands = await fetchData(BRANDS_API_URL);
+            populateSelect(modalBrandSelect, brands, 'Select Brand');
+
+            // Fetch Categories (Material Groups) for the modal
+            const categories = await fetchData(CATEGORIES_API_URL);
+            populateSelect(modalMaterialGrpSelect, categories, 'Select Material Group');
+
+        } catch (error) {
+            console.error('Error populating initial modal dropdowns:', error);
+            alert('Could not load dropdown data for form.');
+        }
+    }
+
+    // Function to open the product modal (for Add or Edit)
+    window.openProductModal = async function(productId = null) {
+        productForm.reset(); // Clear form on open
+        productIdInput.value = '';
+        modalTitle.textContent = 'Add New Product';
+
+        // Always populate initial dropdowns (Brands, Material Groups) first
+        await populateModalInitialDropdowns();
+
+        // Reset dependent dropdowns to initial state
+        populateSelect(modalMaterialTypeSelect, [], 'Select Material Type'); // Clear and disable
+        populateSelect(modalMaterialModelSelect, [], 'None', '', true); // Clear and set to 'None'
+
+        if (productId) {
+            modalTitle.textContent = 'Edit Product';
+            productIdInput.value = productId;
+            try {
+                const response = await fetch(`${API_URL}${productId}/`);
+                if (!response.ok) throw new Error('Product not found.');
+                const product = await response.json();
+
+                // Populate basic form fields
+                nameInput.value = product.name;
+                colorInput.value = product.color;
+                lengthInput.value = product.length;
+                lengthUnitSelect.value = product.length_unit;
+                widthInput.value = product.width;
+                widthUnitSelect.value = product.width_unit;
+                thicknessInput.value = product.thickness;
+                thicknessUnitSelect.value = product.thickness_unit;
+                costPriceInput.value = product.cost_price;
+                costPriceTypeSelect.value = product.costprice_type;
+                sellPriceInput.value = product.sell_price;
+                sellPriceTypeSelect.value = product.sellprice_type;
+                grainSelect.value = product.grain;
+                
+                // Set selected values for foreign key dropdowns
+                if (product.brand && product.brand.id) {
+                    modalBrandSelect.value = product.brand.id;
+                }
+
+                // Handle dependent dropdowns for edit mode
+                if (product.material_grp && product.material_grp.id) {
+                    modalMaterialGrpSelect.value = product.material_grp.id;
+                    // Load types based on selected group, then select the product's type
+                    await loadModalMaterialTypes(product.material_grp.id, product.material_type ? product.material_type.id : null);
+                    // loadModalMaterialModels will be called automatically by loadModalMaterialTypes if a type is selected
+                } else {
+                    // If no material group, clear and disable subsequent dropdowns
+                    populateSelect(modalMaterialTypeSelect, [], 'Select Material Type');
+                    populateSelect(modalMaterialModelSelect, [], 'None', '', true);
+                }
+
+                // If product.material_type is not null, ensure it's selected after types are loaded
+                if (product.material_type && product.material_type.id) {
+                     modalMaterialTypeSelect.value = product.material_type.id;
+                     // Ensure models are loaded for the specific type after it's set
+                     await loadModalMaterialModels(product.material_type.id, product.material_model ? product.material_model.id : null);
+                }
+
+
+            } catch (error) {
+                console.error('Error fetching product for edit:', error);
+                alert('Could not load product data for editing.');
+                return;
+            }
+        }
+        productModal.classList.remove('hidden'); // Show the modal
+    }
+
+    // Function to close the modal
+    window.closeProductModal = function() {
+        productModal.classList.add('hidden');
+    }
+
+    // Function to handle form submission for Add/Edit
+    productForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const id = productIdInput.value;
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `${API_URL}${id}/` : API_URL;
+
+        const formData = new FormData(productForm);
+        const productData = {};
+        for (let [key, value] of formData.entries()) {
+            if (['length', 'width', 'thickness', 'cost_price', 'sell_price'].includes(key)) {
+                productData[key] = parseFloat(value);
+            } else if (value === '') {
+                productData[key] = null; // Send empty strings as null for optional fields
+            } else {
+                productData[key] = value;
+            }
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify(productData),
+            });
+
+            if (!response.ok) {
+                const errorDetails = await response.json();
+                console.error('API Error:', errorDetails);
+                let errorMessage = `Failed to ${id ? 'update' : 'add'} product: ${response.status} ${response.statusText}.`;
+                if (errorDetails) {
+                    // Flatten error details for display
+                    for (const field in errorDetails) {
+                        errorMessage += `\n${field}: ${errorDetails[field].join(', ')}`;
+                    }
+                }
+                throw new Error(errorMessage);
+            }
+
+            alert(`Product ${id ? 'updated' : 'added'} successfully!`);
+            closeProductModal(); // Close the modal
+            fetchAndRenderProducts({}); // Re-fetch products to update the list
+        } catch (error) {
+            console.error(`Error ${id ? 'updating' : 'adding'} product:`, error);
+            alert(`Error ${id ? 'updating' : 'adding'} product: ${error.message}`);
+        }
+    });
+
+    // Event listener for filter form submission (sidebar)
+    filterForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(filterForm);
+        const filters = {};
+        for (let [key, value] of formData.entries()) {
+            if (value) {
+                filters[key] = value;
+            }
+        }
+        fetchAndRenderProducts(filters);
+    });
+
+    // Event listener for clearing filters (sidebar)
+    clearFiltersBtn.addEventListener('click', function() {
+        filterForm.reset();
+        fetchAndRenderProducts({});
+    });
+
+    // Global functions for CRUD operations on product cards
+    window.editProduct = function(productId) {
+        openProductModal(productId); // Reusing the modal for editing
+    }
+
+    window.deleteProduct = async function(productId) {
+        if (confirm('Are you sure you want to delete this product?')) {
+            try {
+                const response = await fetch(`${API_URL}${productId}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to delete product: ${response.status} ${response.statusText}`);
+                }
+
+                alert('Product deleted successfully!');
+                fetchAndRenderProducts({}); // Re-fetch products to update the list
+            } catch (error) {
+                console.error('Error deleting product:', error);
+                alert(`Error deleting product: ${error.message}`);
+            }
+        }
+    }
+
+    // Initial load of products and filters on page load
+    populateFilters(); // Populates sidebar filters (static)
+    fetchAndRenderProducts(); // Loads products
+
+});
+</script>
+{% endblock content %}

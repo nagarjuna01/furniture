@@ -1,0 +1,236 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configure Modular Product: {{ modular_product_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}"> {# Your custom CSS #}
+    <style>
+        .loading-spinner {
+            display: none; /* Hidden by default */
+            margin-left: 10px;
+        }
+        .form-row {
+            display: flex;
+            align-items: center;
+            gap: 15px; /* Spacing between elements in a row */
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .form-row .form-group {
+            flex: 1; /* Distribute space evenly */
+        }
+        .form-row .btn-danger {
+            flex-shrink: 0; /* Don't shrink the remove button */
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">Configure Modular Product: <span id="productTitle">{{ modular_product_name }}</span></h1>
+
+        <ul class="nav nav-tabs mb-4" id="modularProductTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab" aria-controls="details" aria-selected="true">Product Details</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="modules-tab" data-bs-toggle="tab" data-bs-target="#modules" type="button" role="tab" aria-controls="modules" aria-selected="false">Modules</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="constraints-tab" data-bs-toggle="tab" data-bs-target="#constraints" type="button" role="tab" aria-controls="constraints" aria-selected="false">Constraints</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="material-overrides-tab" data-bs-toggle="tab" data-bs-target="#material-overrides" type="button" role="tab" aria-controls="material-overrides" aria-selected="false">Material Overrides</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="calculation-tab" data-bs-toggle="tab" data-bs-target="#calculation" type="button" role="tab" aria-controls="calculation" aria-selected="false">Calculations</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="modularProductTabsContent">
+            <div class="tab-pane fade show active" id="details" role="tabpanel" aria-labelledby="details-tab">
+                <form id="productDetailsForm">
+                    <div class="mb-3">
+                        <label for="productName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="productName" placeholder="Modular Product Name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="productDescription" rows="3"></textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="productPrice" class="form-label">Base Price</label>
+                            <input type="number" class="form-control" id="productPrice" step="0.01" min="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="productCategory" class="form-label">Category (ID)</label>
+                            <input type="number" class="form-control" id="productCategory" placeholder="e.g., 1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="productType" class="form-label">Type (ID)</label>
+                            <input type="number" class="form-control" id="productType" placeholder="e.g., 1">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="productModel" class="form-label">Model (ID)</label>
+                            <input type="number" class="form-control" id="productModel" placeholder="e.g., 1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="productBrand" class="form-label">Brand (ID)</label>
+                            <input type="number" class="form-control" id="productBrand" placeholder="e.g., 1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="productImage" class="form-label">Image URL</label>
+                            <input type="url" class="form-control" id="productImage" placeholder="https://example.com/image.jpg">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="totalLength" class="form-label">Total Length (mm)</label>
+                            <input type="number" class="form-control" id="totalLength" min="0" step="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="totalWidth" class="form-label">Total Width (mm)</label>
+                            <input type="number" class="form-control" id="totalWidth" min="0" step="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="totalDepth" class="form-label">Total Depth (mm)</label>
+                            <input type="number" class="form-control" id="totalDepth" min="0" step="1">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label for="lengthMin" class="form-label">Length Min (mm)</label>
+                            <input type="number" class="form-control" id="lengthMin" min="0" step="1">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="lengthMax" class="form-label">Length Max (mm)</label>
+                            <input type="number" class="form-control" id="lengthMax" min="0" step="1">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="widthMin" class="form-label">Width Min (mm)</label>
+                            <input type="number" class="form-control" id="widthMin" min="0" step="1">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="widthMax" class="form-label">Width Max (mm)</label>
+                            <input type="number" class="form-control" id="widthMax" min="0" step="1">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label for="heightMin" class="form-label">Height Min (mm)</label>
+                            <input type="number" class="form-control" id="heightMin" min="0" step="1">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="heightMax" class="form-label">Height Max (mm)</label>
+                            <input type="number" class="form-control" id="heightMax" min="0" step="1">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="threedModel" class="form-label">3D Model Assembly File URL</label>
+                        <input type="url" class="form-control" id="threedModel" placeholder="https://example.com/model.gltf">
+                    </div>
+                    <div class="mb-3">
+                        <label for="threedConfig" class="form-label">3D Config JSON</label>
+                        <textarea class="form-control" id="threedConfig" rows="5" placeholder="{&quot;config&quot;: &quot;data&quot;}"></textarea>
+                    </div>
+                </form>
+            </div>
+
+            <div class="tab-pane fade" id="modules" role="tabpanel" aria-labelledby="modules-tab">
+                <h4>Associated Modules</h4>
+                <div id="modulesList" class="mb-3">
+                    </div>
+                <button id="addModuleBtn" class="btn btn-primary mb-3">Add Module</button>
+            </div>
+
+            <div class="tab-pane fade" id="constraints" role="tabpanel" aria-labelledby="constraints-tab">
+                <h4>Product Constraints</h4>
+                <div id="constraintsList" class="mb-3">
+                    </div>
+                <button id="addConstraintBtn" class="btn btn-primary mb-3">Add Constraint</button>
+            </div>
+
+            <div class="tab-pane fade" id="material-overrides" role="tabpanel" aria-labelledby="material-overrides-tab">
+                <h4>Material Overrides</h4>
+                <div id="materialOverridesList" class="mb-3">
+                    </div>
+                <button id="addMaterialOverrideBtn" class="btn btn-primary mb-3">Add Material Override</button>
+            </div>
+
+            <div class="tab-pane fade" id="calculation" role="tabpanel" aria-labelledby="calculation-tab">
+                <h4 class="mb-3">Live Cost Calculation</h4>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label for="calcLength" class="form-label">Length for Calc (mm)</label>
+                        <input type="number" class="form-control" id="calcLength" min="0" step="1" value="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="calcWidth" class="form-label">Width for Calc (mm)</label>
+                        <input type="number" class="form-control" id="calcWidth" min="0" step="1" value="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="calcDepth" class="form-label">Depth for Calc (mm)</label>
+                        <input type="number" class="form-control" id="calcDepth" min="0" step="1" value="0">
+                    </div>
+                </div>
+                <button id="calculateLiveCostBtn" class="btn btn-success mb-3">
+                    Calculate Live Cost
+                    <span class="spinner-border spinner-border-sm loading-spinner" role="status" aria-hidden="true"></span>
+                </button>
+                <div id="calculationStatus" class="alert alert-info d-none" role="alert"></div>
+
+                <div class="table-responsive mt-3">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="calculationResultsTableBody">
+                            <tr><td>Calculated Purchase Cost</td><td id="calculatedPurchaseCost">N/A</td></tr>
+                            <tr><td>Calculated Selling Price</td><td id="calculatedSellingPrice">N/A</td></tr>
+                            <tr><td>Break-Even Amount</td><td id="calculatedBreakEvenAmount">N/A</td></tr>
+                            <tr><td>Profit Margin (%)</td><td id="calculatedProfitMargin">N/A</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 text-end">
+            <div id="saveStatus" class="alert d-none" role="alert"></div>
+            <button id="saveProductBtn" class="btn btn-success btn-lg">
+                Save Product
+                <span class="spinner-border spinner-border-sm loading-spinner" role="status" aria-hidden="true"></span>
+            </button>
+        </div>
+        <a href="{% url 'custom-admin-modular-product-list' %}" class="btn btn-secondary mt-3">Back to List</a>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Pass Django context data to JavaScript
+        const MODULAR_PRODUCT_ID = {{ modular_product_id }};
+        const ALL_MODULES = {{ all_modules_json|safe }}; // Modules for dropdown
+        const ALL_PARTS = {{ all_parts_json|safe }};     // Parts for modulePart dropdowns (if applicable in Module form)
+
+        // API URLs - derived from your products/urls.py router setup
+        const MODULAR_PRODUCT_DETAIL_API_URL = `products/api/modular-products/${MODULAR_PRODUCT_ID}/`;
+        const MODULAR_PRODUCT_CREATE_API_URL = `products/api/modular-products/`; // For creating a new product
+        const CALCULATE_LIVE_COST_API_URL = `products/api/modular-products/${MODULAR_PRODUCT_ID}/calculate-live-cost/`;
+        // const CSRF_TOKEN = "{{ CSRF_TOKEN }}"; // Uncomment if authentication is re-enabled
+    </script>
+    <script src="{% static 'js/modular_product_configurator.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Category CRUD</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head>
+<body>
+
+<div class="container mt-5">
+    <h2 class="mb-4">Manage Categories</h2>
+
+    <!-- Create Form -->
+    <form id="create-form" class="mb-4">
+        <div class="input-group">
+            <input type="text" id="new-category" class="form-control" placeholder="New category name" required>
+            <button class="btn btn-primary" type="submit">Add</button>
+        </div>
+    </form>
+
+    <!-- Alert -->
+    <div id="alert-box" style="display:none;"></div>
+
+    <!-- Category List -->
+    <ul id="category-list" class="list-group">
+        <!-- Items will be inserted here -->
+    </ul>
+</div>
+
+<!-- Bootstrap Bundle JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    const API_URL = 'http://127.0.0.1:8000/material/categories/';
+
+    function showAlert(message, type='success') {
+        $('#alert-box').html(`<div class="alert alert-${type}">${message}</div>`).fadeIn().delay(2000).fadeOut();
+    }
+
+    function fetchCategories() {
+    $.get(API_URL, function(data) {
+        $('#category-list').empty();
+        data.forEach(category => {
+            console.log(category.id);  // DEBUG: Should log each category id
+            $('#category-list').append(`
+                <li class="list-group-item d-flex justify-content-between align-items-center" data-id="${category.id}">
+                    <span class="category-name">${category.name}</span>
+                    <div>
+                        <a href="/material/category-type/${category.id}/" class="btn btn-sm btn-info me-2">View Types</a>
+                        <button class="btn btn-sm btn-warning edit-btn me-2">Edit</button>
+                        <button class="btn btn-sm btn-danger delete-btn">Delete</button>
+                    </div>
+                </li>
+            `);
+        });
+    });
+}
+
+    // CREATE
+    $('#create-form').on('submit', function(e) {
+        e.preventDefault();
+        const name = $('#new-category').val().trim();
+        if (name === '') return;
+
+        $.post(API_URL, JSON.stringify({ name }), function() {
+            $('#new-category').val('');
+            fetchCategories();
+            showAlert("Category added!");
+        }, 'json').fail(() => showAlert("Error adding category", "danger")).setRequestHeader = function(name, value) {
+            this.headers = this.headers || {};
+            this.headers[name] = value;
+        };
+    });
+
+    // DELETE
+    $('#category-list').on('click', '.delete-btn', function () {
+        const item = $(this).closest('li');
+        const id = item.data('id');
+
+        $.ajax({
+            url: API_URL + id + '/',
+            type: 'DELETE',
+            success: function () {
+                item.remove();
+                showAlert("Category deleted!");
+            },
+            error: () => showAlert("Delete failed", "danger")
+        });
+    });
+
+    // EDIT
+    $('#category-list').on('click', '.edit-btn', function () {
+        const item = $(this).closest('li');
+        const currentName = item.find('.category-name').text();
+        const id = item.data('id');
+
+        const inputField = $(`<input class="form-control form-control-sm me-2" value="${currentName}">`);
+        const saveBtn = $('<button class="btn btn-sm btn-success me-2">Save</button>');
+        const cancelBtn = $('<button class="btn btn-sm btn-secondary">Cancel</button>');
+
+        item.find('.category-name').replaceWith(inputField);
+        $(this).replaceWith(saveBtn);
+        item.find('.delete-btn').replaceWith(cancelBtn);
+
+        // SAVE
+        saveBtn.on('click', function () {
+            const newName = inputField.val().trim();
+            if (newName === '') return;
+
+            $.ajax({
+                url: API_URL + id + '/',
+                type: 'PUT',
+                data: JSON.stringify({ name: newName }),
+                contentType: 'application/json',
+                success: function () {
+                    fetchCategories();
+                    showAlert("Category updated!");
+                },
+                error: () => showAlert("Update failed", "danger")
+            });
+        });
+
+        // CANCEL
+        cancelBtn.on('click', function () {
+            fetchCategories();
+        });
+    });
+
+    // Initial load
+    fetchCategories();
+</script>
+</body>
+</html>

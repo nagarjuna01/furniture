@@ -1,0 +1,54 @@
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+}
+
+.navbar {
+    margin-bottom: 20px;
+}
+
+.card {
+    margin-bottom: 20px;
+}
+
+footer {
+    font-size: 14px;
+}
+#dropdown-menu-categories {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.category-item {
+    margin-right: 20px;
+    margin-bottom: 10px;
+    position: relative; /* This ensures the types are positioned correctly relative to the category */
+}
+
+.category-link {
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.category-types-container {
+    position: absolute;
+    top: 0;
+    left: 100%;
+    width: 200px; /* Adjust as needed */
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    padding: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: none; /* Hidden by default */
+}
+
+.category-type-link {
+    margin-right: 15px;
+    font-size: 14px;
+    text-decoration: none;
+    color: #007bff;
+}
+
+.category-type-link:hover {
+    text-decoration: underline;
+}

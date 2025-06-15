@@ -1,0 +1,445 @@
+{% extends "base_b.html" %}
+
+{% block content %}
+<div class="container mt-5"> {# Removed gaming-container #}
+    <h1 class="mb-4">Hardware Inventory</h1> {# Removed gaming-title #}
+
+    <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#hardwareModal" id="addHardwareBtn"> {# Removed gaming-btn primary-glow #}
+        <i class="fas fa-plus-circle"></i> Add New Hardware
+    </button>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover"> {# Removed gaming-table #}
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Group</th>
+                    <th>Name</th>
+                    <th>Brand</th>
+                    <th>Unit</th>
+                    <th>Purchase Price</th>
+                    <th>Selling Price</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="hardwareTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center" id="paginationControls"> {# Removed gaming-pagination #}
+        </ul>
+    </nav>
+
+    <div class="modal fade" id="hardwareModal" tabindex="-1" aria-labelledby="hardwareModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content"> {# Removed gaming-modal-content #}
+                <div class="modal-header"> {# Removed gaming-modal-header #}
+                    <h5 class="modal-title" id="hardwareModalLabel">Add Hardware</h5> {# Removed gaming-subtitle #}
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button> {# Removed gaming-btn-close #}
+                </div>
+                <div class="modal-body">
+                    <form id="hardwareForm">
+                        {% csrf_token %}
+                        <input type="hidden" id="hardwareId">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="h_group" class="form-label">Hardware Group</label> {# Removed gaming-label #}
+                                <div class="input-group">
+                                    <select class="form-select" id="h_group" required></select> {# Removed gaming-select #}
+                                    <button type="button" class="btn btn-outline-secondary" id="showNewGroupInput"><i class="fas fa-plus"></i></button> {# Removed gaming-btn plus-btn #}
+                                </div>
+                                <div id="newGroupWrapper" class="mt-2 d-none">
+                                    <input type="text" id="newGroupName" class="form-control mb-2" placeholder="New group name"> {# Removed gaming-input #}
+                                    <button type="button" class="btn btn-sm btn-primary" id="addNewGroupBtn"><i class="fas fa-save"></i> Add Group</button> {# Removed gaming-btn #}
+                                    <button type="button" class="btn btn-sm btn-secondary" id="cancelNewGroupBtn"><i class="fas fa-times"></i> Cancel</button> {# Removed gaming-btn #}
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="h_name" class="form-label">Hardware Name</label> {# Removed gaming-label #}
+                                <input type="text" class="form-control" id="h_name" required> {# Removed gaming-input #}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="brand" class="form-label">Brand</label> {# Removed gaming-label #}
+                                <div class="input-group">
+                                    <select class="form-select" id="brand" required></select> {# Removed gaming-select #}
+                                    <button type="button" class="btn btn-outline-secondary" id="showNewBrandInput"><i class="fas fa-plus"></i></button> {# Removed gaming-btn plus-btn #}
+                                </div>
+                                <div id="newBrandWrapper" class="mt-2 d-none">
+                                    <input type="text" id="newBrandName" class="form-control mb-2" placeholder="New brand name"> {# Removed gaming-input #}
+                                    <button type="button" class="btn btn-sm btn-primary" id="addNewBrandBtn"><i class="fas fa-save"></i> Add Brand</button> {# Removed gaming-btn #}
+                                    <button type="button" class="btn btn-sm btn-secondary" id="cancelNewBrandBtn"><i class="fas fa-times"></i> Cancel</button> {# Removed gaming-btn #}
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="unit" class="form-label">Unit</label> {# Removed gaming-label #}
+                                <select class="form-select" id="unit" required> {# Removed gaming-select #}
+                                    <option value="each">Each</option>
+                                    <option value="set">Set</option>
+                                    <option value="nos">Nos</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="p_price" class="form-label">Purchase Price</label> {# Removed gaming-label #}
+                                <input type="number" step="0.01" class="form-control" id="p_price" required> {# Removed gaming-input #}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="s_price" class="form-label">Selling Price</label> {# Removed gaming-label #}
+                                <input type="number" step="0.01" class="form-control" id="s_price" required> {# Removed gaming-input #}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="sl_price" class="form-label">Shop Link (Optional)</label> {# Removed gaming-label #}
+                                <input type="url" class="form-control" id="sl_price"> {# Removed gaming-input #}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save Hardware</button> {# Removed gaming-btn secondary-glow #}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content"> {# Removed gaming-modal-content #}
+                <div class="modal-header"> {# Removed gaming-modal-header #}
+                    <h5 class="modal-title" id="deleteConfirmModalLabel">Confirm Deletion</h5> {# Removed gaming-subtitle #}
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button> {# Removed gaming-btn-close #}
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete this hardware item? This action cannot be undone!
+                </div>
+                <div class="modal-footer"> {# Removed gaming-modal-footer #}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="fas fa-ban"></i> Cancel</button> {# Removed gaming-btn #}
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn"><i class="fas fa-trash-alt"></i> Delete</button> {# Removed gaming-btn danger-glow #}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        const HARDWARE_API_URL = '/material/hardware/';
+        const HARDWARE_GROUP_API_URL = '/material/hardware-groups/';
+        const BRAND_API_URL = '/material/brands/';
+        let editingHardwareId = null; // To keep track of the hardware being edited
+
+        // Get CSRF Token from meta tag
+        const csrftoken = $('meta[name="csrf-token"]').attr('content');
+
+        // Function to fetch and display hardware items
+        function fetchHardware() {
+            $.ajax({
+                url: HARDWARE_API_URL,
+                method: 'GET',
+                success: function(response) {
+                    const hardwareTableBody = $('#hardwareTableBody');
+                    hardwareTableBody.empty(); // Clear existing rows
+
+                    if (response.results && response.results.length > 0) { // Assuming DRF pagination is used (results array)
+                        response.results.forEach(hardware => {
+                            const row = `
+                                <tr>
+                                    <td>${hardware.id}</td>
+                                    <td>${hardware.h_group?.name || 'N/A'}</td>
+                                    <td>${hardware.h_name}</td>
+                                    <td>${hardware.brand?.name || 'N/A'}</td>
+                                    <td>${hardware.unit}</td>
+                                    <td>$${parseFloat(hardware.p_price).toFixed(2)}</td>
+                                    <td>$${parseFloat(hardware.s_price).toFixed(2)}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info edit-btn" data-id="${hardware.id}" data-bs-toggle="modal" data-bs-target="#hardwareModal">
+                                            <i class="fas fa-pencil-alt"></i> Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-danger delete-btn" data-id="${hardware.id}" data-bs-toggle="modal" data-bs-target="#deleteConfirmModal">
+                                            <i class="fas fa-trash-alt"></i> Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                            hardwareTableBody.append(row);
+                        });
+                    } else {
+                        hardwareTableBody.append('<tr><td colspan="9" class="text-center">No hardware items found.</td></tr>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching hardware:', error);
+                    alert('Failed to load hardware items. Please try again.');
+                }
+            });
+        }
+
+        // Function to populate Hardware Groups and Brands in the modal forms
+        function populateSelects() {
+            // Populate Hardware Groups
+            $.ajax({
+                url: HARDWARE_GROUP_API_URL,
+                method: 'GET',
+                success: function(response) {
+                    const hGroupSelect = $('#h_group');
+                    hGroupSelect.empty();
+                    hGroupSelect.append('<option value="">Select Group</option>');
+
+                    const groups = Array.isArray(response) ? response : response.results;
+                    if (Array.isArray(groups)) {
+                        groups.forEach(group => {
+                            hGroupSelect.append(`<option value="${group.id}">${group.name}</option>`);
+                        });
+                    } else {
+                        console.warn('Unexpected hardware group response format:', response);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching hardware groups:', error);
+                }
+            });
+
+            // Populate Brands
+            $.ajax({
+                url: BRAND_API_URL,
+                method: 'GET',
+                success: function(response) {
+                    const brandSelect = $('#brand');
+                    brandSelect.empty();
+                    brandSelect.append('<option value="">Select Brand</option>');
+
+                    const brands = Array.isArray(response) ? response : response.results;
+                    if (Array.isArray(brands)) {
+                        brands.forEach(brand => {
+                            brandSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
+                        });
+                    } else {
+                        console.warn('Unexpected brand response format:', response);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching brands:', error);
+                }
+            });
+        }
+
+        // Initial fetch of hardware data and populate selects
+        fetchHardware();
+        populateSelects();
+
+        // Handle Add Hardware Button Click
+        $('#addHardwareBtn').on('click', function() {
+            $('#hardwareModalLabel').text('Add Hardware');
+            $('#hardwareForm')[0].reset(); // Clear the form
+            $('#hardwareId').val('');
+            editingHardwareId = null;
+            // Ensure select dropdowns are reset to default option
+            $('#h_group').val('');
+            $('#brand').val('');
+        });
+
+        // Handle Edit Button Click
+        $(document).on('click', '.edit-btn', function() {
+            const id = $(this).data('id');
+            editingHardwareId = id;
+            $('#hardwareModalLabel').text('Edit Hardware');
+
+            $.ajax({
+                url: `${HARDWARE_API_URL}${id}/`,
+                method: 'GET',
+                success: function(hardware) {
+                    $('#hardwareId').val(hardware.id);
+                    $('#h_group').val(hardware.h_group); // Assuming h_group is just the ID here
+                    $('#h_name').val(hardware.h_name);
+                    $('#brand').val(hardware.brand); // Assuming brand is just the ID here
+                    $('#unit').val(hardware.unit);
+                    $('#p_price').val(hardware.p_price);
+                    $('#s_price').val(hardware.s_price);
+                    $('#sl_price').val(hardware.sl_price);
+
+                    // If using Select2, trigger update
+                    if ($('#h_group').data('select2')) {
+                        $('#h_group').trigger('change');
+                    }
+                    if ($('#brand').data('select2')) {
+                        $('#brand').trigger('change');
+                    }
+
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching hardware for edit:', error);
+                    alert('Failed to load hardware for editing. Please try again.');
+                }
+            });
+        });
+
+        // Handle Form Submission (Add/Edit)
+        $('#hardwareForm').on('submit', function(e) {
+            e.preventDefault();
+
+            const hardwareData = {
+                h_group: $('#h_group').val(),
+                h_name: $('#h_name').val(),
+                brand: $('#brand').val(),
+                unit: $('#unit').val(),
+                p_price: $('#p_price').val(),
+                s_price: $('#s_price').val(),
+                sl_price: $('#sl_price').val() || null, // Send null if empty
+            };
+
+            const method = editingHardwareId ? 'PUT' : 'POST';
+            const url = editingHardwareId ? `${HARDWARE_API_URL}${editingHardwareId}/` : HARDWARE_API_URL;
+
+            $.ajax({
+                url: url,
+                method: method,
+                contentType: 'application/json', // Important for DRF
+                headers: { 'X-CSRFToken': csrftoken }, // Use the csrftoken obtained earlier
+                data: JSON.stringify(hardwareData),
+                success: function(response) {
+                    // Correct way to hide Bootstrap 5 modal
+                    const hardwareModal = bootstrap.Modal.getInstance(document.getElementById('hardwareModal'));
+                    if (hardwareModal) {
+                        hardwareModal.hide();
+                    }
+                    fetchHardware(); // Refresh the table
+                    alert(`Hardware ${editingHardwareId ? 'updated' : 'added'} successfully!`);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error saving hardware:', xhr.responseText);
+                    alert(`Failed to save hardware: ${JSON.stringify(xhr.responseJSON || error)}`);
+                }
+            });
+        });
+
+        // Handle Delete Button Click
+        let hardwareToDeleteId = null;
+        $(document).on('click', '.delete-btn', function() {
+            hardwareToDeleteId = $(this).data('id');
+            // The deleteConfirmModal is already triggered by data-bs-target, so nothing else needed here
+        });
+
+        // Handle Confirm Delete Button Click
+        $('#confirmDeleteBtn').on('click', function() {
+            if (hardwareToDeleteId) {
+                $.ajax({
+                    url: `${HARDWARE_API_URL}${hardwareToDeleteId}/`,
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': csrftoken },
+                    success: function() {
+                        // Correct way to hide Bootstrap 5 modal
+                        const deleteConfirmModal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+                        if (deleteConfirmModal) {
+                            deleteConfirmModal.hide();
+                        }
+                        fetchHardware(); // Refresh the table
+                        alert('Hardware deleted successfully!');
+                        hardwareToDeleteId = null; // Reset
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error deleting hardware:', error);
+                        alert('Failed to delete hardware. Please try again.');
+                    }
+                });
+            }
+        });
+
+        // Show new group input
+        $('#showNewGroupInput').on('click', function () {
+            $('#newGroupWrapper').removeClass('d-none');
+            $(this).prop('disabled', true);
+        });
+
+        // Cancel adding group
+        $('#cancelNewGroupBtn').on('click', function () {
+            $('#newGroupWrapper').addClass('d-none');
+            $('#newGroupName').val('');
+            $('#showNewGroupInput').prop('disabled', false);
+        });
+
+        // Add new group via AJAX
+        $('#addNewGroupBtn').on('click', function () {
+            const newGroupName = $('#newGroupName').val().trim();
+            if (!newGroupName) {
+                alert('Please enter a group name.');
+                return;
+            }
+
+            $.ajax({
+                url: HARDWARE_GROUP_API_URL, // Use the constant
+                method: 'POST',
+                contentType: 'application/json',
+                headers: { 'X-CSRFToken': csrftoken },
+                data: JSON.stringify({ name: newGroupName }),
+                success: function (newGroup) {
+                    $('#newGroupWrapper').addClass('d-none');
+                    $('#newGroupName').val('');
+                    $('#showNewGroupInput').prop('disabled', false);
+
+                    // Append the new group to dropdown and select it
+                    $('#h_group').append(`<option value="${newGroup.id}" selected>${newGroup.name}</option>`);
+                },
+                error: function (xhr) {
+                    alert('Failed to add new group.');
+                    console.error(xhr.responseText);
+                }
+            });
+        });
+
+        // Show input to add new brand
+        $('#showNewBrandInput').on('click', function () {
+            $('#newBrandWrapper').removeClass('d-none');
+            $(this).prop('disabled', true);
+        });
+
+        // Cancel adding new brand
+        $('#cancelNewBrandBtn').on('click', function () {
+            $('#newBrandWrapper').addClass('d-none');
+            $('#newBrandName').val('');
+            $('#showNewBrandInput').prop('disabled', false);
+        });
+
+        // Add new brand via AJAX
+        $('#addNewBrandBtn').on('click', function () {
+            const newBrandName = $('#newBrandName').val().trim();
+            if (!newBrandName) {
+                alert('Please enter a brand name.');
+                return;
+            }
+
+            $.ajax({
+                url: BRAND_API_URL, // Use the constant
+                method: 'POST',
+                contentType: 'application/json',
+                headers: { 'X-CSRFToken': csrftoken },
+                data: JSON.stringify({ name: newBrandName }),
+                success: function (newBrand) {
+                    $('#newBrandWrapper').addClass('d-none');
+                    $('#newBrandName').val('');
+                    $('#showNewBrandInput').prop('disabled', false);
+                    $('#brand').append(`<option value="${newBrand.id}" selected>${newBrand.name}</option>`);
+                },
+                error: function (xhr) {
+                    alert('Failed to add new brand.');
+                    console.error(xhr.responseText);
+                }
+            });
+        });
+
+        // Optional: Initialize Select2 on your dropdowns if you want that functionality
+        // This should be done after the options are populated, or on modal show
+        // Example:
+        // $('#h_group').select2({ dropdownParent: $('#hardwareModal') });
+        // $('#brand').select2({ dropdownParent: $('#hardwareModal') });
+        // You'll need to decide if Select2 is worth the potential extra setup within modals.
+        // If the Select2 library is included in base_b.html, then this would be where you enable it.
+        // Since you removed the Select2 JS from base_b.html in the previous step,
+        // you'd need to re-add it there if you want to use it.
+        // For now, I've left the Select2 initialization commented out, but you have the pattern.
+    });
+</script>
+{% endblock %}

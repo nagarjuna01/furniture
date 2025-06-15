@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<head>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Checkout</h1>
+
+        <form id="checkout-form">
+            <div class="form-group">
+                <label for="customer-name">Customer Name</label>
+                <input type="text" class="form-control" id="customer-name" required>
+            </div>
+            <div class="form-group">
+                <label for="coupon-code">Coupon Code</label>
+                <input type="text" class="form-control" id="coupon-code">
+            </div>
+            <button type="submit" class="btn btn-primary">Complete Purchase</button>
+        </form>
+
+        <h2 class="mt-5">Total Price: <span id="total-price">0.00</span></h2>
+    </div>
+
+    <script>
+        const apiUrl = '/api/checkout/'; // Adjust this to your API endpoint
+
+        $(document).ready(function() {
+            // Handle form submission for checkout
+            $('#checkout-form').on('submit', function(e) {
+                e.preventDefault();
+
+                const orderData = {
+                    coupon_code: $('#coupon-code').val(),
+                };
+
+                $.ajax({
+                    url: apiUrl,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(orderData),
+                    headers: {
+                        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        $('#total-price').text(response.total_price.toFixed(2)); // Display total price
+                        alert('Checkout completed successfully!');
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error during checkout:', textStatus, errorThrown);
+                        const errorMessage = jqXHR.responseJSON ? jqXHR.responseJSON.error : 'An error occurred. Please try again.';
+                        alert(errorMessage);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+{% endblock %}

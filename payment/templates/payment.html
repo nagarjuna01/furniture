@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block content %}
+<head>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Manage Payments</h1>
+
+        <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#paymentModal">
+            Add Payment
+        </button>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Transaction ID</th>
+                    <th>Payment Method</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="payment-list"></tbody>
+        </table>
+    </div>
+
+    <!-- Modal for Add/Edit Payment -->
+    <div class="modal fade" id="paymentModal" tabindex="-1" role="dialog" aria-labelledby="paymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="paymentModalLabel">Add/Edit Payment</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="payment-form">
+                        <input type="hidden" id="payment-id">
+                        <div class="form-group">
+                            <label for="user-select">User</label>
+                            <select class="form-control" id="user-select"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="amount">Amount</label>
+                            <input type="number" class="form-control" id="amount" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Payment Status</label>
+                            <select class="form-control" id="status">
+                                <option value="pending">Pending</option>
+                                <option value="completed">Completed</option>
+                                <option value="failed">Failed</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="transaction-id">Transaction ID</label>
+                            <input type="text" class="form-control" id="transaction-id" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="payment-method">Payment Method</label>
+                            <input type="text" class="form-control" id="payment-method" value="phonepe">
+                        </div>
+                        <button type="submit" class="btn btn-success">Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = '/api/payments/'; // Adjust this to your API endpoint
+        const userApiUrl = '/api/users/'; // Adjust this to your API endpoint for users
+
+        $(document).ready(function() {
+            fetchPayments();
+            fetchUsers();
+
+            // Fetch all payments
+            function fetchPayments() {
+                $.ajax({
+                    url: apiUrl,
+                    method: 'GET',
+                    success: function(data) {
+                        const paymentList = $('#payment-list');
+                        paymentList.empty();
+                        data.forEach(item => {
+                            paymentList.append(`
+                                <tr>
+                                    <td>${item.user.username}</td>
+                                    <td>${item.amount}</td>
+                                    <td>${item.payment_status}</td>
+                                    <td>${item.transaction_id}</td>
+                                    <td>${item.payment_method}</td>
+                                    <td>${new Date(item.created_at).toLocaleString()}</td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm" onclick="editPayment(${item.id})">Edit</button>
+                                        <button class="btn btn-danger btn-sm" onclick="deletePayment(${item.id})">Delete</button>
+                                    </td>
+                                </tr>
+                            `);
+                        });
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error fetching payments:', textStatus, errorThrown);
+                    }
+                });
+            }
+
+            // Fetch all users for the dropdown
+            function fetchUsers() {
+                $.ajax({
+                    url: userApiUrl,
+                    method: 'GET',
+                    success: function(data) {
+                        const userSelect = $('#user-select');
+                        userSelect.empty();
+                        data.forEach(user => {
+                            userSelect.append(`<option value="${user.id}">${user.username}</option>`);
+                        });
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error fetching users:', textStatus, errorThrown);
+                    }
+                });
+            }
+
+            // Handle form submission for adding/editing a payment
+            $('#payment-form').on('submit', function(e) {
+                e.preventDefault();
+                const id = $('#payment-id').val();
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `${apiUrl}${id}/` : apiUrl;
+
+                const paymentData = {
+                    user: $('#user-select').val(),
+                    amount: $('#amount').val(),
+                    payment_status: $('#status').val(),
+                    transaction_id: $('#transaction-id').val(),
+                    payment_method: $('#payment-method').val(),
+                };
+
+                $.ajax({
+                    url: url,
+                    method: method,
+                    contentType: 'application/json',
+                    data: JSON.stringify(paymentData),
+                    headers: {
+                        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function() {
+                        fetchPayments();
+                        $('#paymentModal').modal('hide');
+                        $('#payment-form')[0].reset();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error saving payment:', textStatus, errorThrown);
+                    }
+                });
+            });
+        });
+
+        // Edit payment function
+        window.editPayment = function(id) {
+            $.ajax({
+                url: `${apiUrl}${id}/`,
+                method: 'GET',
+                success: function(item) {
+                    $('#payment-id').val(item.id);
+                    $('#user-select').val(item.user.id);
+                    $('#amount').val(item.amount);
+                    $('#status').val(item.payment_status);
+                    $('#transaction-id').val(item.transaction_id);
+                    $('#payment-method').val(item.payment_method);
+                    $('#paymentModal').modal('show');
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error fetching payment for edit:', textStatus, errorThrown);
+                }
+            });
+        };
+
+        // Delete payment function
+        window.deletePayment = function(id) {
+            if (confirm('Are you sure you want to delete this payment?')) {
+                $.ajax({
+                    url: `${apiUrl}${id}/`,
+                    method: 'DELETE',
+                    success: function() {
+                        fetchPayments();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error('Error deleting payment:', textStatus, errorThrown);
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+{% endblock %}

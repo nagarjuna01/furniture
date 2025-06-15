@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Batch Add Metals</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .metal-entry {
+      padding: 15px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #f8f9fa;
+      position: relative;
+    }
+    .remove-entry {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      cursor: pointer;
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+<div class="container mt-5">
+  <h2>Batch Add Metals</h2>
+
+  <!-- Shared Fields -->
+  <div class="card p-3 mb-4">
+    <h5>Shared Fields</h5>
+    <div class="row">
+      <div class="col-md-4">
+        <label class="form-label">Material Group</label>
+        <select class="form-select" id="material_grp" required></select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Material Type</label>
+        <select class="form-select" id="material_type" required></select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Metal Shape</label>
+        <select class="form-select" id="metal_shape" required></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metal Rows Container -->
+  <form id="metalBatchForm" enctype="multipart/form-data">
+    <div id="metalRowsContainer"></div>
+    <button type="button" class="btn btn-secondary mb-3" onclick="addMetalRow()">Add Metal</button>
+    <button type="submit" class="btn btn-primary">Submit All</button>
+  </form>
+</div>
+
+<script>
+const UNIT_OPTIONS = ['mm', 'cm', 'm', 'in', 'ft', 'yd'];
+const PRICE_UNIT_OPTIONS = [
+  'EACH', 'PAIR', 'DOZEN', 'SET', 'BOX', 'BUNDLE',
+  'm2', 'ft2', 'yd2', 'm3', 'ft3', 'l', 'gallon',
+  'kg', 'lb', 'm2_price', 'm3_price', 'kg_price'
+];
+
+let metalIndex = 0;
+
+function createSelectOptions(options) {
+  return options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+}
+
+function addMetalRow() {
+  const container = document.getElementById('metalRowsContainer');
+
+  const div = document.createElement('div');
+  div.className = 'metal-entry';
+  div.dataset.index = metalIndex;
+
+  div.innerHTML = `
+    <span class="remove-entry" onclick="this.closest('.metal-entry').remove()">×</span>
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Name</label>
+        <input type="text" class="form-control" name="name_${metalIndex}" required>
+      </div>
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Section</label>
+        <select class="form-select" name="section_${metalIndex}">
+          <option value="DESKING">DESKING</option>
+          <option value="PARTITION">PARTITION</option>
+          <option value="COMBO">COMBO</option>
+        </select>
+      </div>
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Image</label>
+        <input type="file" class="form-control" name="image_${metalIndex}">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-3 mb-3">
+        <label class="form-label">Length</label>
+        <input type="number" class="form-control" name="length_${metalIndex}">
+      </div>
+      <div class="col-md-3 mb-3">
+        <label class="form-label">Width</label>
+        <input type="number" class="form-control" name="width_${metalIndex}">
+      </div>
+      <div class="col-md-3 mb-3">
+        <label class="form-label">Height</label>
+        <input type="number" class="form-control" name="height_${metalIndex}">
+      </div>
+      <div class="col-md-3 mb-3">
+        <label class="form-label">Dimension Unit</label>
+        <select class="form-select" name="dunit_${metalIndex}">
+          ${createSelectOptions(UNIT_OPTIONS)}
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Price Unit</label>
+        <select class="form-select" name="p_unit_${metalIndex}">
+          ${createSelectOptions(PRICE_UNIT_OPTIONS)}
+        </select>
+      </div>
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Primary Price</label>
+        <input type="number" step="0.01" class="form-control" name="p_price_${metalIndex}" required>
+      </div>
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Selling Price</label>
+        <input type="number" step="0.01" class="form-control" name="s_price_${metalIndex}" required>
+      </div>
+    </div>
+  `;
+
+  container.appendChild(div);
+  metalIndex++;
+}
+
+async function loadOptions(url, selectId) {
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    const select = document.getElementById(selectId);
+    data.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = item.name;
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    console.error(`Error loading ${selectId}:`, err);
+  }
+}
+
+loadOptions('/api/categories/', 'material_grp');
+loadOptions('/api/category-types/', 'material_type');
+loadOptions('/api/category-models/', 'metal_shape');
+
+document.getElementById('metalBatchForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+
+  const shared = {
+    material_grp: document.getElementById('material_grp').value,
+    material_type: document.getElementById('material_type').value,
+    metal_shape: document.getElementById('metal_shape').value
+  };
+
+  const entries = document.querySelectorAll('.metal-entry');
+  let successCount = 0, failCount = 0;
+
+  for (let entry of entries) {
+    const index = entry.dataset.index;
+    const formData = new FormData();
+
+    // Add shared fields
+    formData.append('material_grp', shared.material_grp);
+    formData.append('material_type', shared.material_type);
+    formData.append('metal_shape', shared.metal_shape);
+
+    // Add per-metal fields
+    formData.append('name', entry.querySelector(`[name="name_${index}"]`).value.toUpperCase());
+    formData.append('section', entry.querySelector(`[name="section_${index}"]`).value);
+    formData.append('length', entry.querySelector(`[name="length_${index}"]`).value || '');
+    formData.append('width', entry.querySelector(`[name="width_${index}"]`).value || '');
+    formData.append('height', entry.querySelector(`[name="height_${index}"]`).value || '');
+    formData.append('dunit', entry.querySelector(`[name="dunit_${index}"]`).value);
+    formData.append('p_unit', entry.querySelector(`[name="p_unit_${index}"]`).value);
+    formData.append('p_price', entry.querySelector(`[name="p_price_${index}"]`).value || '0');
+    formData.append('s_price', entry.querySelector(`[name="s_price_${index}"]`).value || '0');
+
+    const imageInput = entry.querySelector(`[name="image_${index}"]`);
+    if (imageInput.files.length > 0) {
+      formData.append('image', imageInput.files[0]);
+    }
+
+    try {
+      const res = await fetch('/api/metals/', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        successCount++;
+      } else {
+        failCount++;
+        const err = await res.json();
+        console.error(`Row ${index} failed:`, err);
+      }
+    } catch (err) {
+      console.error(`Row ${index} failed:`, err);
+      failCount++;
+    }
+  }
+
+  alert(`✅ ${successCount} submitted.\n❌ ${failCount} failed.`);
+
+  if (failCount === 0) {
+    document.getElementById('metalBatchForm').reset();
+    document.getElementById('metalRowsContainer').innerHTML = '';
+    metalIndex = 0;
+  }
+});
+</script>
+</body>
+</html>

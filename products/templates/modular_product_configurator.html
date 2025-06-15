@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ modular_product_name }} - Configure{% endblock %}
+
+{% block extra_css %}
+<style>
+    .config-output {
+        border: 1px solid #ddd;
+        padding: 15px;
+        background-color: #f8f9fa;
+        min-height: 150px;
+    }
+    #threeDViewer {
+        width: 100%;
+        height: 400px;
+        background-color: #e0e0e0;
+        border: 1px solid #ccc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+        font-style: italic;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'products:product_list' %}">Catalog</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Configure {{ modular_product_name }}</li>
+    </ol>
+</nav>
+
+<h1 class="mb-4">Configure {{ modular_product_name }}</h1>
+<p class="text-muted">{{ modular_product_description|default:"Use the sliders/inputs below to customize your product." }}</p>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Product Parameters</h5>
+            </div>
+            <div class="card-body">
+                <form id="configuratorForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="modularProductId" value="{{ modular_product_pk }}">
+                    <input type="hidden" id="threedModelUrl" value="{{ threed_model_assembly_file_url }}">
+                    <input type="hidden" id="threedConfigJson" value="{{ threed_config_json_data }}">
+
+
+                    <div id="constraint-inputs-container">
+                        <p class="text-muted text-center py-3">Loading constraints...</p>
+                    </div>
+
+                    <button type="button" id="calculatePriceBtn" class="btn btn-success mt-3">Calculate Price</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Calculated Output</h5>
+            </div>
+            <div class="card-body">
+                <div class="config-output">
+                    <p><strong>Calculated Purchase Cost:</strong> <span id="outputPurchaseCost">$0.00</span></p>
+                    <p><strong>Calculated Selling Price:</strong> <span id="outputSellingPrice">$0.00</span></p>
+                    <p><strong>Break-Even Amount:</strong> <span id="outputBreakEven">$0.00</span></p>
+                    <p><strong>Profit Margin:</strong> <span id="outputProfitMargin">0.00%</span></p>
+                    <hr>
+                    <p class="text-muted"><small>Prices are approximate and subject to final confirmation.</small></p>
+                </div>
+                <button class="btn btn-primary btn-lg mt-3">Add to Quote</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4 h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">3D Visualization</h5>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <div id="threeDViewer" class="flex-grow-1 mb-3">
+                    Loading 3D model... (Requires JavaScript 3D library integration)
+                </div>
+                <p class="text-muted"><small>This section requires a frontend 3D rendering library (e.g., Three.js, Babylon.js) to display the dynamic model based on parameters.</small></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    const productId = $('#modularProductId').val();
+    const calculateUrl = `/products/api/products/modular/${productId}/calculate_live_cost/`;
+    const constraintsData = {{ initial_constraints_data|json_script:"initialConstraintsData" }}; // Django provides as JSON script tag
+
+    const constraintInputsContainer = $('#constraint-inputs-container');
+    const calculatePriceBtn = $('#calculatePriceBtn');
+
+    // Function to render constraint input fields
+    function renderConstraintInputs() {
+        constraintInputsContainer.empty();
+        const initialConstraints = JSON.parse(document.getElementById('initialConstraintsData').textContent);
+
+        if (initialConstraints.length === 0) {
+            constraintInputsContainer.html('<p class="text-muted">No configurable parameters defined for this product.</p>');
+            calculatePriceBtn.hide(); // Hide calculate button if no constraints
+            return;
+        }
+
+        initialConstraints.forEach(constraint => {
+            const inputHtml = `
+                <div class="mb-3">
+                    <label for="constraint-${constraint.abbreviation}" class="form-label">
+                        ${constraint.abbreviation} (${constraint.abbreviation.charAt(0).toUpperCase() + constraint.abbreviation.slice(1)}):
+                    </label>
+                    <input type="number"
+                           class="form-control constraint-input"
+                           id="constraint-${constraint.abbreviation}"
+                           name="${constraint.abbreviation}"
+                           value="${parseFloat(constraint.value).toFixed(2)}"
+                           min="0" step="any"
+                           aria-describedby="rangeHelp-${constraint.abbreviation}">
+                    <div id="rangeHelp-${constraint.abbreviation}" class="form-text">
+                        Enter value for ${constraint.abbreviation}.
+                    </div>
+                </div>
+            `;
+            constraintInputsContainer.append(inputHtml);
+        });
+        calculatePriceBtn.show();
+    }
+
+    // Function to fetch and update price
+    function updatePrice() {
+        const constraints = [];
+        $('.constraint-input').each(function() {
+            constraints.push({
+                abbreviation: $(this).attr('name'),
+                value: parseFloat($(this).val()) || 0
+            });
+        });
+
+        const csrfToken = $('input[name="csrfmiddlewaretoken"]').val();
+
+        $.ajax({
+            url: calculateUrl,
+            type: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            data: JSON.stringify({ constraints: constraints }),
+            success: function(response) {
+                $('#outputPurchaseCost').text('$' + parseFloat(response.calculated_purchase_cost).toFixed(2));
+                $('#outputSellingPrice').text('$' + parseFloat(response.calculated_selling_price).toFixed(2));
+                $('#outputBreakEven').text('$' + parseFloat(response.break_even_amount).toFixed(2));
+                $('#outputProfitMargin').text(parseFloat(response.profit_margin_percentage).toFixed(2) + '%');
+
+                // TODO: Trigger 3D model update here if you have a 3D viewer integrated
+                // For example: updateThreeDModel({ constraints: constraints, material_overrides: ... });
+            },
+            error: function(xhr, status, error) {
+                let errorMessage = 'Error calculating price. Please check your inputs.';
+                if (xhr.responseJSON && xhr.responseJSON.detail) {
+                    errorMessage = xhr.responseJSON.detail;
+                } else if (xhr.responseJSON) {
+                    errorMessage = JSON.stringify(xhr.responseJSON);
+                }
+                alert(errorMessage);
+                console.error('AJAX Error:', status, error, xhr.responseText);
+            }
+        });
+    }
+
+    // Bind calculate button click
+    calculatePriceBtn.on('click', updatePrice);
+
+    // Optional: Recalculate on input change (throttle if many inputs)
+    // Delegated event for dynamically added inputs
+    $(document).on('change', '.constraint-input', function() {
+        // You might want to debounce this for performance if there are many inputs
+        // setTimeout(updatePrice, 500);
+    });
+
+    // Initial rendering and calculation on page load
+    renderConstraintInputs();
+    updatePrice();
+
+    // --- 3D Visualization Placeholder ---
+    // Actual 3D rendering code would go here.
+    // Example using Three.js (conceptual, not runnable without Three.js library and models)
+    /*
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    let scene, camera, renderer, productModel;
+
+    function init3DViewer() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, $('#threeDViewer').width() / $('#threeDViewer').height(), 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize($('#threeDViewer').width(), $('#threeDViewer').height());
+        $('#threeDViewer').empty().append(renderer.domElement); // Clear loading text
+
+        // Add a light source
+        const ambientLight = new THREE.AmbientLight(0x404040, 5); // soft white light
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
+        directionalLight.position.set(1, 1, 1).normalize();
+        scene.add(directionalLight);
+
+        camera.position.z = 2; // Adjust camera position
+
+        // Load the base 3D model (if available)
+        const loader = new GLTFLoader();
+        const baseModelUrl = $('#threedModelUrl').val();
+        if (baseModelUrl) {
+            loader.load(baseModelUrl, function(gltf) {
+                productModel = gltf.scene;
+                scene.add(productModel);
+                // Adjust model position/scale based on initial constraints if needed
+                animate();
+            }, undefined, function(error) {
+                console.error('An error occurred loading the GLTF model:', error);
+                $('#threeDViewer').text('Error loading 3D model.');
+            });
+        } else {
+            console.warn("No base 3D model file specified for this product.");
+            $('#threeDViewer').text('No 3D model available.');
+            animate(); // Still run animation loop even without model
+        }
+
+        window.addEventListener('resize', onWindowResize, false);
+    }
+
+    function onWindowResize() {
+        camera.aspect = $('#threeDViewer').width() / $('#threeDViewer').height();
+        camera.updateProjectionMatrix();
+        renderer.setSize($('#threeDViewer').width(), $('#threeDViewer').height());
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        // Simple rotation for demonstration
+        if (productModel) {
+            productModel.rotation.y += 0.005;
+        }
+        renderer.render(scene, camera);
+    }
+
+    // Call init3DViewer when the document is ready
+    // init3DViewer(); // Uncomment this line if you have Three.js setup and imported
+    */
+});
+</script>
+{% endblock %}

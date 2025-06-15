@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Button to toggle form visibility -->
+<button class="btn btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#materialFormContainer" aria-expanded="false" aria-controls="materialFormContainer">
+    Create / Edit Material
+</button>
+
+<!-- Form Container (collapsed by default) -->
+<div id="materialFormContainer" class="collapse">
+    <h4>Create / Edit Material</h4>
+    <form id="materialForm">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="materialName" class="form-label">Material Name</label>
+            <input type="text" class="form-control" id="materialName" required>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" id="materialSubmitBtn">Create Material</button>
+    </form>
+</div>
+
+<h4>Material List</h4>
+<input type="text" id="searchMaterial" placeholder="Search materials" class="form-control mb-3" oninput="fetchMaterials()">
+<table class="table table-bordered" id="materialTable">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="materialList">
+        <!-- Material rows will go here -->
+    </tbody>
+</table>
+
+<script>
+// JS to handle material form and operations
+
+let currentMaterialId = null; // Initialize as null, will be set when editing
+
+// Handle form submission for create/update Material
+document.getElementById("materialForm").addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const name = document.getElementById("materialName").value;
+    
+
+    const materialData = {
+        name: name,
+        
+    };
+
+    const method = currentMaterialId ? "PUT" : "POST";
+    const url = currentMaterialId ? `/material/materials/${currentMaterialId}/` : "/material/materials/";
+
+    fetch(url, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify(materialData),
+    })
+    .then(response => {
+        if (response.ok) {
+            alert(currentMaterialId ? "Material updated!" : "Material created!");
+            fetchMaterials();  // Refresh the material list
+            resetMaterialForm(); // Reset form
+        } else {
+            alert("Error saving material.");
+        }
+    })
+    .catch(error => console.error("Error:", error));
+});
+
+// Function to reset the form after submission
+function resetMaterialForm() {
+    document.getElementById("materialForm").reset();  // Reset the form fields
+    document.getElementById("materialSubmitBtn").innerText = "Create Material";  // Reset button text
+    currentMaterialId = null;  // Reset currentMaterialId to null
+}
+
+// Fetch and display all Materials
+function fetchMaterials() {
+    const searchQuery = document.getElementById("searchMaterial").value;
+    let url = "/material/materials/?search=" + searchQuery;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            const materialList = document.getElementById("materialList");
+            materialList.innerHTML = ""; // Clear previous entries
+
+            data.results.forEach(material => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${material.id}</td>
+                    <td>${material.name}</td>
+                   
+                    <td>
+                        <button class="btn btn-info btn-sm" onclick="editMaterial(${material.id})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteMaterial(${material.id})">Delete</button>
+                    </td>
+                `;
+                materialList.appendChild(row);
+            });
+        })
+        .catch(error => console.error("Error fetching materials:", error));
+}
+
+// Edit material function (populate the form with existing data)
+function editMaterial(id) {
+    fetch(`/material/materials/${id}/`)
+        .then(response => response.json())
+        .then(material => {
+            document.getElementById("materialName").value = material.name;
+            
+            currentMaterialId = material.id; // Set the material ID to the one being edited
+            document.getElementById("materialSubmitBtn").innerText = "Update Material";
+
+            // Automatically show the form if it's collapsed
+            const formContainer = document.getElementById("materialFormContainer");
+            if (formContainer.classList.contains("collapse")) {
+                new bootstrap.Collapse(formContainer, { toggle: true });
+            }
+        })
+        .catch(error => console.error("Error fetching material:", error));
+}
+
+// Function to get the CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Delete material function
+function deleteMaterial(id) {
+    if (confirm("Are you sure you want to delete this material?")) {
+        fetch(`/material/materials/${id}/`, {
+            method: "DELETE",
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken"),
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                alert("Material deleted!");
+                fetchMaterials();  // Refresh the material list
+            } else {
+                alert("Error deleting material.");
+            }
+        })
+        .catch(error => console.error("Error deleting material:", error));
+    }
+}
+
+// Function to get the CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+
+fetchMaterials(); // Initial call to populate the material list
+</script>
+{% endblock %}

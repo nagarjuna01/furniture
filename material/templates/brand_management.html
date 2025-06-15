@@ -1,0 +1,228 @@
+{% extends "base_b.html" %}
+
+{% block content %}
+<div class="container mt-3 gaming-container" style="max-width: 800px; font-size: 0.9rem;">
+
+    <h3 class="gaming-title">Brand Management</h3>
+
+    <div class="mb-3">
+        <input type="text" id="searchInput" class="form-control gaming-input" placeholder="Search by brand name" oninput="fetchBrands()">
+    </div>
+
+    <button class="btn btn-secondary mb-3 gaming-btn primary-glow" type="button" data-bs-toggle="collapse" data-bs-target="#brandFormContainer" aria-expanded="false" aria-controls="brandFormContainer">
+        <i class="fas fa-plus"></i> Create Brand
+    </button>
+    
+    <div id="brandFormContainer" class="collapse gaming-card mb-4"> {# Use gaming-card for the form container #}
+        <h4 class="gaming-subtitle">Create / Edit Brand</h4>
+        <form id="brandForm">
+            {% csrf_token %} {# CSRF token is already handled by fetch functions using getCookie #}
+            <div class="mb-3">
+                <label for="brandName" class="form-label gaming-label">Brand Name</label>
+                <input type="text" class="form-control form-control-sm gaming-input" id="brandName" required>
+
+            </div>
+            <div class="mb-3">
+                <label for="brandDescription" class="form-label gaming-label">Brand Description</label>
+                <textarea class="form-control form-control-sm gaming-textarea" id="brandDescription" rows="2" required></textarea>
+
+            </div>
+            <button type="submit" class="btn btn-primary gaming-btn secondary-glow" id="submitBtn"><i class="fas fa-save"></i> Create Brand</button>
+            <button type="button" class="btn btn-secondary gaming-btn" onclick="resetForm()"><i class="fas fa-times"></i> Cancel</button> {# Added a cancel button #}
+        </form>
+    </div>
+    
+    <hr class="gaming-hr">
+
+    <h4 class="gaming-subtitle">Brand List</h4>
+    <div class="table-responsive"> {# Ensure table is responsive #}
+<table class="table table-bordered table-sm gaming-table" id="brandTable" style="font-size: 0.85rem;">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="brandList">
+                </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    // Use jQuery's ready function as it ensures the DOM is fully loaded
+    $(document).ready(function() {
+        const csrfToken = getCookie("csrftoken"); // Ensure CSRF token is available
+        let currentBrandId = null; // Variable to store ID for editing
+
+        // Define fetchBrands and other functions within this scope,
+        // making them global where necessary (for oninput attributes)
+
+        // Fetch and display all brands (made global for oninput call)
+        window.fetchBrands = function() {
+            const searchQuery = $('#searchInput').val();
+            // IMPORTANT: Update this URL if your API prefix is different.
+            // Assuming /material/api/brands/ is your correct API endpoint.
+            const url = searchQuery ? `/material/brands/?search=${searchQuery}` : '/material/brands/'; 
+            
+            $.ajax({
+                url: url,
+                method: 'GET',
+                success: function(data) {
+                    const brandList = $('#brandList');
+                    brandList.empty(); // Clear existing rows
+
+                    // DRF pagination might return data in 'results' key
+                    const brands = Array.isArray(data.results) ? data.results : data;
+
+                    if (brands.length === 0 && searchQuery) {
+                        brandList.append('<tr><td colspan="3" class="text-center text-light">No brands found matching your search.</td></tr>');
+                    } else if (brands.length === 0) {
+                        brandList.append('<tr><td colspan="3" class="text-center text-light">No brands available. Start by creating one!</td></tr>');
+                    }
+
+                    brands.forEach(brand => {
+                        const row = `
+                            <tr>
+                                <td>${brand.name}</td>
+                                <td>${brand.description}</td>
+                                <td>
+                                    <button class="btn btn-info btn-sm gaming-btn" onclick="editBrand(${brand.id})">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button class="btn btn-danger btn-sm gaming-btn" onclick="deleteBrand(${brand.id})">
+                                        <i class="fas fa-trash-alt"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                        brandList.append(row);
+                    });
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error("Error fetching brands:", textStatus, errorThrown);
+                    $('#brandList').html('<tr><td colspan="3" class="text-center text-danger">Error loading brands. Please try again.</td></tr>');
+                }
+            });
+        }
+
+        // Handle form submission (Create/Update)
+        $('#brandForm').on('submit', function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const brandName = $('#brandName').val();
+            const brandDescription = $('#brandDescription').val();
+            
+            const brandData = {
+                name: brandName,
+                description: brandDescription,
+            };
+
+            const method = currentBrandId ? "PUT" : "POST";
+            // IMPORTANT: Update this URL if your API prefix is different.
+            const url = currentBrandId ? `/material/brands/${currentBrandId}/` : '/material/brands/';
+
+            $.ajax({
+                url: url,
+                method: method,
+                contentType: 'application/json',
+                data: JSON.stringify(brandData),
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                },
+                success: function(response) {
+                    alert(method === "POST" ? "Brand created successfully!" : "Brand updated successfully!");
+                    fetchBrands(); // Refresh the brand list
+                    resetForm(); // Reset form and collapse
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error("Error saving brand:", textStatus, errorThrown, jqXHR.responseJSON);
+                    let errorMessage = "Failed to create/update brand.";
+                    if (jqXHR.responseJSON && jqXHR.responseJSON.name && jqXHR.responseJSON.name.includes("This field must be unique.")) {
+                        errorMessage = "A brand with this name already exists. Please use a different name.";
+                    } else if (jqXHR.responseJSON && jqXHR.responseJSON.detail) {
+                        errorMessage = jqXHR.responseJSON.detail;
+                    }
+                    alert(errorMessage);
+                }
+            });
+        });
+
+        // Function to edit a brand (made global for onclick attribute)
+        window.editBrand = function(id) {
+            console.log(`Editing brand with ID: ${id}`);
+            // IMPORTANT: Update this URL if your API prefix is different.
+            $.ajax({
+                url: `/material/brands/${id}/`,
+                method: 'GET',
+                success: function(brand) {
+                    console.log("Brand data for edit: ", brand);
+                    $('#brandName').val(brand.name);
+                    $('#brandDescription').val(brand.description);
+                    currentBrandId = brand.id;
+                    $('#submitBtn').html('<i class="fas fa-save"></i> Update Brand'); // Change button text & icon
+
+                    // Show the form if it’s collapsed
+                    $('#brandFormContainer').collapse('show'); 
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error("Error fetching brand for edit:", textStatus, errorThrown);
+                    alert("Error fetching brand for edit.");
+                }
+            });
+        }
+
+        // Function to delete a brand (made global for onclick attribute)
+        window.deleteBrand = function(id) {
+            console.log(`Deleting brand with ID: ${id}`);
+            if (confirm("Are you sure you want to delete this brand?")) {
+                // IMPORTANT: Update this URL if your API prefix is different.
+                $.ajax({
+                    url: `/material/brands/${id}/`,
+                    method: 'DELETE',
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                    },
+                    success: function() {
+                        alert("Brand deleted successfully!");
+                        fetchBrands(); // Refresh the brand list
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error("Error deleting brand:", textStatus, errorThrown);
+                        alert("Error deleting brand.");
+                    }
+                });
+            }
+        }
+
+        // Function to reset the form and state (made global for onclick attribute)
+        window.resetForm = function() {
+            $('#brandForm')[0].reset(); // Reset form fields
+            $('#submitBtn').html('<i class="fas fa-save"></i> Create Brand'); // Reset button text & icon
+            currentBrandId = null; // Clear current editing ID
+            $('#brandFormContainer').collapse('hide'); // Collapse the form
+        }
+
+        // Function to get CSRF token from cookies (no change needed here)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie) {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.startsWith(name + "=")) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Initial fetch of brands when the DOM is ready
+        fetchBrands(); 
+    });
+</script>
+{% endblock %}
