@@ -1,10 +1,11 @@
 # material/serializers.py
 
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 from decimal import Decimal, InvalidOperation # Keep Decimal and InvalidOperation for validation
 from .models import ( # Import all necessary models from your material app
     Brand, EdgeBand, Category, CategoryTypes, CategoryModel,
-    WoodEn, HardwareGroup, Hardware
+    WoodEn, HardwareGroup, Hardware, EdgebandName
 )
 
 # --------------------- BRAND ---------------------
@@ -20,9 +21,11 @@ class BrandSerializer(serializers.ModelSerializer):
 
 # --------------------- CATEGORY STRUCTURE ---------------------
 class CategorySerializer(serializers.ModelSerializer):
-    """
-    Unified serializer for the Category model.
-    """
+    name = serializers.CharField(
+        max_length=100,
+        validators=[UniqueValidator(queryset=Category.objects.all(), message="This category already exists.")]
+    )
+
     class Meta:
         model = Category
         fields = ['id', 'name']
@@ -65,42 +68,42 @@ class CategoryModelSerializer(serializers.ModelSerializer):
 
 
 # --------------------- EDGEBAND ---------------------
+
+class EdgebandNameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EdgebandName
+        fields = ['id', 'depth', 'name']  # depth + auto-generated name
 class EdgeBandSerializer(serializers.ModelSerializer):
-    """
-    Unified serializer for EdgeBand.
-    Handles both input (brand_id) and output (nested brand, sl_price).
-    """
-    brand = BrandSerializer(read_only=True) # Nested serializer for brand on read
-    brand_id = serializers.PrimaryKeyRelatedField( # Writable field for brand's ID
-        queryset=Brand.objects.all(), 
-        source='brand', 
-        write_only=True, 
-        required=False, 
-        allow_null=True # Allow null if your EdgeBand.brand field allows it
+    # Read-only nested representations
+    edgeband_name = EdgebandNameSerializer(read_only=True)
+    brand = BrandSerializer(read_only=True)
+
+    # Writable foreign keys
+    edgeband_name_id = serializers.PrimaryKeyRelatedField(
+        queryset=EdgebandName.objects.all(), source='edgeband_name', write_only=True
     )
-    sl_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True) # Assuming sl_price is a model property/calculated field
+    brand_id = serializers.PrimaryKeyRelatedField(
+        queryset=Brand.objects.all(), source='brand', write_only=True, required=False, allow_null=True
+    )
+
+    sl_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    display_name = serializers.SerializerMethodField()
 
     class Meta:
         model = EdgeBand
         fields = [
-            'id', 'edge_depth', 'e_thickness', 
-            'brand', 'brand_id', # Include both read-only and write-only versions
-            'p_price', 's_price', 'sl_price' # sl_price is read_only
+            'id',
+            'edgeband_name', 'edgeband_name_id',
+            'e_thickness',
+            'brand', 'brand_id',
+            'p_price', 's_price',
+            'sl_price', 'display_name'
         ]
-        # If 'name' is also a field in EdgeBand, make sure to include it.
-        # e.g., fields = ['id', 'name', 'edge_depth', ...]
 
-    # Keep validation methods from your original EdgeBandInputSerializer
-    def validate_p_price(self, value):
-        if value < 0:
-            raise serializers.ValidationError("Purchase price must be non-negative.")
-        return value
-
-    def validate_s_price(self, value):
-        if value < 0:
-            raise serializers.ValidationError("Selling price must be non-negative.")
-        return value
-
+    def get_display_name(self, obj):
+        # e.g. "EDGEBAND 2MM (Thickness 1.5mm / Brand XYZ)"
+        brand_name = obj.brand.name if obj.brand else "N/A"
+        return f"({obj.edgeband_name.name} X {obj.e_thickness}) / {brand_name}"
 
 # --------------------- WOODEN ---------------------
 class WoodEnSerializer(serializers.ModelSerializer):
@@ -114,8 +117,7 @@ class WoodEnSerializer(serializers.ModelSerializer):
     material_model = CategoryModelSerializer(read_only=True)
     brand = BrandSerializer(read_only=True)
     
-    # Use the unified EdgeBandSerializer for nested representation
-    compatible_edgebands = EdgeBandSerializer(many=True, read_only=True) 
+    
 
     # Writable fields for setting relationships by ID
     material_grp_id = serializers.PrimaryKeyRelatedField(
@@ -130,14 +132,7 @@ class WoodEnSerializer(serializers.ModelSerializer):
     brand_id = serializers.PrimaryKeyRelatedField(
         queryset=Brand.objects.all(), source='brand', write_only=True, required=False, allow_null=True
     )
-    # For ManyToMany relationships, use a PrimaryKeyRelatedField with many=True
-    compatible_edgebands_ids = serializers.PrimaryKeyRelatedField(
-        queryset=EdgeBand.objects.all(), 
-        source='compatible_edgebands', # Maps to the ManyToMany field
-        many=True, 
-        write_only=True, 
-        required=False
-    )
+    
 
     # Assuming these fields are direct model fields that are computed/stored
     # And p_price, p_price_sft, s_price, s_price_sft are properties/methods
@@ -150,12 +145,13 @@ class WoodEnSerializer(serializers.ModelSerializer):
     class Meta:
         model = WoodEn
         fields = [
-            'id', 'name', # Assuming 'name' is a field on WoodEn
-            'length', 'width', 'thickness', 'cost_price', 'sell_price',
+            'id', 'name', 'grain','color',# Assuming 'name' is a field on WoodEn
+            'length', 'width', 'thickness', 'cost_price', 'sell_price','length_unit', 'width_unit', 'thickness_unit',
+            'costprice_type', 'sellprice_type',
             # Read-only nested fields
-            'material_grp', 'material_type', 'material_model', 'brand', 'compatible_edgebands',
+            'material_grp', 'material_type', 'material_model', 'brand', 
             # Writable ID fields for relationships
-            'material_grp_id', 'material_type_id', 'material_model_id', 'brand_id', 'compatible_edgebands_ids',
+            'material_grp_id', 'material_type_id', 'material_model_id', 'brand_id', 
             # Read-only calculated price fields
             'p_price', 'p_price_sft', 's_price', 's_price_sft'
         ]

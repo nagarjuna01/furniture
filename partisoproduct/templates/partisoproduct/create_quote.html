@@ -1,0 +1,355 @@
+{% extends "base_b.html" %}
+{% load static %}
+
+{% block title %}Create New Quote{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <h2 class="mt-4 mb-4">Create New Quote</h2>
+            
+            <form id="quote-form" class="needs-validation" novalidate>
+                <div class="card mb-4">
+                    <div class="card-header">Product & Customer Details</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="customer-name" class="form-label">Customer Name</label>
+                            <input type="text" class="form-control" id="customer-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modular-product" class="form-label">Select Modular Product</label>
+                            <select class="form-select" id="modular-product" required>
+                                <option value="">-- Choose a product --</option>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="length-mm" class="form-label">Length (mm)</label>
+                                <input type="number" class="form-control" id="length-mm" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="width-mm" class="form-label">Width (mm)</label>
+                                <input type="number" class="form-control" id="width-mm" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="height-mm" class="form-label">Height (mm)</label>
+                                <input type="number" class="form-control" id="height-mm" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">Select Materials for Parts</div>
+                    <div class="card-body" id="dynamic-parts-container">
+                        <p class="text-muted">Select a product to see its parts.</p>
+                    </div>
+                </div>
+
+                <button type="button" id="calculate-quote-btn" class="btn btn-primary me-2">Calculate Quote</button>
+                <button type="button" id="save-quote-btn" class="btn btn-success d-none">Save Final Quote</button>
+            </form>
+
+            <div id="quote-output-container" class="mt-5 d-none">
+                <hr>
+                <h3>Quote Breakdown</h3>
+                <div id="output-products-container" class="mt-4"></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const API_URL = '/partiso/api/';
+    let allMaterials = [];
+    let allProducts = [];
+    let calculatedQuoteData = null; // Store the last calculated data
+
+    $(document).ready(function() {
+        fetchInitialData();
+        
+        // Event listeners for the new workflow
+        $('#modular-product').on('change', fetchProductParts);
+        $('#calculate-quote-btn').on('click', calculateQuote);
+        $('#save-quote-btn').on('click', saveFinalQuote);
+    });
+
+    async function fetchInitialData() {
+        try {
+            const [productsResponse, woodensResponse, edgebandsResponse] = await Promise.all([
+                $.get(API_URL + 'modular1/'),
+                $.get('http://127.0.0.1:8000/material/v1/woodens/'),
+                $.get('http://127.0.0.1:8000/material/v1/edgebands/')
+            ]);
+            
+            allProducts = productsResponse.results || productsResponse;
+            allMaterials = [...(woodensResponse.results || woodensResponse), ...(edgebandsResponse.results || edgebandsResponse)];
+
+            populateProductDropdown(allProducts);
+
+        } catch (error) {
+            console.error('Failed to load initial data:', error);
+            toastr.error('Failed to load initial data. Please try again.');
+        }
+    }
+
+    function populateProductDropdown(products) {
+        const $select = $('#modular-product');
+        $select.empty().append('<option value="">-- Choose a product --</option>');
+        products.forEach(product => {
+            $select.append(`<option value="${product.id}">${product.name}</option>`);
+        });
+    }
+
+    
+
+    async function fetchProductParts() {
+        const productId = $('#modular-product').val();
+        if (!productId) {
+            $('#dynamic-parts-container').html('<p class="text-muted">Select a product to see its parts.</p>');
+            return;
+        }
+
+        try {
+            const product = await $.get(API_URL + `modular1/${productId}/`);
+            populateMaterialSelectors(product.parts);
+        } catch (error) {
+            toastr.error('Failed to fetch product parts.');
+        }
+    }
+    
+    function populateMaterialSelectors(parts) {
+        const $container = $('#dynamic-parts-container').empty();
+        parts.forEach(part => {
+            const partHtml = `
+                <div class="mb-3">
+                    <label for="material-${part.id}" class="form-label">
+                        <strong>${part.name}</strong> (Select Material)
+                    </label>
+                    <select class="form-select material-select" id="material-${part.id}" data-part-id="${part.id}" required>
+                        <option value="">-- Select Material --</option>
+                        ${allMaterials.map(material => `<option value="${material.id}">${material.name}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+            $container.append(partHtml);
+        });
+    }
+
+    async function submitQuote() {
+        const partDetails = [];
+        let allMaterialsSelected = true;
+
+        $('.material-select').each(function() {
+            const partTemplateId = $(this).data('part-id');
+            const materialId = $(this).val();
+
+            if (materialId) {
+                partDetails.push({
+                    part_template: parseInt(partTemplateId),
+                    selected_material: parseInt(materialId)
+                });
+            } else {
+                allMaterialsSelected = false;
+            }
+        });
+
+        if (!allMaterialsSelected) {
+            toastr.error('Please select a material for all parts.');
+            return;
+        }
+
+        const csrfToken = $('meta[name="csrf-token"]').attr('content');
+        
+        try {
+            const finalQuotePayload = {
+                customer_name: selectedQuoteData.customer_name,
+                products: [{ 
+                    ...selectedQuoteData,
+                    part_details: partDetails
+                }]
+            };
+
+            const response = await $.ajax({
+                url: API_URL + 'quotes/',
+                method: 'POST',
+                contentType: 'application/json',
+                headers: {'X-CSRFToken': csrfToken},
+                data: JSON.stringify(finalQuotePayload),
+            });
+            
+            const newQuoteId = response.id;
+            toastr.success(`Quote #${newQuoteId} created successfully! Fetching details...`);
+            
+            // Now, fetch the full details for the new quote
+            const detailedResponse = await $.get(API_URL + `quotes/${newQuoteId}/`);
+
+            renderQuoteDetails(detailedResponse);
+
+        } catch (xhr) {
+            const errorData = xhr.responseJSON;
+            let errorMessage = 'Failed to create quote.';
+            if (errorData) {
+                errorMessage += ' ' + JSON.stringify(errorData);
+            }
+            toastr.error(errorMessage);
+        }
+    }
+
+    // Function to calculate the quote by sending data to the backend API.
+async function calculateQuote() {
+    const form = $('#quote-form')[0];
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+    }
+    
+    const partDetails = [];
+    $('.material-select').each(function() {
+        const partTemplateId = $(this).data('part-id');
+        const materialId = $(this).val();
+        partDetails.push({ part_template: parseInt(partTemplateId), selected_material: parseInt(materialId) });
+    });
+
+    const finalQuotePayload = {
+        customer_name: $('#customer-name').val(),
+        products: [{ 
+            modular_product: parseInt($('#modular-product').val()),
+            length_mm: parseFloat($('#length-mm').val()),
+            width_mm: parseFloat($('#width-mm').val()),
+            height_mm: parseFloat($('#height-mm').val()),
+            quantity: 1,
+            part_details: partDetails
+        }]
+    };
+    
+    const csrfToken = $('meta[name="csrf-token"]').attr('content');
+    
+    try {
+        const response = await $.ajax({
+            url: API_URL + 'quotes/calculate_quote/',
+            method: 'POST',
+            contentType: 'application/json',
+            headers: {'X-CSRFToken': csrfToken},
+            data: JSON.stringify(finalQuotePayload),
+        });
+        
+        calculatedQuoteData = response;
+        renderQuoteBreakdown(response);
+        toastr.success('Quote calculated successfully! You can now save it.');
+        $('#save-quote-btn').removeClass('d-none'); // Show the save button
+        $('#quote-output-container').removeClass('d-none');
+
+    } catch (xhr) {
+        console.error("Calculation Error:", xhr);
+        const errorData = xhr.responseJSON;
+        
+        if (errorData) {
+            // A recursive helper function to handle nested error objects from DRF
+            function displayErrors(errorObj, parentKey = '') {
+                for (const [field, errors] of Object.entries(errorObj)) {
+                    const fullKey = parentKey ? `${parentKey} -> ${field}` : field;
+
+                    if (Array.isArray(errors)) {
+                        const fieldName = fullKey.replace(/_/g, ' '); // Format the field name
+                        toastr.error(`${fieldName}: ${errors.join(' ')}`);
+                    } else if (typeof errors === 'object' && errors !== null) {
+                        displayErrors(errors, fullKey); // Recurse into nested objects
+                    }
+                }
+            }
+            
+            displayErrors(errorData);
+
+        } else {
+            toastr.error('Failed to calculate quote. An unexpected error occurred.');
+        }
+
+        $('#save-quote-btn').addClass('d-none');
+    }
+}
+
+async function saveFinalQuote() {
+    if (!calculatedQuoteData) {
+        toastr.error('Please calculate a quote before saving.');
+        return;
+    }
+
+    const csrfToken = $('meta[name="csrf-token"]').attr('content');
+    try {
+        // Send the same payload to the create endpoint
+        const response = await $.ajax({
+            url: API_URL + 'quotes/',
+            method: 'POST',
+            contentType: 'application/json',
+            headers: {'X-CSRFToken': csrfToken},
+            data: JSON.stringify({
+                customer_name: calculatedQuoteData.customer_name,
+                products: calculatedQuoteData.products.map(p => ({
+                    modular_product: p.modular_product,
+                    length_mm: p.length_mm,
+                    width_mm: p.width_mm,
+                    height_mm: p.height_mm,
+                    quantity: p.quantity,
+                    part_details: p.part_details.map(pd => ({
+                        part_template: pd.part_template,
+                        selected_material: pd.selected_material
+                    }))
+                }))
+            })
+        });
+
+        toastr.success(`Quote #${response.id} saved successfully!`);
+        // Redirect or show a success message
+        // window.location.href = `/quotes/${response.id}/`;
+
+    } catch (xhr) {
+        toastr.error('Failed to save quote. Please try again.');
+    }
+}
+
+
+    function renderQuoteBreakdown(quoteData) {
+        const $productsContainer = $('#output-products-container').empty();
+        
+        quoteData.products.forEach(product => {
+            const productHtml = `
+                <div class="card mb-3">
+                    <div class="card-header">Product: ${product.modular_product_name}</div>
+                    <div class="card-body">
+                        <h5>Price Breakdown</h5>
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Part</th>
+                                    <th>Material</th>
+                                    <th>Qty</th>
+                                    <th>Area (m²)</th>
+                                    <th>Total Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${product.part_details.map(part => `
+                                    <tr>
+                                        <td>${part.part_name}</td>
+                                        <td>${part.selected_material_name}</td>
+                                        <td>${part.evaluated_qty}</td>
+                                        <td>${part.evaluated_area.toFixed(2)}</td>
+                                        <td>$${part.total_cost.toFixed(2)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            $productsContainer.append(productHtml);
+        });
+    }
+
+</script>
+{% endblock %}

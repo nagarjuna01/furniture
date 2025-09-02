@@ -1,0 +1,12 @@
+<select name="billing_unit_id" class="form-select select2">
+  {% for unit in units %}
+    <option value="{{ unit.id }}">{{ unit.name }} ({{ unit.code }})</option>
+  {% endfor %}
+</select>
+<button type="button"
+        class="btn btn-sm btn-outline-secondary mt-2"
+        hx-get="{% url 'unit_add_form' %}"
+        hx-target="#unit-select"
+        hx-swap="outerHTML">
+  + Add Unit
+</button>

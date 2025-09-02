@@ -9,8 +9,9 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+import os
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,9 +26,10 @@ SECRET_KEY = 'django-insecure-69gtj78kgi%&-25e=8%vytov_(a6&s!u6edt&x(zo!7rt$ad5k
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-from datetime import timedelta
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
+
+AUTH_USER_MODEL = 'customer.Customer'
 # Application definition
 
 INSTALLED_APPS = [
@@ -47,16 +49,23 @@ INSTALLED_APPS = [
     'rest_framework',  # Add this line to enable DRF
     
     #'products',
-    'order',
+    #'order',
     #'cart',
     'payment',
     'customer',
     'rest_framework_simplejwt.token_blacklist',
     'material',
-    'pmodular',
+    'partisoproduct',
+    'products1',
+    'guardian',
+    'djoser',
+    'modular_calc',
+    'quoting',
     
     
 ]
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -100,7 +109,10 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',    
     }
 }
-
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',  # default
+    'guardian.backends.ObjectPermissionBackend',
+)
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -159,22 +171,29 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 10,
-    # 'DEFAULT_AUTHENTICATION_CLASSES': [
-    #     'rest_framework_simplejwt.authentication.JWTAuthentication',
-    # ],
-    'DEFAULT_PERMISSION_CLASSES': [
+    
+    
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.AllowAny',
-    ],
+    )
 }
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),  # Ensure client sends "Bearer <token>"
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # adjust as needed
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost",
+    "null", # This is for when you open the HTML file directly from the filesystem
 ]
-import os
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')

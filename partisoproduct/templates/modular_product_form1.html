@@ -1,0 +1,907 @@
+{% extends 'base_b.html' %}
+
+{% block title %}{% if product_id %}Edit{% else %}Create{% endif %} Modular Product{% endblock %}
+
+{% block content %}
+
+
+<h1 class="mb-4" id="formTitle">{% if product_id %}Edit{% else %}Create New{% endif %} Modular Product</h1>
+
+<div id="formMessages" class="alert" role="alert" style="display: none;"></div>
+
+<form id="modularProductForm">
+    {% csrf_token %}
+    <input type="hidden" id="productId" value="{{ product_id|default_if_none:'' }}">
+    <input type="hidden" id="productStatus" value="{{ product.status|default_if_none:'draft' }}">
+
+
+    <ul class="nav nav-tabs mb-4" id="modularProductTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="product-details-tab" data-bs-toggle="tab" data-bs-target="#product-details" type="button" role="tab" aria-controls="product-details" aria-selected="true">Product Details</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="parameters-tab" data-bs-toggle="tab" data-bs-target="#parameters" type="button" role="tab" aria-controls="parameters" aria-selected="false">Product Parameters</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab" aria-controls="rules" aria-selected="false">Hardware Rules</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="parts-tab" data-bs-toggle="tab" data-bs-target="#parts" type="button" role="tab" aria-controls="parts" aria-selected="false">Parts</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="modularProductTabContent">
+        <div class="tab-pane fade show active" id="product-details" role="tabpanel" aria-labelledby="product-details-tab">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    Product Details
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="productName" class="form-label">Product Name</label>
+                        <input type="text" class="form-control" id="productName" name="name" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="productLength" class="form-label">Length (mm)</label>
+                            <input type="number" step="0.01" class="form-control" id="productLength" name="length_mm" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="productWidth" class="form-label">Width (mm)</label>
+                            <input type="number" step="0.01" class="form-control" id="productWidth" name="width_mm" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="productHeight" class="form-label">Height (mm)</label>
+                            <input type="number" step="0.01" class="form-control" id="productHeight" name="height_mm" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productValidationExpression" class="form-label">Validation Expression</label>
+                        <textarea class="form-control" id="productValidationExpression" name="product_validation_expression" rows="3"
+                            placeholder="e.g., 'product_length <= 2000 and product_width >= 500'"></textarea>
+                    <small id="productValidationExpressionFeedback" class="form-text text-muted expression-validation-feedback"></small>
+                <div class="mt-2">
+                        <strong>Validation Outcome:</strong> <span id="validationOutcomeSpan" class="badge bg-secondary">N/A</span>
+                        </div>
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="parameters" role="tabpanel" aria-labelledby="parameters-tab">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    Product Parameters
+                    <button type="button" class="btn btn-sm btn-light" id="addParameter">Add Parameter</button>
+                </div>
+                <div class="card-body" id="productParametersContainer">
+                    <p class="text-muted" id="noParametersMessage">No product parameters added yet. Click "Add Parameter".</p>
+                    </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="rules" role="tabpanel" aria-labelledby="rules-tab">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    Hardware Rules
+                    <button type="button" class="btn btn-sm btn-light" id="addHardwareRule">Add Rule</button>
+                </div>
+                <div class="card-body" id="hardwareRulesContainer">
+                    <p class="text-muted" id="noHardwareRulesMessage">No hardware rules added yet. Click "Add Rule".</p>
+                    </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="parts" role="tabpanel" aria-labelledby="parts-tab">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    Parts
+                    <button type="button" class="btn btn-sm btn-light" id="addPartBtn">Add Part</button>
+                </div>
+                <div class="card-body" id="partsContainer">
+                    <p id="noPartsAddedMessage" class="text-muted">No parts added yet. Click "Add Part" to begin.</p>
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="button" class="btn btn-success btn-lg mt-4" id="saveDraftBtn">Save Draft</button>
+<button type="button" class="btn btn-primary btn-lg mt-4 ms-2" id="publishProductBtn">Publish Product</button>
+<a href="{% url 'modular_products_list' %}" class="btn btn-secondary btn-lg mt-4 ms-2">Cancel</a>
+<div id="autoSaveStatus" class="ms-3 mt-4 text-muted d-inline-block" style="font-size: 0.9em;"></div>
+</form>
+
+<template id="parameterTemplate">
+    <div class="card mb-2 parameter-item border border-success" data-id="">
+        <div class="card-body">
+            <input type="hidden" class="parameter-id" name="product_parameters[][id]">
+            <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">&times;</button>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control parameter-name" name="product_parameters[][name]" placeholder="e.g., Channel Thickness" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Abbreviation</label>
+                    <input type="text" class="form-control parameter-abbreviation" name="product_parameters[][abbreviation]" placeholder="e.g., CH_THK" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Value</label>
+                    <input type="number" step="0.01" class="form-control parameter-value" name="product_parameters[][value]" required>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="hardwareRuleTemplate">
+    <div class="card mb-2 hardware-rule-item border border-danger" data-id="">
+        <div class="card-body">
+            <input type="hidden" class="hardware-rule-id" name="hardware_rules[][id]">
+            <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">&times;</button>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control rule-name" name="hardware_rules[][name]" placeholder="e.g., 2 per door" required>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label">Equation</label>
+                    <input type="text" class="form-control rule-equation" name="hardware_rules[][equation]" placeholder="e.g., num_doors * 2" required>
+                    <small class="form-text text-muted expression-validation-feedback"></small>
+                </div>
+                <div class="col-md-2 d-flex align-items-center justify-content-center">
+                    <div class="form-check form-switch mt-3">
+                        <input class="form-check-input rule-is-custom" type="checkbox" role="switch" name="hardware_rules[][is_custom]">
+                        <label class="form-check-label" for="ruleIsCustom">Is Custom?</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="partTemplate">
+    <div class="card mb-3 part-item border border-info" data-id="">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <span class="part-header-title">New Part</span>
+            <button type="button" class="btn btn-sm btn-danger remove-item-btn">&times;</button>
+        </div>
+        <div class="card-body">
+            <input type="hidden" class="part-id" name="parts[][id]">
+            <div class="mb-3">
+                <label class="form-label">Part Name</label>
+                <input type="text" class="form-control part-name" name="parts[][name]" required>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Length Equation</label>
+                    <input type="text" class="form-control part-length-equation" name="parts[][part_length_equation]" required placeholder="e.g., product_length - 36">
+                    <small class="form-text text-muted expression-validation-feedback"></small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Width Equation</label>
+                    <input type="text" class="form-control part-width-equation" name="parts[][part_width_equation]" required placeholder="e.g., product_width / 2">
+                    <small class="form-text text-muted expression-validation-feedback"></small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Quantity Equation</label>
+                    <input type="text" class="form-control part-qty-equation" name="parts[][part_qty_equation]" required placeholder="e.g., 2">
+                    <small class="form-text text-muted expression-validation-feedback"></small>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                    <label class="form-label">Material</label>
+                    <select class="form-select part-material" name="parts[][part_material]" required>
+                        </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Edge Grooving Cost</label>
+                    <input type="number" step="0.01" class="form-control part-edge-grooving-cost" name="parts[][edge_band_grooving_cost]" value="0.00" required>
+                </div>
+            </div>
+
+            <h6 class="mt-4">Edge Banding Materials:</h6>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Top Edge</label>
+                    <select class="form-select part-edgematerial-top" name="parts[][part_edgematerial_top]">
+                        </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Bottom Edge</label>
+                    <select class="form-select part-edgematerial-bottom" name="parts[][part_edgematerial_bottom]">
+                        </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Left Edge</label>
+                    <select class="form-select part-edgematerial-left" name="parts[][part_edgematerial_left]">
+                        </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Right Edge</label>
+                    <select class="form-select part-edgematerial-right" name="parts[][part_edgematerial_right]">
+                        </select>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                    <label class="form-label">Shape</label>
+                    <select class="form-select part-shape" name="parts[][part_shape]" required>
+                        <option value="rectangle">Rectangle</option>
+                        <option value="circle">Circle</option>
+                        <option value="curvilinear">Curvilinear</option>
+                        <option value="l_shape">L Shape</option>
+                        <option value="triangle">Triangle</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Grain Direction</label>
+                    <select class="form-select part-grain-direction" name="parts[][grain_direction]" required>
+                        <option value="none">None</option>
+                        <option value="horizontal">Horizontal</option>
+                        <option value="vertical">Vertical</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3 mt-2">
+                <label class="form-label">Shape Wastage Multiplier</label>
+                <input type="number" step="0.01" class="form-control part-shape-wastage-multiplier" name="parts[][shape_wastage_multiplier]" value="1.00" required>
+            </div>
+
+            <hr>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6>Hardware Requirements:</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary add-hardware-btn">Add Hardware</button>
+            </div>
+            <div class="hardware-requirements-container">
+                <p class="text-muted no-hardware-message">No hardware requirements added yet.</p>
+                </div>
+        </div>
+    </div>
+</template>
+
+<template id="hardwareRequirementTemplate">
+    <div class="card mb-2 hardware-req-item border border-secondary" data-id="">
+        <div class="card-body">
+            <input type="hidden" class="hardware-req-id" name="parts[][hardware_requirements][][id]">
+            <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">&times;</button>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Hardware</label>
+                <select class="form-select hardware-select" name="parts[][hardware_requirements][][hardware]" required>
+                    </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Rule</label>
+                <select class="form-select rule-select" name="parts[][hardware_requirements][][rule]" required>
+                    </select>
+            </div>
+            <div class="mb-3 custom-equation-group" style="display: none;">
+                <label class="form-label">Custom Equation</label>
+                <input type="text" class="form-control custom-equation-input" name="parts[][hardware_requirements][][custom_equation]" placeholder="e.g., num_doors * 3">
+                <small class="form-text text-muted expression-validation-feedback"></small>
+            </div>
+        </div>
+    </div>
+</template>
+
+{% endblock %}
+{% block extra_js %}
+
+<script>
+$(document).ready(function() {
+    const productId = $('#productId').val();
+    const csrftoken = getCookie('csrftoken');
+
+    // --- Global Data Stores (for dropdown options) ---
+    let woodEns = [];
+    let edgeBands = []; // This will contain ALL edge bands fetched from the API
+    let hardwareItems = [];
+    let hardwareRules = [];
+
+    // --- Core Utility Functions ---
+
+    // Function to get CSRF token from cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const debounce = (func, delay) => {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), delay);
+    };
+};
+
+    // Function to display form messages
+    function showFormMessage(message, type = 'success') {
+        const formMessages = $('#formMessages');
+        formMessages.removeClass('alert-success alert-danger alert-warning').addClass(`alert-${type}`).text(message).fadeIn();
+        setTimeout(() => {
+            formMessages.fadeOut();
+        }, 5000); // Message disappears after 5 seconds
+    }
+
+    // Function to populate a select dropdown
+    // selectElement: jQuery object for the select tag
+    // data: Array of objects {id: ..., name: ...}
+    // valueField: The key in 'data' objects for option value (e.g., 'id')
+    // textField: The key in 'data' objects for option text (e.g., 'name' or 'display_name')
+    // selectedValue: The value to set as selected (optional)
+    function populateSelect(selectElement, data, valueField, textField, selectedValue = null) {
+        selectElement.empty().append($('<option>', {
+            value: '',
+            text: '--- Select ---'
+        })); // Add a default option
+        $.each(data, function(i, item) {
+            selectElement.append($('<option>', {
+                value: item[valueField],
+                text: item[textField]
+            }));
+        });
+        if (selectedValue !== null) {
+            selectElement.val(selectedValue);
+        }
+    }
+
+    // Generic function to update indices of dynamic items after add/remove
+    // containerElement: The jQuery object for the parent container (e.g., $('#productParametersContainer'))
+    // itemSelector: The selector for individual items within the container (e.g., '.parameter-item')
+    // namePrefix: The prefix for the name attribute (e.g., 'product_parameters')
+    // Optional: nestedNamePrefix for nested items (e.g., 'hardware_requirements')
+    function updateItemIndices(containerElement, itemSelector, namePrefix, nestedNamePrefix = null) {
+        containerElement.find(itemSelector).each(function(index) {
+            const currentItem = $(this);
+            // Update top-level fields for this item (e.g., parts[0][name])
+            currentItem.find('[name^="' + namePrefix + '["]').each(function() {
+                const currentName = $(this).attr('name');
+                const newName = currentName.replace(/\[\d*\]/, '[' + index + ']');
+                $(this).attr('name', newName);
+            });
+
+            // If there's a nested prefix, update nested items as well
+            if (nestedNamePrefix) {
+                // Find all nested inputs within this currentItem
+                currentItem.find('[name*="' + nestedNamePrefix + '["]').each(function() {
+                    const currentNestedInput = $(this);
+                    const currentName = currentNestedInput.attr('name');
+                    // Regex to target the index immediately after the nestedNamePrefix[]
+                    // Example: parts[0][hardware_requirements][1][hardware]
+                    const newName = currentName.replace(
+                        new RegExp(namePrefix + '\\[\\d+\\]\\[' + nestedNamePrefix + '\\]\\[(\\d+)\\]'),
+                        namePrefix + '[' + index + '][' + nestedNamePrefix + '][' + currentNestedInput.closest('.hardware-req-item').index() + ']'
+                    );
+                    currentNestedInput.attr('name', newName);
+                });
+            }
+        });
+    }
+
+
+    // --- AJAX Data Fetching (for dropdowns) ---
+
+    async function fetchAllDropdownData() {
+        try {
+            const [woodEnRes, edgeBandRes, hardwareRes, hardwareRuleRes] = await Promise.all([
+                fetchPaginatedData('/material/v1/woodens/'),
+                fetchPaginatedData('/material/v1/edgebands/'),
+                fetchPaginatedData('/material/v1/hardware/'),
+                fetchPaginatedData('/partiso/api/hardware-rules/')
+            ]);
+
+            woodEns = woodEnRes;
+            edgeBands = edgeBandRes; // This array contains all edgebands
+            hardwareItems = hardwareRes;
+            hardwareRules = hardwareRuleRes;
+
+            console.log("Dropdown data fetched:", { woodEns, edgeBands, hardwareItems, hardwareRules });
+        } catch (error) {
+            console.error("Error fetching dropdown data:", error);
+            showFormMessage("Error loading dropdown options. Please refresh.", "danger");
+        }
+    }
+
+    function fetchPaginatedData(url) {
+        return new Promise(async (resolve, reject) => {
+            let results = [];
+            let nextUrl = url;
+
+            try {
+                while (nextUrl) {
+                    const response = await $.get(nextUrl).catch((jqXHR) => {
+                        reject(new Error(`Failed to fetch ${nextUrl} - Status: ${jqXHR.status}`));
+                    });
+
+                    results = results.concat(response.results);
+                    nextUrl = response.next;
+                }
+                resolve(results);
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    // --- Product Parameters (Constraints) Logic ---
+
+    // Function to add a new parameter item or load an existing one
+    function addParameterItem(initialData = {}) {
+        const template = $('#parameterTemplate').html();
+        const newItem = $(template);
+
+        if (initialData.id) {
+            newItem.attr('data-id', initialData.id);
+            newItem.find('.parameter-id').val(initialData.id);
+            newItem.find('.parameter-name').val(initialData.name);
+            newItem.find('.parameter-abbreviation').val(initialData.abbreviation);
+            newItem.find('.parameter-value').val(initialData.value);
+        }
+
+        $('#productParametersContainer').append(newItem);
+        $('#noParametersMessage').hide();
+
+        updateItemIndices($('#productParametersContainer'), '.parameter-item', 'product_parameters');
+
+        return newItem;
+    }
+
+    // Event listener for "Add Parameter" button
+    $('#addParameter').on('click', function() {
+        addParameterItem();
+    });
+
+    // Event listener for "Remove Parameter" button (delegated)
+    $('#productParametersContainer').on('click', '.remove-item-btn', function() {
+        $(this).closest('.parameter-item').remove();
+        if ($('#productParametersContainer').find('.parameter-item').length === 0) {
+            $('#noParametersMessage').show();
+        }
+        updateItemIndices($('#productParametersContainer'), '.parameter-item', 'product_parameters');
+    });
+
+    // --- Hardware Rules Logic ---
+
+    // Function to add a new hardware rule item or load an existing one
+    function addHardwareRuleItem(initialData = {}) {
+        const template = $('#hardwareRuleTemplate').html();
+        const newItem = $(template);
+
+        if (initialData.id) {
+            newItem.attr('data-id', initialData.id);
+            newItem.find('.hardware-rule-id').val(initialData.id);
+            newItem.find('.rule-name').val(initialData.name);
+            newItem.find('.rule-equation').val(initialData.equation);
+            newItem.find('.rule-is-custom').prop('checked', initialData.is_custom);
+        }
+
+        $('#hardwareRulesContainer').append(newItem);
+        $('#noHardwareRulesMessage').hide();
+
+        updateItemIndices($('#hardwareRulesContainer'), '.hardware-rule-item', 'hardware_rules');
+
+        return newItem;
+    }
+
+    // Event listener for "Add Rule" button
+    $('#addHardwareRule').on('click', function() {
+        addHardwareRuleItem();
+    });
+
+    // Event listener for "Remove Rule" button (delegated)
+    $('#hardwareRulesContainer').on('click', '.remove-item-btn', function() {
+        $(this).closest('.hardware-rule-item').remove();
+        if ($('#hardwareRulesContainer').find('.hardware-rule-item').length === 0) {
+            $('#noHardwareRulesMessage').show();
+        }
+        updateItemIndices($('#hardwareRulesContainer'), '.hardware-rule-item', 'hardware_rules');
+    });
+
+    // --- Parts Logic ---
+
+    // Function to add a nested hardware requirement to a part
+    function addHardwareRequirementItem(parentPartItem, initialData = {}) {
+        const template = $('#hardwareRequirementTemplate').html();
+        const newItem = $(template);
+        const hardwareReqContainer = parentPartItem.find('.hardware-requirements-container');
+
+        // Populate Hardware dropdown
+        const hardwareSelect = newItem.find('.hardware-select');
+        populateSelect(hardwareSelect, hardwareItems, 'id', 'h_name', initialData.hardware); // Assuming 'name' for hardware
+
+        // Populate Rule dropdown
+        const ruleSelect = newItem.find('.rule-select');
+        populateSelect(ruleSelect, hardwareRules, 'id', 'name', initialData.rule); // Assuming 'name' for rules
+
+        if (initialData.id) {
+            newItem.attr('data-id', initialData.id);
+            newItem.find('.hardware-req-id').val(initialData.id);
+            newItem.find('.custom-equation-input').val(initialData.custom_equation || '');
+        }
+
+        // Toggle custom equation visibility based on rule selection
+        const toggleCustomEquationField = (ruleId) => {
+            const selectedRule = hardwareRules.find(rule => rule.id == ruleId);
+            if (selectedRule && selectedRule.is_custom) {
+                newItem.find('.custom-equation-group').show().find('input').attr('required', true);
+            } else {
+                newItem.find('.custom-equation-group').hide().find('input').removeAttr('required').val(''); // Clear on hide
+            }
+        };
+
+        // Initial toggle on load/add
+        toggleCustomEquationField(initialData.rule);
+
+        // Event listener for rule change
+        ruleSelect.on('change', function() {
+            toggleCustomEquationField($(this).val());
+        });
+
+        hardwareReqContainer.append(newItem);
+        hardwareReqContainer.find('.no-hardware-message').hide();
+
+        // Update indices for nested hardware requirements
+        // Need to update the name attributes like parts[partIndex][hardware_requirements][reqIndex][...]
+        // The outer updateItemIndices for parts will handle the partIndex, here we just need to ensure reqIndex
+        const partIndex = parentPartItem.index(); // Get the index of the parent part
+        newItem.find('[name*="hardware_requirements["]').each(function() {
+            const currentName = $(this).attr('name');
+            // Regex to insert the part index and update the hardware_requirements index
+            const newName = currentName.replace(
+                /parts\[\]\[hardware_requirements\]\[\]/,
+                `parts[${partIndex}][hardware_requirements][${hardwareReqContainer.find('.hardware-req-item').index(newItem)}]`
+            );
+            $(this).attr('name', newName);
+        });
+
+        return newItem;
+    }
+
+    // Function to add a new part item or load an existing one
+    function addPartItem(initialData = {}) {
+        const template = $('#partTemplate').html();
+        const newItem = $(template);
+
+        // Populate Part Material dropdown
+        const materialSelect = newItem.find('.part-material');
+        populateSelect(materialSelect, woodEns, 'id', 'name', initialData.part_material);
+
+        // Populate Edge Banding Material dropdowns initially with ALL edgeBands
+        // setupEdgebandFiltering will then filter them based on selected part_material
+        const edgeBandSelectors = ['.part-edgematerial-top', '.part-edgematerial-bottom', '.part-edgematerial-left', '.part-edgematerial-right'];
+        edgeBandSelectors.forEach(selector => {
+            const edgeSelect = newItem.find(selector);
+            // Use 'display_name' from EdgeBandSerializer for text
+            populateSelect(edgeSelect, edgeBands, 'id', 'display_name', initialData[$(edgeSelect).attr('name').split('[]')[1].replace(/\[|\]/g, '')]);
+        });
+
+        if (initialData.id) {
+            newItem.attr('data-id', initialData.id);
+            newItem.find('.part-id').val(initialData.id);
+            newItem.find('.part-header-title').text(initialData.name); // Set title on load
+            newItem.find('.part-name').val(initialData.name);
+            newItem.find('.part-length-equation').val(initialData.part_length_equation);
+            newItem.find('.part-width-equation').val(initialData.part_width_equation);
+            newItem.find('.part-qty-equation').val(initialData.part_qty_equation);
+            newItem.find('.part-edge-grooving-cost').val(initialData.edge_band_grooving_cost);
+            newItem.find('.part-shape').val(initialData.part_shape);
+            newItem.find('.part-grain-direction').val(initialData.grain_direction);
+            newItem.find('.part-shape-wastage-multiplier').val(initialData.shape_wastage_multiplier);
+
+            // Populate nested hardware requirements
+            if (initialData.hardware_requirements && initialData.hardware_requirements.length > 0) {
+                $.each(initialData.hardware_requirements, function(index, req) {
+                    addHardwareRequirementItem(newItem, req);
+                });
+            }
+        }
+
+        $('#partsContainer').append(newItem);
+        $('#noPartsAddedMessage').hide();
+
+        // Update indices for all inputs in the part and its nested requirements
+        updateItemIndices($('#partsContainer'), '.part-item', 'parts');
+
+        // --- NEW: Setup Edgeband Filtering for this specific part item ---
+        setupEdgebandFiltering(newItem);
+        // -----------------------------------------------------------------
+
+        // Event listener for "Add Hardware" button within this specific part
+        newItem.on('click', '.add-hardware-btn', function() {
+            addHardwareRequirementItem(newItem);
+        });
+
+        // Event listener for "Remove Hardware" button within this specific part (delegated)
+        newItem.on('click', '.hardware-req-item .remove-item-btn', function() {
+            const reqItem = $(this).closest('.hardware-req-item');
+            reqItem.remove();
+            if (newItem.find('.hardware-requirements-container').find('.hardware-req-item').length === 0) {
+                newItem.find('.no-hardware-message').show();
+            }
+            // Update indices for nested hardware requirements
+            // Need to pass the part index to ensure correct naming
+            const partIndex = $('#partsContainer').find('.part-item').index(newItem);
+            updateItemIndices(newItem.find('.hardware-requirements-container'), '.hardware-req-item', `parts[${partIndex}][hardware_requirements]`);
+        });
+
+        // Update part header title when part name changes
+        newItem.find('.part-name').on('input', function() {
+            const name = $(this).val();
+            newItem.find('.part-header-title').text(name || 'New Part');
+        });
+
+        return newItem;
+    }
+
+    // --- NEW FUNCTION: setupEdgebandFiltering ---
+    function setupEdgebandFiltering(partItem) {
+        const partMaterialSelect = partItem.find('.part-material'); // Corrected selector
+        const edgeBandSelects = partItem.find('.part-edgematerial-top, .part-edgematerial-bottom, .part-edgematerial-left, .part-edgematerial-right'); // Corrected selectors
+
+        const filterEdgeBands = () => {
+            const selectedWoodEnId = partMaterialSelect.val();
+            let compatibleEdgeBandsData = []; // This will hold the nested EdgeBand objects from the selected WoodEn
+
+            if (selectedWoodEnId) {
+                const selectedWoodEn = woodEns.find(woodEn => woodEn.id == selectedWoodEnId);
+                if (selectedWoodEn && selectedWoodEn.compatible_edgebands) {
+                    compatibleEdgeBandsData = selectedWoodEn.compatible_edgebands;
+                }
+            }
+            // If no woodEn selected, compatibleEdgeBandsData remains an empty array,
+            // which will cause populateSelect to only show '--- Select ---'
+
+            // Re-populate all edge band dropdowns in this part item
+            edgeBandSelects.each(function() {
+                const currentEdgeBandId = $(this).val(); // Get currently selected value before repopulating
+
+                // Use 'display_name' as the field for text
+                populateSelect($(this), compatibleEdgeBandsData, 'id', 'display_name', currentEdgeBandId);
+
+                // Optional: If the previously selected value is no longer valid,
+                // set the dropdown to the default '--- Select ---' or the first option.
+                // This handles cases where a previously selected edgeband becomes incompatible
+                // after changing the panel material.
+                if (!$(this).find('option[value="' + currentEdgeBandId + '"]').length && currentEdgeBandId !== '') {
+                    $(this).val(''); // Reset to default if current value is no longer in options
+                }
+            });
+        };
+
+        // Attach the change listener
+        partMaterialSelect.on('change', filterEdgeBands);
+
+        // Trigger filtering immediately for initial state (e.g., when loading existing data or first adding item)
+        // This ensures the edgeband dropdowns are correct based on the initial part_material selection.
+        filterEdgeBands();
+    }
+    // ------------------------------------------
+
+    // Event listener for "Add Part" button
+    $('#addPartBtn').on('click', function() {
+        addPartItem();
+    });
+
+    // Event listener for "Remove Part" button (delegated)
+    $('#partsContainer').on('click', '.remove-item-btn', function() {
+        $(this).closest('.part-item').remove();
+        if ($('#partsContainer').find('.part-item').length === 0) {
+            $('#noPartsAddedMessage').show();
+        }
+        updateItemIndices($('#partsContainer'), '.part-item', 'parts');
+    });
+
+    // --- Initial Load (for Edit Mode) ---
+    // This function will be called once all dropdown data is ready
+    async function loadProductData(id) {
+        try {
+            const product = await $.get(`/partiso/api/modular1/${id}/`); // Your API endpoint to fetch a single product
+            console.log("Product data loaded:", product);
+
+            // Populate main product details
+            $('#productName').val(product.name);
+            $('#productLength').val(product.length_mm);
+            $('#productWidth').val(product.width_mm);
+            $('#productHeight').val(product.height_mm);
+            $('#productValidationExpression').val(product.product_validation_expression);
+
+            // Populate parameters
+            if (product.product_parameters && product.product_parameters.length > 0) {
+                $.each(product.product_parameters, function(index, param) {
+                    addParameterItem(param);
+                });
+            }
+
+            // Populate hardware rules
+            if (product.hardware_rules && product.hardware_rules.length > 0) {
+                $.each(product.hardware_rules, function(index, rule) {
+                    addHardwareRuleItem(rule);
+                });
+            }
+
+            // Populate parts
+            if (product.parts && product.parts.length > 0) {
+                $.each(product.parts, function(index, part) {
+                    addPartItem(part); // This will recursively add nested hardware requirements
+                });
+            }
+            showFormMessage('Product data loaded successfully!', 'success');
+        } catch (error) {
+            console.error("Error loading product data:", error);
+            showFormMessage("Error loading product data. Please check ID or network.", "danger");
+        }
+    }
+
+    // --- Form Submission Logic ---
+    // ... (your existing code) ...
+
+// Function to save product data (extracted from form submission)
+const saveProductData = async () => {
+    // Collect formData (same logic as in your submit handler)
+    const formData = {
+        name: $('#productName').val(),
+        length_mm: $('#productLength').val(),
+        width_mm: $('#productWidth').val(),
+        height_mm: $('#productHeight').val(),
+        product_validation_expression: $('#productValidationExpression').val(),
+        product_parameters: [],
+        hardware_rules: [],
+        parts: []
+    };
+
+    // Collect Product Parameters
+    $('#productParametersContainer').find('.parameter-item').each(function() {
+        formData.product_parameters.push({
+            id: $(this).attr('data-id') || null,
+            name: $(this).find('.parameter-name').val(),
+            abbreviation: $(this).find('.parameter-abbreviation').val(),
+            value: parseFloat($(this).find('.parameter-value').val())
+        });
+    });
+
+    // Collect Hardware Rules
+    $('#hardwareRulesContainer').find('.hardware-rule-item').each(function() {
+        formData.hardware_rules.push({
+            id: $(this).attr('data-id') || null,
+            name: $(this).find('.rule-name').val(),
+            equation: $(this).find('.rule-equation').val(),
+            is_custom: $(this).find('.rule-is-custom').is(':checked')
+        });
+    });
+
+    // Collect Parts and their Nested Hardware Requirements
+    $('#partsContainer').find('.part-item').each(function() {
+        const partItem = $(this);
+        const partData = {
+            id: partItem.attr('data-id') || null,
+            name: partItem.find('.part-name').val(),
+            part_length_equation: partItem.find('.part-length-equation').val(),
+            part_width_equation: partItem.find('.part-width-equation').val(),
+            part_qty_equation: partItem.find('.part-qty-equation').val(),
+            part_material: partItem.find('.part-material').val() || null,
+            part_edgematerial_top: partItem.find('.part-edgematerial-top').val() || null,
+            part_edgematerial_left: partItem.find('.part-edgematerial-left').val() || null,
+            part_edgematerial_right: partItem.find('.part-edgematerial-right').val() || null,
+            part_edgematerial_bottom: partItem.find('.part-edgematerial-bottom').val() || null,
+            edge_band_grooving_cost: parseFloat(partItem.find('.part-edge-grooving-cost').val()),
+            part_shape: partItem.find('.part-shape').val(),
+            grain_direction: partItem.find('.part-grain-direction').val(),
+            shape_wastage_multiplier: parseFloat(partItem.find('.part-shape-wastage-multiplier').val()),
+            hardware_requirements: []
+        };
+
+        partItem.find('.hardware-req-item').each(function() {
+            const reqItem = $(this);
+            const ruleId = reqItem.find('.rule-select').val();
+            const selectedRule = hardwareRules.find(rule => rule.id == ruleId);
+            let customEquation = null;
+            if (selectedRule && selectedRule.is_custom) {
+                customEquation = reqItem.find('.custom-equation-input').val();
+            }
+
+            partData.hardware_requirements.push({
+                id: reqItem.attr('data-id') || null,
+                hardware: reqItem.find('.hardware-select').val() || null,
+                rule: ruleId || null,
+                custom_equation: customEquation
+            });
+        });
+        formData.parts.push(partData);
+    });
+
+    console.log('Collected Form Data for Auto-Save:', formData);
+    showFormMessage('Saving draft...', 'info');
+
+    try {
+        const url = productId ? `/partiso/api/modular1/${productId}/` : '/partiso/api/modular1/';
+        const method = productId ? 'PUT' : 'POST';
+
+        const response = await $.ajax({
+            url: url,
+            method: method,
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify(formData)
+        });
+
+        if (!productId) {
+            // If it's a new product, update the URL and productId for future saves
+            window.history.pushState({}, '', `/modularproducts/${response.id}/edit/`);
+            $('#productId').val(response.id);
+            // After initial save, re-load the data to get the new IDs for child objects
+            // This is crucial for subsequent updates (PUT requests) to correctly identify nested items
+            await loadProductData(response.id);
+            showFormMessage('Product draft created!', 'success');
+        } else {
+            showFormMessage('Draft saved!', 'success');
+        }
+        // console.log('Save response:', response); // Log the full response to see new IDs
+    } catch (xhr) {
+        const errorMessage = xhr.responseJSON ? JSON.stringify(xhr.responseJSON, null, 2) : 'An unknown error occurred.';
+        showFormMessage(`Error saving draft: ${errorMessage}`, 'danger');
+        console.error('AJAX Error during auto-save:', xhr.responseText);
+    }
+};
+
+// Debounced version of the save function
+const debouncedSave = debounce(saveProductData, 1500); // Save after 1.5 seconds of no activity
+
+// Event Listeners for Auto-Save
+// Listen to changes on all relevant input fields
+$('#modularProductForm').on('input change', 'input, select, textarea', function() {
+    debouncedSave();
+});
+
+// Initial load (after all dropdown data is ready)
+fetchAllDropdownData().then(() => {
+    if (productId) {
+        loadProductData(productId);
+    }
+});
+
+// Keep your explicit form submission for "Publish" or "Save Final"
+$('#modularProductForm').on('submit', async function(e) {
+    e.preventDefault(); // Prevent default form submission
+
+    showFormMessage('Publishing product...', 'info'); // Change message for explicit save
+
+    // Use the same logic to collect formData as in saveProductData
+    // You might want to add a `status` field (e.g., 'published') to formData here
+    // For simplicity, we'll call saveProductData, assuming it handles the data collection
+    // If you need different logic for PUBLISH vs. DRAFT, duplicate/adapt the formData collection here
+    await saveProductData(); // This will save the current state
+
+    // If you need a *separate* "Publish" action that marks the product as published:
+    // 1. Add a `status` field to your Django model (e.g., 'draft', 'published').
+    // 2. Add a hidden input or a separate button for "Publish".
+    // 3. Modify `formData` to include `status: 'published'` on explicit submit.
+    // Example: formData.status = 'published';
+    // Then make the AJAX call.
+
+    showFormMessage('Product published successfully!', 'success');
+});
+
+});
+</script>
+{% endblock %}

@@ -1,0 +1,296 @@
+{% extends 'base_b.html' %}
+
+{% block title %}Modular Products List{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Modular Products</h1>
+
+
+<button id="createNewProductBtn" class="btn btn-success mb-3">Create New Modular Product</button>
+
+<div id="loadingMessage" class="alert alert-info" role="alert" style="display: none;">
+    Loading modular products...
+</div>
+
+<div id="errorMessage" class="alert alert-danger" role="alert" style="display: none;">
+    Error loading modular products. Please try again later.
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="modularProductsContainer">
+    </div>
+
+<div class="modal fade" id="productDetailModal" tabindex="-1" aria-labelledby="productDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productDetailModalLabel">Product Details: <span id="modalProductName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>Length:</strong> <span id="modalProductLength"></span> mm
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Width:</strong> <span id="modalProductWidth"></span> mm
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Height:</strong> <span id="modalProductHeight"></span> mm
+                    </div>
+                </div>
+
+                <h5>Parts:</h5>
+                <div id="modalProductPartsContainer">
+                    <div id="noPartsMessage" class="alert alert-warning" role="alert" style="display: none;">
+                        No parts defined for this product.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete <strong id="deleteProductName"></strong>? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    const API_BASE_URL = '/partiso/api/modular1/';
+    const loadingMessage = $('#loadingMessage');
+    const errorMessage = $('#errorMessage');
+    const productsContainer = $('#modularProductsContainer');
+    const productDetailModal = $('#productDetailModal');
+    const deleteConfirmModal = $('#deleteConfirmModal');
+    const confirmDeleteBtn = $('#confirmDeleteBtn');
+    let productToDeleteId = null; // To store the ID of the product to be deleted
+
+    // Function to fetch and display modular products
+    function fetchModularProducts() {
+        loadingMessage.show();
+        errorMessage.hide();
+        productsContainer.empty();
+
+        $.ajax({
+            url: API_BASE_URL,
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                loadingMessage.hide();
+                const productsToIterate = data.results || data; // Handle pagination
+
+                if (!productsToIterate || productsToIterate.length === 0) {
+                    productsContainer.append('<div class="col-12"><p class="text-muted">No modular products found.</p></div>');
+                    return;
+                }
+
+                productsToIterate.forEach(function(product) {
+                    const card = `
+                        <div class="col">
+                            <div class="card h-100 shadow-sm modular-product-card" data-product-id="${product.id}">
+                                <div class="card-body">
+                                    <h5 class="card-title">${product.name}</h5>
+                                    <p class="card-text">
+                                        <strong>Dimensions:</strong> ${product.length_mm}mm x ${product.width_mm}mm x ${product.height_mm}mm
+                                    </p>
+                                    <div class="btn-group mt-2" role="group">
+                                        <button class="btn btn-primary btn-sm view-details" data-id="${product.id}">View Details</button>
+                                        <button class="btn btn-info btn-sm edit-product" data-id="${product.id}">Edit</button>
+                                        <button class="btn btn-danger btn-sm delete-product" data-id="${product.id}" data-name="${product.name}">Delete</button>
+                                    </div>
+                                </div>
+                                <div class="card-footer text-muted">
+                                    <small>Created: ${new Date(product.created_at).toLocaleDateString()}</small><br>
+                                    <small>Updated: ${new Date(product.updated_at).toLocaleDateString()}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    productsContainer.append(card);
+                });
+            },
+            error: function(xhr, status, error) {
+                loadingMessage.hide();
+                errorMessage.text('Error loading modular products: ' + xhr.status + ' ' + error).show();
+                console.error("AJAX Error:", status, error, xhr);
+            }
+        });
+    }
+
+    // Event listener for "Create New Product" button
+    $('#createNewProductBtn').on('click', function() {
+        window.location.href = '{% url "modular_product_create_edit" %}'; // Redirect to the form for creation
+    });
+
+    // Event listener for "View Details" button (remains the same)
+    productsContainer.on('click', '.view-details', function() {
+        const productId = $(this).data('id');
+        fetchProductDetails(productId);
+    });
+
+    // Function to fetch and display product details in the modal (remains the same)
+    function fetchProductDetails(productId) {
+        // ... (copy paste the function from previous template, it's unchanged) ...
+        $.ajax({
+            url: `${API_BASE_URL}${productId}/`, // Fetch specific product detail
+            method: 'GET',
+            dataType: 'json',
+            success: function(product) {
+                $('#modalProductName').text(product.name);
+                $('#modalProductLength').text(product.length_mm);
+                $('#modalProductWidth').text(product.width_mm);
+                $('#modalProductHeight').text(product.height_mm);
+
+                const partsContainer = $('#modalProductPartsContainer');
+                partsContainer.empty(); // Clear previous parts
+                $('#noPartsMessage').hide();
+
+                if (product.parts && product.parts.length > 0) {
+                    product.parts.forEach(function(part) {
+                        const partCard = `
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <strong>Part:</strong> ${part.name}
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-1"><strong>Dimensions:</strong> ${part.part_dimensions.length}mm x ${part.part_dimensions.width}mm (Qty: ${part.part_dimensions.quantity})</p>
+                                    <p class="mb-1"><strong>Material:</strong> ${part.part_material_detail ? part.part_material_detail.name : 'N/A'} (Thickness: ${part.part_material_detail ? part.part_material_detail.thickness : 'N/A'}mm)</p>
+                                    <p class="mb-1"><strong>Area:</strong> ${part.part_area} mm²</p>
+                                    <p class="mb-1"><strong>Grain Direction:</strong> ${part.grain_direction}</p>
+                                    <p class="mb-1"><strong>Shape:</strong> ${part.part_shape}</p>
+                                    <p class="mb-1"><strong>Hardware Cost:</strong> $${part.hardware_total_cost} (Sell: $${part.hardware_total_sell})</p>
+
+                                    <h6>Edge Banding:</h6>
+                                    <ul class="list-group list-group-flush mb-2">
+                                        <li class="list-group-item p-1"><strong>Top:</strong> ${part.part_edgematerial_top_detail ? part.part_edgematerial_top_detail.name : 'None'}</li>
+                                        <li class="list-group-item p-1"><strong>Bottom:</strong> ${part.part_edgematerial_bottom_detail ? part.part_edgematerial_bottom_detail.name : 'None'}</li>
+                                        <li class="list-group-item p-1"><strong>Left:</strong> ${part.part_edgematerial_left_detail ? part.part_edgematerial_left_detail.name : 'None'}</li>
+                                        <li class="list-group-item p-1"><strong>Right:</strong> ${part.part_edgematerial_right_detail ? part.part_edgematerial_right_detail.name : 'None'}</li>
+                                    </ul>
+
+                                    <h6>Hardware Requirements:</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Hardware</th>
+                                                    <th>Rule</th>
+                                                    <th>Custom Eq.</th>
+                                                    <th>Qty</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${part.hardware_requirements && part.hardware_requirements.length > 0 ?
+                                                    part.hardware_requirements.map(hw => `
+                                                        <tr>
+                                                            <td>${hw.hardware_detail ? hw.hardware_detail.name : 'N/A'}</td>
+                                                            <td>${hw.rule_detail ? hw.rule_detail.name : 'N/A'}</td>
+                                                            <td>${hw.custom_equation || 'N/A'}</td>
+                                                            <td>${hw.quantity}</td>
+                                                        </tr>
+                                                    `).join('')
+                                                : '<tr><td colspan="4">No hardware requirements.</td></tr>'}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        partsContainer.append(partCard);
+                    });
+                } else {
+                    $('#noPartsMessage').show();
+                }
+
+                productDetailModal.modal('show');
+            },
+            error: function(xhr, status, error) {
+                alert('Error fetching product details: ' + xhr.status + ' ' + error);
+                console.error("AJAX Error:", status, error, xhr);
+            }
+        });
+    }
+
+    // Event listener for "Edit Product" button
+    productsContainer.on('click', '.edit-product', function() {
+        const productId = $(this).data('id');
+        window.location.href = `{% url "modular_product_create_edit" %}?id=${productId}`; // Redirect to form with ID
+    });
+
+    // Event listener for "Delete Product" button
+    productsContainer.on('click', '.delete-product', function() {
+        productToDeleteId = $(this).data('id');
+        const productName = $(this).data('name');
+        $('#deleteProductName').text(productName);
+        deleteConfirmModal.modal('show');
+    });
+
+    // Event listener for "Confirm Delete" button in modal
+    confirmDeleteBtn.on('click', function() {
+        if (productToDeleteId) {
+            deleteProduct(productToDeleteId);
+            deleteConfirmModal.modal('hide');
+        }
+    });
+
+    // Function to delete a product
+    function deleteProduct(productId) {
+        $.ajax({
+            url: `${API_BASE_URL}${productId}/`,
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken') // Get CSRF token
+            },
+            success: function() {
+                alert('Product deleted successfully!');
+                fetchModularProducts(); // Refresh the list
+            },
+            error: function(xhr, status, error) {
+                alert('Error deleting product: ' + xhr.status + ' ' + error);
+                console.error("AJAX Error:", status, error, xhr);
+            }
+        });
+    }
+
+    // Function to get CSRF token from cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Initial fetch when the page loads
+    fetchModularProducts();
+});
+</script>
+{% endblock %}

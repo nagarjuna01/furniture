@@ -1,0 +1,20 @@
+<div class="sub-navbar mb-3">
+    <div class="btn-group" role="group">
+        <a href="{% url 'brand_page' %}" class="btn btn-outline-primary {% if request.resolver_match.url_name == 'brand_page' %}active{% endif %}">
+            Brands
+        </a>
+        <a href="{% url 'category-browser' %}" class="btn btn-outline-primary {% if request.resolver_match.url_name == 'category-browser' %}active{% endif %}">
+            Categories
+        </a>
+        
+        <a href="{% url 'hardware-inventory' %}" class="btn btn-outline-primary {% if request.resolver_match.url_name == 'hardware-inventory' %}active{% endif %}">
+            Hardware
+        </a>
+        <a href="{% url 'wooden-products' %}" class="btn btn-outline-primary {% if request.resolver_match.url_name == 'wooden-products' %}active{% endif %}">
+            Wooden
+        </a>
+        <a href="{% url 'edgeband-list' %}" class="btn btn-outline-primary {% if request.resolver_match.url_name == 'edgeband-list' %}active{% endif %}">
+            Edgebands
+        </a>
+    </div>
+</div>

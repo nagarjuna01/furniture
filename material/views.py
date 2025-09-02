@@ -3,7 +3,7 @@
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
 from rest_framework import viewsets
-from .models import Brand, Category, CategoryTypes, CategoryModel, WoodEn, EdgeBand, HardwareGroup, Hardware
+from .models import Brand, Category, CategoryTypes, CategoryModel, WoodEn, EdgeBand, HardwareGroup, Hardware,EdgebandName
 from django.db import connection
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -16,12 +16,8 @@ from .serializers import (
     EdgeBandSerializer, # Unified serializer
     CategorySerializer, CategoryTypesSerializer, CategoryModelSerializer,
     WoodEnSerializer,   # Unified serializer
-    HardwareGroupSerializer, HardwareSerializer # Unified serializer
+    HardwareGroupSerializer, HardwareSerializer, EdgebandNameSerializer # Unified serializer
 )
-# from .pagination import CustomPagination # Removed CustomPagination import as it's no longer used by these viewsets
-
-
-# --- HTML Template Views (unchanged from your input) ---
 
 def brand_list_page(request):
     return render(request, 'brand_management.html', {})
@@ -67,19 +63,16 @@ def filter_categories_by_select(request):
     return JsonResponse({'error': 'No select parameter provided'}, status=400)
 
 def wooden_products(request):
-    return render(request, 'wooden_template_bootstrap.html')
+    return render(request, 'ctmwmo.html')
 
 def hardware_view(request):
     return render(request, 'hardware_list.html')  # Update template name if needed
 
 def edgeband_list(request):
-    return render(request, 'edgeband_list.html')
+    return render(request, 'edgeband_list_copy.html')
 
 def category_browser(request):
-    return render(request, 'categorybrowser.html')
-
-
-# --- REST Framework ViewSets ---
+    return render(request, 'categorybrowser_copy.html')
 
 # --------------------- BRAND ---------------------
 class BrandViewSet(viewsets.ModelViewSet):
@@ -91,6 +84,7 @@ class BrandViewSet(viewsets.ModelViewSet):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    
 
 class CategoryTypesViewSet(viewsets.ModelViewSet):
     queryset = CategoryTypes.objects.all()
@@ -106,8 +100,13 @@ class CategoryModelViewSet(viewsets.ModelViewSet):
 
 
 # --------------------- EDGEBAND ---------------------
+
+class EdgebandNameViewSet(viewsets.ModelViewSet):
+    queryset = EdgebandName.objects.all().order_by("name")
+    serializer_class = EdgebandNameSerializer
+
 class EdgeBandViewSet(viewsets.ModelViewSet):
-    queryset = EdgeBand.objects.all()
+    queryset = EdgeBand.objects.all().order_by("-id")
     serializer_class = EdgeBandSerializer # Use the unified EdgeBandSerializer
     # pagination_class = CustomPagination # Removed as requested
 
@@ -115,36 +114,43 @@ class EdgeBandViewSet(viewsets.ModelViewSet):
 # --------------------- WOODEN ---------------------
 class WoodEnViewSet(viewsets.ModelViewSet):
     queryset = WoodEn.objects.all()
-    serializer_class = WoodEnSerializer # Use the unified WoodEnSerializer
+    serializer_class = WoodEnSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['material_grp', 'brand', 'thickness']
+    
+    # allow exact filters
+    filterset_fields = ['material_grp', 'brand', 'thickness', 'material_type', 'material_model']
+    
+    # allow text search
     search_fields = ['name', 'thickness']
-    
-    
-    def get_queryset(self):
-        model_id = self.request.query_params.get('model')
-        if model_id:
-            return WoodEn.objects.filter(material_model_id=model_id)
-        return WoodEn.objects.all()
 
-    @action(detail=True, methods=['get'], url_path='matching_edgebands')
-    def matching_edgebands(self, request, pk=None):
-        wood = self.get_object()
-        target_thickness_str = str(wood.thickness)
-        
-        if connection.vendor == 'sqlite':
-            all_bands = EdgeBand.objects.filter(brand=wood.brand)
-            matches = [
-                band for band in all_bands
-                if target_thickness_str in (band.compatible_thicknesses or [])
-            ]
-        else:
-            matches = EdgeBand.objects.filter(
-                compatible_thicknesses__contains=[target_thickness_str],
-                brand=wood.brand
-            )
-        serializer = EdgeBandSerializer(matches, many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        params = self.request.query_params
+
+        # ✅ optional extra manual filtering
+        name = params.get("name")
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+
+        category = params.get("category")   # assuming mapped to material_grp
+        if category:
+            queryset = queryset.filter(material_grp=category)
+
+        type_id = params.get("type")        # assuming mapped to material_type
+        if type_id:
+            queryset = queryset.filter(material_type=type_id)
+
+        model_id = params.get("model")      # mapped to material_model
+        if model_id:
+            queryset = queryset.filter(material_model_id=model_id)
+
+        brand_id = params.get("brand")
+        if brand_id:
+            queryset = queryset.filter(brand=brand_id)
+
+        return queryset
+
+    
 
 # --------------------- HARDWARE ---------------------
 class HardwareGroupViewSet(viewsets.ModelViewSet):

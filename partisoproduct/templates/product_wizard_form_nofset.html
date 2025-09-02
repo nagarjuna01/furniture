@@ -1,0 +1,68 @@
+{% for part_form in part_forms %}
+  <div class="card mb-3 part-block" data-prefix="{{ part_form.prefix }}">
+    {{ part_form.management_form }}
+    {{ part_form.non_field_errors }}
+
+    <input type="hidden" name="{{ part_form.prefix }}-prefix" value="{{ part_form.prefix }}">
+
+    <div class="row">
+      <div class="col-md-4">{{ part_form.name.label_tag }} {{ part_form.name }}</div>
+      <div class="col-md-4">{{ part_form.part_shape.label_tag }} {{ part_form.part_shape }}</div>
+    </div>
+    <div class="row">
+      <div class="col-md-4">{{ part_form.part_length_equation.label_tag }} {{ part_form.part_length_equation }}</div>
+      <div class="col-md-4">{{ part_form.part_width_equation.label_tag }} {{ part_form.part_width_equation }}</div>
+      <div class="col-md-4">{{ part_form.part_qty_equation.label_tag }} {{ part_form.part_qty_equation }}</div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">{{ part_form.part_material.label_tag }} {{ part_form.part_material }}</div>
+      <div class="col-md-6">{{ part_form.grain_direction.label_tag }} {{ part_form.grain_direction }}</div>
+    </div>
+    <div class="row">
+      <div class="col-md-3">{{ part_form.part_edgematerial_top.label_tag }} {{ part_form.part_edgematerial_top }}</div>
+      <div class="col-md-3">{{ part_form.part_edgematerial_left.label_tag }} {{ part_form.part_edgematerial_left }}</div>
+      <div class="col-md-3">{{ part_form.part_edgematerial_right.label_tag }} {{ part_form.part_edgematerial_right }}</div>
+      <div class="col-md-3">{{ part_form.part_edgematerial_bottom.label_tag }} {{ part_form.part_edgematerial_bottom }}</div>
+    </div>
+    <button type="button" class="btn btn-danger mt-2 remove-part">Remove Part</button>
+  </div>
+{% endfor %}
+
+<button type="button" class="btn btn-secondary mb-3" id="add-part">Add Another Part</button>
+<button type="submit" class="btn btn-primary float-end">Preview</button>
+
+<script>
+let partIndex = {{ part_forms|length }};
+
+document.getElementById('add-part').addEventListener('click', function () {
+    const template = document.querySelector('.part-block');
+    const clone = template.cloneNode(true);
+    const newPrefix = `part-${partIndex}`;
+
+    clone.setAttribute('data-prefix', newPrefix);
+    clone.querySelectorAll('[name]').forEach(el => {
+        el.name = el.name.replace(/part-\d+/, newPrefix);
+        el.id = el.id.replace(/part-\d+/, newPrefix);
+        el.value = '';
+    });
+
+    clone.querySelectorAll('label').forEach(label => {
+        const forAttr = label.getAttribute('for');
+        if (forAttr) {
+            label.setAttribute('for', forAttr.replace(/part-\d+/, newPrefix));
+        }
+    });
+
+    document.getElementById('add-part').before(clone);
+    partIndex++;
+});
+
+document.addEventListener('click', function (e) {
+    if (e.target.classList.contains('remove-part')) {
+        const partBlock = e.target.closest('.part-block');
+        if (document.querySelectorAll('.part-block').length > 1) {
+            partBlock.remove();
+        }
+    }
+});
+</script>

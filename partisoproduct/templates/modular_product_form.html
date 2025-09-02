@@ -1,0 +1,795 @@
+{% extends 'base_b.html' %}
+
+{% block title %}{% if product_id %}Edit{% else %}Create{% endif %} Modular Product{% endblock %}
+
+
+
+{% block content %}
+
+{% include "partisoproducts/subnav.html" %}
+<h1 class="mb-4" id="formTitle">{% if product_id %}Edit{% else %}Create New{% endif %} Modular Product</h1>
+
+<div id="formMessages" class="alert" role="alert" style="display: none;"></div>
+
+<form id="modularProductForm">
+    {% csrf_token %} <input type="hidden" id="productId" value="{{ product_id }}">
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            Product Details
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="productName" class="form-label">Product Name</label>
+                <input type="text" class="form-control" id="productName" name="name" required>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="productLength" class="form-label">Length (mm)</label>
+                    <input type="number" step="0.01" class="form-control" id="productLength" name="length_mm" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="productWidth" class="form-label">Width (mm)</label>
+                    <input type="number" step="0.01" class="form-control" id="productWidth" name="width_mm" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="productHeight" class="form-label">Height (mm)</label>
+                    <input type="number" step="0.01" class="form-control" id="productHeight" name="height_mm" required>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+            Constraints
+            <button type="button" class="btn btn-sm btn-light" id="addConstraintBtn">Add Constraint</button>
+        </div>
+        <div class="card-body" id="constraintsContainer">
+            <p id="noConstraintsAddedMessage" class="text-muted">No constraints added yet. Click "Add Constraint" to begin.</p>
+            </div>
+    </div>
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+            Parts
+            <button type="button" class="btn btn-sm btn-light" id="addPartBtn">Add Part</button>
+        </div>
+        <div class="card-body" id="partsContainer">
+            <p id="noPartsAddedMessage" class="text-muted">No parts added yet. Click "Add Part" to begin.</p>
+            </div>
+    </div>
+
+    <button type="submit" class="btn btn-success btn-lg">Save Product</button>
+    <a href="{% url 'modular_products_list' %}" class="btn btn-secondary btn-lg">Cancel</a>
+</form>
+
+<template id="partTemplate">
+    <div class="card mb-3 part-item border border-info">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <span class="part-header-title">New Part</span>
+            <button type="button" class="btn btn-sm btn-danger remove-part-btn">&times;</button>
+        </div>
+        <div class="card-body">
+            <input type="hidden" class="part-id" name="parts[][id]"> {# For updates, will hold part ID #}
+            <div class="mb-3">
+                <label class="form-label">Part Name</label>
+                <input type="text" class="form-control part-name" name="parts[][name]" required>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Length Equation</label>
+                    <input type="text" class="form-control part-length-equation" name="parts[][part_length_equation]" required placeholder="e.g., product_length - 36">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Width Equation</label>
+                    <input type="text" class="form-control part-width-equation" name="parts[][part_width_equation]" required placeholder="e.g., product_width / 2">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Quantity Equation</label>
+                    <input type="text" class="form-control part-qty-equation" name="parts[][part_qty_equation]" required placeholder="e.g., 2">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Material</label>
+                    <select class="form-select part-material" name="parts[][part_material]" required>
+                        </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Edge Grooving Cost</label>
+                    <input type="number" step="0.01" class="form-control part-edge-grooving-cost" name="parts[][edge_band_grooving_cost]" value="0.00" required>
+                </div>
+            </div>
+
+            <h6>Edge Banding Materials:</h6>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Top Edge</label>
+                    <select class="form-select part-edgematerial-top" name="parts[][part_edgematerial_top]">
+                        </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Bottom Edge</label>
+                    <select class="form-select part-edgematerial-bottom" name="parts[][part_edgematerial_bottom]">
+                        </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Left Edge</label>
+                    <select class="form-select part-edgematerial-left" name="parts[][part_edgematerial_left]">
+                        </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Right Edge</label>
+                    <select class="form-select part-edgematerial-right" name="parts[][part_edgematerial_right]">
+                        </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Shape</label>
+                    <select class="form-select part-shape" name="parts[][part_shape]" required>
+                        <option value="rectangle">Rectangle</option>
+                        <option value="circle">Circle</option>
+                        <option value="curvilinear">Curvilinear</option>
+                        <option value="l_shape">L Shape</option>
+                        <option value="triangle">Triangle</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Grain Direction</label>
+                    <select class="form-select part-grain-direction" name="parts[][grain_direction]" required>
+                        <option value="none">None</option>
+                        <option value="horizontal">Horizontal</option>
+                        <option value="vertical">Vertical</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Shape Wastage Multiplier</label>
+                <input type="number" step="0.01" class="form-control part-shape-wastage-multiplier" name="parts[][shape_wastage_multiplier]" value="1.00" required>
+            </div>
+
+            <hr>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6>Hardware Requirements:</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary add-hardware-btn">Add Hardware</button>
+            </div>
+            <div class="hardware-requirements-container">
+                <p class="text-muted no-hardware-message">No hardware requirements added yet.</p>
+                </div>
+        </div>
+    </div>
+</template>
+
+<template id="hardwareRequirementTemplate">
+    <div class="card mb-2 hardware-item border border-secondary">
+        <div class="card-body">
+            <input type="hidden" class="hardware-req-id" name="parts[][hardware_requirements][][id]"> {# For updates, will hold hardware_req ID #}
+            <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-hardware-btn">&times;</button>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Hardware</label>
+                <select class="form-select hardware-select" name="parts[][hardware_requirements][][hardware]" required>
+                    </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Rule</label>
+                <select class="form-select rule-select" name="parts[][hardware_requirements][][rule]" required>
+                    </select>
+            </div>
+            <div class="mb-3 custom-equation-group" style="display: none;">
+                <label class="form-label">Custom Equation</label>
+                <input type="text" class="form-control custom-equation-input" name="parts[][hardware_requirements][][custom_equation]" placeholder="e.g., num_doors * 3">
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="constraintTemplate">
+    <div class="card mb-2 constraint-item border border-warning">
+        <div class="card-body">
+            <input type="hidden" class="constraint-id" name="constraints[][id]"> {# Not needed for ManyToMany selection #}
+            <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-constraint-btn">&times;</button>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Constraint</label>
+                <select class="form-select constraint-select" name="constraints[][constraint_id]" required>
+                    </select>
+                <small class="form-text text-muted constraint-expression-display" style="display: none;"></small>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // API URLs
+    const API_BASE_URL = 'http://127.0.0.1:8000/partiso/api/modular1/';
+    const HARDWARE_API_URL = 'http://127.0.0.1:8000/material/v1/hardware/';
+    const HARDWARE_RULE_API_URL = 'http://127.0.0.1:8000/partiso/api/hardware_rules/';
+    const WOODEN_API_URL = 'http://127.0.0.1:8000/material/v1/woodens/';
+    const EDGEBAND_API_URL = 'http://127.0.0.1:8000/material/v1/edgebands/';
+    const CONSTRAINT_API_URL = 'http://127.0.0.1:8000/partiso/api/constraints/'; // NEW
+
+    const productId = $('#productId').val();
+    const isEditing = !!productId && productId !== 'None' && !isNaN(productId);
+    const formTitle = $('#formTitle');
+    const formMessages = $('#formMessages');
+    const modularProductForm = $('#modularProductForm');
+    const partsContainer = $('#partsContainer');
+    const noPartsAddedMessage = $('#noPartsAddedMessage');
+    const constraintsContainer = $('#constraintsContainer'); // NEW
+    const noConstraintsAddedMessage = $('#noConstraintsAddedMessage'); // NEW
+
+
+    let availableHardware = [];
+    let availableHardwareRules = [];
+    let availableWoodEn = [];
+    let availableEdgeBand = [];
+    let availableConstraints = []; // NEW
+
+    // --- Utility Functions ---
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function displayFormMessage(message, type = 'danger') {
+        formMessages.removeClass('alert-success alert-danger alert-info').addClass(`alert-${type}`).html(message).show();
+        $('html, body').animate({ scrollTop: 0 }, 'fast');
+    }
+
+    function clearFormMessages() {
+        formMessages.hide().text('');
+    }
+
+    // --- Data Fetching for Select Options ---
+    async function fetchLookupData() {
+        try {
+            const [hardwareRes, rulesRes, woodEnRes, edgeBandRes, constraintsRes] = await Promise.all([ // NEW: add constraintsRes
+                $.ajax({ url: HARDWARE_API_URL, method: 'GET' }),
+                $.ajax({ url: HARDWARE_RULE_API_URL, method: 'GET' }),
+                $.ajax({ url: WOODEN_API_URL, method: 'GET' }),
+                $.ajax({ url: EDGEBAND_API_URL, method: 'GET' }),
+                $.ajax({ url: CONSTRAINT_API_URL, method: 'GET' }), // NEW
+            ]);
+
+            availableHardware = hardwareRes.results || hardwareRes;
+            availableHardwareRules = rulesRes.results || rulesRes;
+            availableWoodEn = woodEnRes.results || woodEnRes;
+            availableEdgeBand = edgeBandRes.results || edgeBandRes;
+            availableConstraints = constraintsRes.results || constraintsRes; // NEW
+
+            populateMaterialSelects();
+            populateHardwareAndRuleSelects();
+            populateConstraintSelects(); // NEW
+
+        } catch (error) {
+            console.error("Error fetching lookup data:", error);
+            displayFormMessage("Failed to load material, hardware, rule, or constraint options. Please check API connections.", "danger");
+        }
+    }
+
+    function populateMaterialSelects() {
+        $('.part-material').each(function() {
+            const currentVal = $(this).val();
+            $(this).empty().append('<option value="">Select Material</option>');
+            availableWoodEn.forEach(mat => {
+                $(this).append(`<option value="${mat.id}">${mat.name}</option>`);
+            });
+            if (currentVal) $(this).val(currentVal);
+        });
+    }
+
+    function populateHardwareAndRuleSelects() {
+        $('.hardware-select').each(function() {
+            const currentVal = $(this).val();
+            $(this).empty().append('<option value="">Select Hardware</option>');
+            availableHardware.forEach(hw => {
+                $(this).append(`<option value="${hw.id}">${hw.h_name}</option>`);
+            });
+            if (currentVal) $(this).val(currentVal);
+        });
+
+        $('.rule-select').each(function() {
+            const currentVal = $(this).val();
+            $(this).empty().append('<option value="">Select Rule</option>');
+            availableHardwareRules.forEach(rule => {
+                $(this).append(`<option value="${rule.id}" data-is-custom="${rule.is_custom}">${rule.name}</option>`);
+            });
+            if (currentVal) $(this).val(currentVal);
+            $(this).trigger('change');
+        });
+    }
+
+    // NEW: Function to populate constraint selects
+    function populateConstraintSelects() {
+        $('.constraint-select').each(function() {
+            const currentVal = $(this).val();
+            $(this).empty().append('<option value="">Select Constraint</option>');
+            availableConstraints.forEach(constraint => {
+                $(this).append(`<option value="${constraint.id}" data-expression="${constraint.expression || ''}">${constraint.name}</option>`);
+            });
+            if (currentVal) $(this).val(currentVal);
+            $(this).trigger('change'); // Trigger change to update expression display
+        });
+    }
+
+
+    function updateEdgebandSelectsForPart(partElem, materialId, initialEdgebandSelections = {}) {
+        const edgebandSelects = partElem.find('.part-edgematerial-top, .part-edgematerial-bottom, .part-edgematerial-left, .part-edgematerial-right');
+        edgebandSelects.empty().append('<option value="">None</option>');
+
+        if (!materialId) {
+            return;
+        }
+
+        const selectedWoodEn = availableWoodEn.find(mat => String(mat.id) === String(materialId));
+
+        if (!selectedWoodEn || !selectedWoodEn.compatible_edgebands || selectedWoodEn.compatible_edgebands.length === 0) {
+            return;
+        }
+
+        const compatibleEdgebandIds = new Set(selectedWoodEn.compatible_edgebands.map(eb => eb.id));
+        const filteredEdgebands = availableEdgeBand.filter(eb => compatibleEdgebandIds.has(eb.id));
+
+        filteredEdgebands.forEach(edge => {
+            const edgebandDisplayName = `Depth: ${edge.edge_depth} | Thickness: ${edge.e_thickness} | Brand: ${edge.brand ? edge.brand.name : 'N/A'}`;
+            edgebandSelects.append(`<option value="${edge.id}">${edgebandDisplayName}</option>`);
+        });
+
+        if (initialEdgebandSelections.top) partElem.find('.part-edgematerial-top').val(initialEdgebandSelections.top);
+        if (initialEdgebandSelections.bottom) partElem.find('.part-edgematerial-bottom').val(initialEdgebandSelections.bottom);
+        if (initialEdgebandSelections.left) partElem.find('.part-edgematerial-left').val(initialEdgebandSelections.left);
+        if (initialEdgebandSelections.right) partElem.find('.part-edgematerial-right').val(initialEdgebandSelections.right);
+    }
+
+
+    // --- Dynamic Form Field Generation ---
+    let partIndex = 0;
+    let constraintIndex = 0; // NEW: For unique naming for constraints (though not strictly needed for ManyToMany IDs)
+
+    function addPart(partData = {}) {
+        noPartsAddedMessage.hide();
+        const partTemplate = $('#partTemplate').html();
+        const newPart = $(partTemplate);
+
+        newPart.find('input, select').each(function() {
+            const originalName = $(this).attr('name');
+            if (originalName) {
+                $(this).attr('name', originalName.replace('parts[][]', `parts[${partIndex}]`));
+            }
+        });
+
+        newPart.find('.hardware-requirements-container').find('input, select').each(function() {
+             const originalName = $(this).attr('name');
+             if (originalName) {
+                 const newHwIdx = $(this).closest('.hardware-requirements-container').children('.hardware-item').length;
+                 $(this).attr('name', originalName.replace(/parts\[\]\[hardware_requirements\]\[\]/g, `parts[${partIndex}][hardware_requirements][${newHwIdx}]`));
+             }
+         });
+
+
+        if (partData.id) {
+            newPart.find('.part-id').val(partData.id);
+            newPart.find('.part-header-title').text(partData.name || 'Existing Part');
+        }
+        newPart.find('.part-name').val(partData.name || '');
+        newPart.find('.part-length-equation').val(partData.part_length_equation || '');
+        newPart.find('.part-width-equation').val(partData.part_width_equation || '');
+        newPart.find('.part-qty-equation').val(partData.part_qty_equation || '');
+        newPart.find('.part-edge-grooving-cost').val(partData.edge_band_grooving_cost || '0.00');
+        newPart.find('.part-shape').val(partData.part_shape || 'rectangle');
+        newPart.find('.part-grain-direction').val(partData.grain_direction || 'none');
+        newPart.find('.part-shape-wastage-multiplier').val(partData.shape_wastage_multiplier || '1.00');
+
+        partsContainer.append(newPart);
+
+        const currentPartMaterialSelect = newPart.find('.part-material');
+        currentPartMaterialSelect.empty().append('<option value="">Select Material</option>');
+        availableWoodEn.forEach(mat => {
+            currentPartMaterialSelect.append(`<option value="${mat.id}">${mat.name}</option>`);
+        });
+        if (partData.part_material) currentPartMaterialSelect.val(partData.part_material);
+
+        const initialEdgebandSelections = {
+            top: partData.part_edgematerial_top,
+            bottom: partData.part_edgematerial_bottom,
+            left: partData.part_edgematerial_left,
+            right: partData.part_edgematerial_right
+        };
+        updateEdgebandSelectsForPart(newPart, partData.part_material, initialEdgebandSelections);
+
+
+        if (partData.hardware_requirements && partData.hardware_requirements.length > 0) {
+            partData.hardware_requirements.forEach(hwReq => {
+                addHardwareRequirement(newPart.find('.hardware-requirements-container'), hwReq, partIndex);
+            });
+        }
+
+        partIndex++;
+        checkNoPartsMessage();
+    }
+
+    function addHardwareRequirement(container, hwData = {}, currentPartIndex) {
+        container.find('.no-hardware-message').hide();
+        const hwTemplate = $('#hardwareRequirementTemplate').html();
+        const newHwReq = $(hwTemplate);
+
+        newHwReq.find('input, select').each(function() {
+            const originalName = $(this).attr('name');
+            if (originalName) {
+                const newHwIdx = $(this).closest('.hardware-requirements-container').children('.hardware-item').length;
+                $(this).attr('name', originalName.replace(
+                    /parts\[\]\[hardware_requirements\]\[\]/,
+                    `parts[${currentPartIndex}][hardware_requirements][${newHwIdx}]`
+                ));
+            }
+        });
+
+        const hwSelect = newHwReq.find('.hardware-select');
+        hwSelect.empty().append('<option value="">Select Hardware</option>');
+        availableHardware.forEach(hw => {
+            hwSelect.append(`<option value="${hw.id}">${hw.h_name}</option>`);
+        });
+        if (hwData.hardware) hwSelect.val(hwData.hardware);
+
+        const ruleSelect = newHwReq.find('.rule-select');
+        ruleSelect.empty().append('<option value="">Select Rule</option>');
+        availableHardwareRules.forEach(rule => {
+            ruleSelect.append(`<option value="${rule.id}" data-is-custom="${rule.is_custom}">${rule.name}</option>`);
+        });
+        if (hwData.rule) {
+            ruleSelect.val(hwData.rule);
+            ruleSelect.trigger('change'); // Trigger for initial load
+        } else {
+            ruleSelect.trigger('change'); // Trigger for new empty selects
+        }
+
+
+        if (hwData.id) {
+             newHwReq.find('.hardware-req-id').val(hwData.id);
+        }
+        if (hwData.custom_equation) {
+            newHwReq.find('.custom-equation-input').val(hwData.custom_equation);
+        }
+
+        container.append(newHwReq);
+        checkNoHardwareMessage(container);
+    }
+
+    // NEW: Function to add a constraint item
+    function addConstraint(constraintId = null) {
+        noConstraintsAddedMessage.hide();
+        const constraintTemplate = $('#constraintTemplate').html();
+        const newConstraintItem = $(constraintTemplate);
+
+        // Update name attribute if necessary (for forms, DRF will expect a list of IDs)
+        // For ManyToMany fields, DRF typically expects just a list of PKs.
+        // We'll collect the selected IDs directly from the select elements.
+        newConstraintItem.find('.constraint-select').attr('name', `constraints[${constraintIndex}]`);
+
+
+        const constraintSelect = newConstraintItem.find('.constraint-select');
+        constraintSelect.empty().append('<option value="">Select Constraint</option>');
+        availableConstraints.forEach(c => {
+            constraintSelect.append(`<option value="${c.id}" data-expression="${c.expression || ''}">${c.name}</option>`);
+        });
+
+        if (constraintId) {
+            constraintSelect.val(constraintId);
+        }
+        constraintSelect.trigger('change'); // Trigger to display expression
+
+        constraintsContainer.append(newConstraintItem);
+        constraintIndex++;
+        checkNoConstraintsMessage();
+    }
+
+    function checkNoPartsMessage() {
+        if (partsContainer.children('.part-item').length === 0) {
+            noPartsAddedMessage.show();
+        } else {
+            noPartsAddedMessage.hide();
+        }
+    }
+
+    function checkNoHardwareMessage(container) {
+        if (container.children('.hardware-item').length === 0) {
+            container.find('.no-hardware-message').show();
+        } else {
+            container.find('.no-hardware-message').hide();
+        }
+    }
+
+    // NEW: Function to check no constraints message
+    function checkNoConstraintsMessage() {
+        if (constraintsContainer.children('.constraint-item').length === 0) {
+            noConstraintsAddedMessage.show();
+        } else {
+            noConstraintsAddedMessage.hide();
+        }
+    }
+
+
+    // --- Event Listeners ---
+
+    $('#addPartBtn').on('click', function() {
+        addPart();
+        populateMaterialSelects();
+        populateHardwareAndRuleSelects();
+    });
+
+    // NEW: Add Constraint Button
+    $('#addConstraintBtn').on('click', function() {
+        addConstraint();
+    });
+
+    partsContainer.on('click', '.remove-part-btn', function() {
+        $(this).closest('.part-item').remove();
+        checkNoPartsMessage();
+    });
+
+    partsContainer.on('click', '.add-hardware-btn', function() {
+        const hardwareContainer = $(this).closest('.card-body').find('.hardware-requirements-container');
+        const currentPartCard = $(this).closest('.part-item');
+        const currentPartIndex = partsContainer.find('.part-item').index(currentPartCard);
+        addHardwareRequirement(hardwareContainer, {}, currentPartIndex);
+    });
+
+    partsContainer.on('click', '.remove-hardware-btn', function() {
+        const hardwareContainer = $(this).closest('.hardware-requirements-container');
+        $(this).closest('.hardware-item').remove();
+        checkNoHardwareMessage(hardwareContainer);
+    });
+
+    // NEW: Remove Constraint Button
+    constraintsContainer.on('click', '.remove-constraint-btn', function() {
+        $(this).closest('.constraint-item').remove();
+        checkNoConstraintsMessage();
+    });
+
+    partsContainer.on('change', '.part-material', function() {
+        const selectedMaterialId = $(this).val();
+        const currentPartItem = $(this).closest('.part-item');
+        updateEdgebandSelectsForPart(currentPartItem, selectedMaterialId);
+    });
+
+    // NEW: Display Constraint Expression on change
+    constraintsContainer.on('change', '.constraint-select', function() {
+        const selectedOption = $(this).find('option:selected');
+        const expression = selectedOption.data('expression');
+        const displayDiv = $(this).closest('.mb-3').find('.constraint-expression-display');
+
+        if (expression) {
+            displayDiv.text(`Expression: ${expression}`).show();
+        } else {
+            displayDiv.hide().text('');
+        }
+    });
+
+
+    partsContainer.on('change', '.rule-select', function() {
+        const selectedOption = $(this).find('option:selected');
+        const isCustom = selectedOption.data('is-custom');
+        const customEquationGroup = $(this).closest('.hardware-item').find('.custom-equation-group');
+
+        if (isCustom) {
+            customEquationGroup.show();
+            customEquationGroup.find('input').prop('required', true);
+        } else {
+            customEquationGroup.hide();
+            customEquationGroup.find('input').prop('required', false).val('');
+        }
+    });
+
+    // --- Form Submission ---
+    modularProductForm.on('submit', async function(e) {
+        e.preventDefault();
+        clearFormMessages();
+
+        const formData = {
+            name: $('#productName').val(),
+            length_mm: parseFloat($('#productLength').val()),
+            width_mm: parseFloat($('#productWidth').val()),
+            height_mm: parseFloat($('#productHeight').val()),
+            parts: [],
+            constraints: [] // NEW: Initialize constraints array
+        };
+
+        let hasError = false;
+
+        // NEW: Collect constraints
+        $('.constraint-item').each(function() {
+            const constraintId = $(this).find('.constraint-select').val();
+            if (constraintId) {
+                formData.constraints.push(parseInt(constraintId)); // Collect IDs
+            }
+        });
+
+
+        $('.part-item').each(function(partIdx, partElem) {
+            const partData = {
+                id: $(partElem).find('.part-id').val() || null,
+                name: $(partElem).find('.part-name').val(),
+                part_length_equation: $(partElem).find('.part-length-equation').val(),
+                part_width_equation: $(partElem).find('.part-width-equation').val(),
+                part_qty_equation: $(partElem).find('.part-qty-equation').val(),
+                part_material: $(partElem).find('.part-material').val(),
+                part_edgematerial_top: $(partElem).find('.part-edgematerial-top').val() || null,
+                part_edgematerial_bottom: $(partElem).find('.part-edgematerial-bottom').val() || null,
+                part_edgematerial_left: $(partElem).find('.part-edgematerial-left').val() || null,
+                part_edgematerial_right: $(partElem).find('.part-edgematerial-right').val() || null,
+                edge_band_grooving_cost: parseFloat($(partElem).find('.part-edge-grooving-cost').val() || '0.00'),
+                part_shape: $(partElem).find('.part-shape').val(),
+                grain_direction: $(partElem).find('.part-grain-direction').val(),
+                shape_wastage_multiplier: parseFloat($(partElem).find('.part-shape-wastage-multiplier').val() || '1.00'),
+                hardware_requirements: []
+            };
+
+            if (!partData.part_material) {
+                displayFormMessage(`Please select a material for part "${partData.name || `Part ${partIdx + 1}`}".`, 'danger');
+                hasError = true;
+                return false;
+            }
+
+            $(partElem).find('.hardware-item').each(function(hwIdx, hwElem) {
+                const isCustom = $(hwElem).find('.rule-select option:selected').data('is-custom');
+                const customEquation = $(hwElem).find('.custom-equation-input').val();
+
+                const hwReqData = {
+                    id: $(hwElem).find('.hardware-req-id').val() || null,
+                    hardware: $(hwElem).find('.hardware-select').val(),
+                    rule: $(hwElem).find('.rule-select').val(),
+                    custom_equation: isCustom ? (customEquation || null) : null
+                };
+
+                if (!hwReqData.hardware || !hwReqData.rule) {
+                    displayFormMessage(`Please select both Hardware and Rule for a hardware requirement in part "${partData.name || `Part ${partIdx + 1}`}".`, 'danger');
+                    hasError = true;
+                    return false;
+                }
+                if (isCustom && !customEquation) {
+                    displayFormMessage(`Custom rule selected for a hardware requirement in part "${partData.name || `Part ${partIdx + 1}`}" but custom equation is empty.`, 'danger');
+                    hasError = true;
+                    return false;
+                }
+                partData.hardware_requirements.push(hwReqData);
+            });
+
+            if (hasError) return false;
+            formData.parts.push(partData);
+        });
+
+        if (hasError) return;
+
+        console.log("Submitting Data:", formData);
+
+        const method = isEditing ? 'PUT' : 'POST';
+        const url = isEditing ? `${API_BASE_URL}${productId}/` : API_BASE_URL;
+
+        $.ajax({
+            url: url,
+            method: method,
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            success: function(response) {
+                displayFormMessage('Product saved successfully!', 'success');
+                console.log('API Response:', response);
+                setTimeout(() => {
+                    window.location.href = '{% url "modular_products_list" %}';
+                }, 1500);
+            },
+            error: function(xhr, status, error) {
+                let errorMessageText = 'Error saving product. Please check your inputs.';
+                try {
+                    const errorData = xhr.responseJSON;
+                    if (errorData) {
+                        errorMessageText = formatApiErrors(errorData);
+                    }
+                } catch (e) {
+                    console.error("Error parsing API error response:", e);
+                }
+                displayFormMessage(errorMessageText, 'danger');
+                console.error("AJAX Error:", status, error, xhr);
+            }
+        });
+    });
+
+    function formatApiErrors(errors) {
+        let message = "<ul>";
+        for (const key in errors) {
+            if (Array.isArray(errors[key])) {
+                errors[key].forEach(err => {
+                    if (typeof err === 'object' && err !== null) {
+                        message += `<li><strong>${key}:</strong> ${formatApiErrors(err)}</li>`;
+                    } else {
+                        message += `<li><strong>${key}:</strong> ${err}</li>`;
+                    }
+                });
+            } else if (typeof errors[key] === 'object' && errors[key] !== null) {
+                message += `<li><strong>${key}:</strong> ${formatApiErrors(errors[key])}</li>`;
+            } else {
+                message += `<li><strong>${key}:</strong> ${errors[key]}</li>`;
+            }
+        }
+        message += "</ul>";
+        return message;
+    }
+
+    // --- Initialization for Edit Mode ---
+    async function loadProductForEdit(id) {
+        formTitle.text('Edit Modular Product');
+        try {
+            const product = await $.ajax({
+                url: `${API_BASE_URL}${id}/`,
+                method: 'GET',
+                dataType: 'json'
+            });
+
+            $('#productName').val(product.name);
+            $('#productLength').val(product.length_mm);
+            $('#productWidth').val(product.width_mm);
+            $('#productHeight').val(product.height_mm);
+
+            // NEW: Load existing constraints
+            if (product.constraints && product.constraints.length > 0) {
+                constraintIndex = 0; // Reset index
+                product.constraints.forEach(constraintId => { // product.constraints will be a list of IDs from PrimaryKeyRelatedField
+                    addConstraint(constraintId);
+                    constraintIndex++;
+                });
+            } else {
+                checkNoConstraintsMessage();
+            }
+
+
+            if (product.parts && product.parts.length > 0) {
+                partIndex = 0;
+                for (const part of product.parts) {
+                    addPart(part);
+                    partIndex++;
+                }
+            } else {
+                checkNoPartsMessage();
+            }
+
+        } catch (error) {
+            displayFormMessage("Failed to load product for editing. " + error.statusText, "danger");
+            console.error("Error loading product for edit:", error);
+        }
+    }
+
+    // --- Initial Load ---
+    fetchLookupData().then(() => {
+        if (isEditing) {
+            loadProductForEdit(productId);
+        } else {
+            formTitle.text('Create New Modular Product');
+            checkNoPartsMessage();
+            checkNoConstraintsMessage(); // NEW: Check message for new form
+        }
+    });
+
+});
+</script>
+{% endblock %}

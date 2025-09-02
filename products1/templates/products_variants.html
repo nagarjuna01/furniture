@@ -1,0 +1,304 @@
+
+{% load static %}
+
+<!-- Toast Container -->
+<div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1100;"></div>
+
+<!-- Product Table -->
+<div class="container my-4">
+  <button class="btn btn-success mb-2" onclick="openProductModal()">Add Product</button>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Name</th><th>SKU</th><th>Type</th><th>Model</th><th>Status</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="productTableBody"></tbody>
+  </table>
+</div>
+
+<!-- Product Modal -->
+<div class="modal fade" id="productModal" tabindex="-1">
+  <div class="modal-dialog"><form class="modal-content" id="productForm">
+    <input type="hidden" id="product-id">
+    <div class="modal-header"><h5 class="modal-title">Product</h5></div>
+    <div class="modal-body">
+      <div class="mb-2"><input class="form-control" id="product-name" placeholder="Name" required></div>
+      <div class="mb-2"><input class="form-control" id="product-sku" placeholder="SKU"></div>
+      <div class="mb-2"><select class="form-select" id="product-type-id" required></select></div>
+      <div class="mb-2"><select class="form-select" id="product-model-id"></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </div>
+  </form></div>
+</div>
+
+<!-- Variant Modal -->
+<div class="modal fade" id="variantModal" tabindex="-1">
+  <div class="modal-dialog"><form class="modal-content" id="variantForm">
+    <input type="hidden" id="variant-id">
+    <input type="hidden" id="variant-product-id">
+    <div class="modal-header"><h5 class="modal-title">Product Variants</h5></div>
+    <div class="modal-body">
+      <div class="mb-2"><input class="form-control" id="variant-sku" placeholder="SKU" required></div>
+      <div class="mb-2"><input class="form-control" id="variant-purchase-price" placeholder="Purchase Price" required></div>
+      <div class="mb-2"><input class="form-control" id="variant-selling-price" placeholder="Selling Price" required></div>
+      <div class="mb-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <label>Attributes</label>
+          <button type="button" id="add-attribute" class="btn btn-sm btn-success">+ Add</button>
+        </div>
+        <div id="variantAttributesContainer" class="mt-2"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      <button class="btn btn-primary" type="submit">Save Variant</button>
+    </div>
+  </form></div>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script>
+const api = {
+  products: '/api/products/',
+  productTypes: '/api/types/',
+  productModels: '/api/models/'
+};
+
+function showToast(message, type = 'info') {
+  const id = 'toast-' + Date.now();
+  $('#toast-container').append(`
+    <div id="${id}" class="toast align-items-center text-bg-${type} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  `);
+  const toast = new bootstrap.Toast(document.getElementById(id));
+  toast.show();
+}
+
+function loadProducts() {
+  $.get(api.products, data => {
+    const tbody = $('#productTableBody').empty();
+    data.results.forEach(p => {
+      tbody.append(`
+        <tr>
+          <td>${p.name}</td>
+          <td>${p.sku || ''}</td>
+          <td>${p.type?.name || ''}</td>
+          <td>${p.model?.name || ''}</td>
+          <td>${p.is_active ? 'Active' : 'Inactive'}</td>
+          <td>
+            <button class="btn btn-sm btn-primary" onclick="editProduct(${p.id})">Edit</button>
+            <button class="btn btn-sm btn-secondary" onclick="manageVariants(${p.id})">Variants</button>
+          </td>
+        </tr>
+      `);
+    });
+  }).fail(err => {
+    console.error(err);
+    showToast('Failed to load products', 'danger');
+  });
+}
+
+function openProductModal() {
+  $('#productForm')[0].reset();
+  $('#product-id').val('');
+  populateSelects();
+  $('#productModal').modal('show');
+}
+
+function populateSelects() {
+  $.get(api.productTypes, data => {
+    const select = $('#product-type-id').empty().append('<option value="">Select Type</option>');
+    data.forEach(d => select.append(`<option value="${d.id}">${d.name}</option>`));
+  });
+  $.get(api.productModels, data => {
+    const select = $('#product-model-id').empty().append('<option value="">Select Model</option>');
+    data.forEach(d => select.append(`<option value="${d.id}">${d.name}</option>`));
+  });
+}
+
+function editProduct(id) {
+  $.get(`${api.products}${id}/`, p => {
+    $('#product-id').val(p.id);
+    $('#product-name').val(p.name);
+    $('#product-sku').val(p.sku);
+    $('#product-type-id').val(p.type?.id);
+    $('#product-model-id').val(p.model?.id);
+    populateSelects();
+    $('#productModal').modal('show');
+  });
+}
+
+$('#productForm').submit(function(e) {
+  e.preventDefault();
+  const id = $('#product-id').val();
+  const payload = {
+    name: $('#product-name').val(),
+    sku: $('#product-sku').val(),
+    type: $('#product-type-id').val(),
+    model: $('#product-model-id').val() || null
+  };
+  const url = id ? `${api.products}${id}/` : api.products;
+  const method = id ? 'PUT' : 'POST';
+  $.ajax({
+    url,
+    method,
+    headers: { 'X-CSRFToken': csrftoken },
+    contentType: 'application/json',
+    data: JSON.stringify(payload),
+    success: () => {
+      $('#productModal').modal('hide');
+      loadProducts();
+      showToast('Product saved', 'success');
+    },
+    error: err => {
+      console.error(err);
+      showToast('Failed to save product', 'danger');
+    }
+  });
+});
+
+// ====================== VARIANTS =======================
+
+function manageVariants(productId) {
+  $('#variantModal').modal('show');
+  $('#variant-id').val('');
+  $('#variant-product-id').val(productId);
+  $('#variantForm')[0].reset();
+  $('#variantAttributesContainer').empty();
+
+  $.get(`/api/products/${productId}/variants/`, data => {
+    data.forEach(variant => {
+      const el = `
+        <div class="card mb-2" data-id="${variant.id}">
+          <div class="card-body">
+            <strong>SKU:</strong> ${variant.sku}
+            <button class="btn btn-info btn-sm edit-variant" onclick="editVariant(${variant.id})">Edit</button>
+            <button class="btn btn-danger btn-sm delete-variant" onclick="deleteVariant(${variant.id})">Delete</button>
+          </div>
+        </div>
+      `;
+      $('#variantAttributesContainer').append(el);
+    });
+  });
+}
+
+function editVariant(variantId) {
+  $.get(`/api/variants/${variantId}/`, variant => {
+    $('#variant-id').val(variant.id);
+    $('#variant-sku').val(variant.sku);
+    $('#variant-purchase-price').val(variant.purchase_price);
+    $('#variant-selling-price').val(variant.selling_price);
+    loadVariantAttributes(variant.attributes);
+  });
+}
+
+function loadVariantAttributes(attributes) {
+  $('#variantAttributesContainer').empty();
+  attributes.forEach(attr => {
+    const row = $(`
+      <div class="d-flex mb-2 align-items-center">
+        <select class="form-select me-2" required></select>
+        <input type="text" class="form-control me-2" placeholder="Value" required value="${attr.value}">
+        <button type="button" class="btn btn-danger btn-sm remove-attr">×</button>
+      </div>
+    `);
+    $('#variantAttributesContainer').append(row);
+    loadAttributesForSelect(row.find('select'));
+    setTimeout(() => row.find('select').val(attr.attribute_id), 300);
+  });
+}
+
+$('#add-attribute').click(function() {
+  const row = $(`
+    <div class="d-flex mb-2 align-items-center">
+      <select class="form-select me-2" required></select>
+      <input type="text" class="form-control me-2" placeholder="Value" required>
+      <button type="button" class="btn btn-danger btn-sm remove-attr">×</button>
+    </div>
+  `);
+  $('#variantAttributesContainer').append(row);
+  loadAttributesForSelect(row.find('select'));
+});
+
+function loadAttributesForSelect(selectEl) {
+  $.get('/api/attributes/', data => {
+    const select = $(selectEl);
+    select.empty();
+    data.forEach(attr => select.append(`<option value="${attr.id}">${attr.name}</option>`));
+  });
+}
+
+$('#variantAttributesContainer').on('click', '.remove-attr', function () {
+  $(this).closest('.d-flex').remove();
+});
+
+$('#variantForm').submit(function(e) {
+  e.preventDefault();
+  const variantId = $('#variant-id').val();
+  const productId = $('#variant-product-id').val();
+  const attributes = [];
+
+  $('#variantAttributesContainer .d-flex').each(function() {
+    attributes.push({
+      attribute_id: $(this).find('select').val(),
+      value: $(this).find('input').val()
+    });
+  });
+
+  const payload = {
+    sku: $('#variant-sku').val(),
+    purchase_price: $('#variant-purchase-price').val(),
+    selling_price: $('#variant-selling-price').val(),
+    attributes
+  };
+
+  const url = variantId ? `/api/variants/${variantId}/` : `/api/products/${productId}/variants/`;
+  const method = variantId ? 'PUT' : 'POST';
+
+  $.ajax({
+    url,
+    method,
+    contentType: 'application/json',
+    data: JSON.stringify(payload),
+    success: () => {
+      showToast('Variant saved', 'success');
+      $('#variantModal').modal('hide');
+      manageVariants(productId);
+    },
+    error: err => {
+      console.error(err);
+      showToast('Failed to save variant', 'danger');
+    }
+  });
+});
+
+function deleteVariant(id) {
+  const productId = $('#variant-product-id').val();
+  if (!confirm('Delete this variant?')) return;
+
+  $.ajax({
+    url: `/api/variants/${id}/`,
+    method: 'DELETE',
+    success: () => {
+      showToast('Variant deleted', 'success');
+      manageVariants(productId);
+    },
+    error: err => {
+      console.error(err);
+      showToast('Delete failed', 'danger');
+    }
+  });
+}
+
+$(document).ready(loadProducts);
+</script>
+
+

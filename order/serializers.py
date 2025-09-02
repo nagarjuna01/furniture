@@ -6,7 +6,7 @@ from products.models import Product
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price']
+        fields = ['id', 'name' ]
         ref_name = 'OrderProductProduct'  # Unique ref_name for this serializer to avoid conflicts
 
 class OrderProductSerializer(serializers.ModelSerializer):

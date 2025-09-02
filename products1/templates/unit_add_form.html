@@ -1,0 +1,5 @@
+<form hx-post="{% url 'unit_add_submit' %}" hx-target="#unit-select" hx-swap="outerHTML">
+  <input type="text" name="name" placeholder="Full Name" class="form-control mb-2" required>
+  <input type="text" name="code" placeholder="Short Code" class="form-control mb-2" required>
+  <button type="submit" class="btn btn-sm btn-success">Add</button>
+</form>

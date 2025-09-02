@@ -1,0 +1,229 @@
+{% extends 'base_b.html' %}
+
+{% load static %}
+{% block content %}
+
+  <title>Product Configurator Wizard</title>
+<body class="p-4">
+<form id="productWizardForm">
+  {% csrf_token %}
+  <input type="hidden" name="modular_id" id="productUUID">
+  <input type="hidden" id="productId" name="product_id" value="{{ product_id|default_if_none:'' }}">
+  <input type="hidden" id="currentStep" name="current_step" value="1">
+<button id="addNewBtn" class="btn btn-outline-warning mb-2">🧹 Start Fresh</button>
+  <!-- Step 1: Product -->
+  <div class="form-step" id="step-1">
+    <h4>Step 1: Product</h4>
+    <div class="mb-3">
+      <label>Product Name</label>
+      <input type="text" class="form-control" name="name" required>
+    </div>
+    <div class="row g-2">
+      <div class="col"><input type="number" step="0.01" class="form-control" name="length_mm" placeholder="Length (mm)" required></div>
+      <div class="col"><input type="number" step="0.01" class="form-control" name="width_mm" placeholder="Width (mm)" required></div>
+      <div class="col"><input type="number" step="0.01" class="form-control" name="height_mm" placeholder="Height (mm)" required></div>
+    </div>
+    <div class="mt-3 mb-4">
+      <label>Validation Expression</label>
+      <textarea class="form-control" name="product_validation_expression" rows="2"
+        placeholder="e.g., product_length &lt;= 2000 and product_width &gt;= 500"></textarea>
+      <small class="text-muted">e.g., ensure length ≤ 2000mm</small>
+    </div>
+    <div class="text-end">
+      <button type="button" class="btn btn-primary" data-next-step="2">Next</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Parameters -->
+  <div class="form-step d-none" id="step-2">
+    <h4>Step 2: Parameters</h4>
+    <div id="parametersContainer"><p class="text-muted empty-msg">No parameters added.</p></div>
+    <button type="button" class="btn btn-sm btn-light mb-3" id="addParamBtn">Add Parameter</button>
+    <div class="d-flex justify-content-between">
+      <button type="button" class="btn btn-secondary" data-prev-step="1">Previous</button>
+      <button type="button" class="btn btn-primary" data-next-step="3">Next</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Parts -->
+  <div class="form-step d-none" id="step-3">
+    <h4>Step 3: Parts</h4>
+    <div id="partsContainer"><p class="text-muted empty-msg">No parts added.</p></div>
+    <button type="button" class="btn btn-sm btn-light mb-3" id="addPartBtn">Add Part</button>
+    <div class="d-flex justify-content-between">
+      <button type="button" class="btn btn-secondary" data-prev-step="2">Previous</button>
+      <button type="button" class="btn btn-primary" data-next-step="4">Next</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Hardware Rules -->
+  <div class="form-step d-none" id="step-4">
+    <h4>Step 4: Hardware Rules</h4>
+    <div id="rulesContainer"><p class="text-muted empty-msg">No hardware rules yet.</p></div>
+    <button type="button" class="btn btn-sm btn-light mb-3" id="addRuleBtn">Add Rule</button>
+    <div class="d-flex justify-content-between">
+      <button type="button" class="btn btn-secondary" data-prev-step="3">Previous</button>
+      <button type="button" class="btn btn-primary" data-next-step="5">Next</button>
+    </div>
+  </div>
+
+  <!-- Step 5: Hardware Requirements -->
+  <div class="form-step d-none" id="step-5">
+    <h4>Step 5: Hardware Requirements</h4>
+    <div id="hrContainer"><p class="text-muted empty-msg">No hardware requirements yet.</p></div>
+    <button type="button" class="btn btn-sm btn-light mb-3" id="addHRBtn">Add Requirement</button>
+    <div class="d-flex justify-content-between">
+      <button type="button" class="btn btn-secondary" data-prev-step="4">Previous</button>
+      <div>
+        <button type="submit" name="action" value="draft" class="btn btn-success">Save Draft</button>
+        <button type="button" class="btn btn-primary" id="evaluateBtn">📊 Evaluate</button>
+      </div>
+    </div>
+  </div>
+</form>
+<!-- Step 6: Review & Submit -->
+<div class="form-step d-none" id="step-6">
+  <h4>Step 6: Review & Submit</h4>
+  <div id="reviewPreview">
+    <div class="text-muted">Evaluating product...</div>
+  </div>
+  <div class="d-flex justify-content-between mt-4">
+    <button type="button" class="btn btn-secondary" data-prev-step="5">Previous</button>
+    <div>
+      <button type="submit" name="action" value="draft" class="btn btn-outline-success">💾 Save Draft</button>
+      <button type="submit" name="action" value="publish" class="btn btn-primary">🚀 Submit Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- Templates -->
+<template id="parameterTemplate">
+  <div class="card mb-2 parameter-item">
+    <div class="card-body">
+      <div class="d-flex justify-content-end"><button type="button" class="btn-close remove-btn"></button></div>
+      <input type="text" name="parameters[][name]" class="form-control mb-2" placeholder="Name" required>
+      <input type="text" name="parameters[][abbreviation]" class="form-control mb-2" placeholder="Abbreviation" required>
+      <input type="number" step="0.01" name="parameters[][value]" class="form-control" placeholder="Value" required>
+    </div>
+  </div>
+</template>
+
+<template id="partTemplate">
+  <div class="card mb-2 part-item">
+    <div class="card-body">
+      <div class="d-flex justify-content-end">
+        <button type="button" class="btn-close remove-btn"></button>
+      </div>
+
+      <!-- Part Name -->
+      <input type="text" name="parts[][name]" class="form-control mb-2" placeholder="Part Name" required>
+
+      <!-- Equations -->
+      <div class="row g-2 mb-2">
+        <div class="col">
+          <input type="text" name="parts[][length_equation]" class="form-control" placeholder="Length equation" required>
+        </div>
+        <div class="col">
+          <input type="text" name="parts[][width_equation]" class="form-control" placeholder="Width equation" required>
+        </div>
+        <div class="col">
+          <input type="text" name="parts[][qty_equation]" class="form-control" placeholder="Qty equation" required>
+        </div>
+      </div>
+
+      <!-- Material -->
+      <div class="mb-2">
+        <select name="parts[][part_material]" class="form-select" required>
+          <option value="">Material</option>
+        </select>
+      </div>
+
+        <div class="row g-2 mb-2">
+    <div class="col">
+      <select name="parts[][edge_top]" class="form-select" title="Top Edge">
+        <option value="">Top Edge</option>
+      </select>
+    </div>
+    <div class="col">
+      <select name="parts[][edge_bottom]" class="form-select" title="Bottom Edge">
+        <option value="">Bottom Edge</option>
+      </select>
+    </div>
+    <div class="col">
+      <select name="parts[][edge_left]" class="form-select" title="Left Edge">
+        <option value="">Left Edge</option>
+      </select>
+    </div>
+    <div class="col">
+      <select name="parts[][edge_right]" class="form-select" title="Right Edge">
+        <option value="">Right Edge</option>
+      </select>
+    </div>
+  </div>
+
+
+      <!-- Grooving Cost + Wastage -->
+      <div class="row g-2 mb-2">
+        <div class="col">
+          <input type="number" step="0.01" class="form-control" name="parts[][grooving_cost]" placeholder="Edge Grooving Cost">
+        </div>
+        <div class="col">
+          <input type="number" step="0.01" class="form-control" name="parts[][wastage_multiplier]" placeholder="Wastage Multiplier" value="1.00">
+        </div>
+      </div>
+
+      <!-- Shape + Grain -->
+      <div class="row g-2">
+        <div class="col">
+          <select name="parts[][shape]" class="form-select">
+            <option value="rectangle">Rectangle</option>
+            <option value="circle">Circle</option>
+            <option value="curvilinear">Curvilinear</option>
+            <option value="l_shape">L Shape</option>
+            <option value="triangle">Triangle</option>
+          </select>
+        </div>
+        <div class="col">
+          <select name="parts[][grain_direction]" class="form-select">
+            <option value="none">No Grain</option>
+            <option value="horizontal">Horizontal</option>
+            <option value="vertical">Vertical</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+
+<template id="ruleTemplate">
+  <div class="card mb-2 rule-item">
+    <div class="card-body">
+      <div class="d-flex justify-content-end"><button type="button" class="btn-close remove-btn"></button></div>
+      <input type="text" name="hardware_rules[][name]" class="form-control mb-2" placeholder="Rule Name" required>
+      <input type="text" name="hardware_rules[][equation]" class="form-control" placeholder="Equation" required>
+    </div>
+  </div>
+</template>
+
+<template id="hrTemplate">
+  <div class="card mb-2 hr-item">
+    <div class="card-body">
+      <div class="d-flex justify-content-end"><button type="button" class="btn-close remove-btn"></button></div>
+      <select name="hw_requirements[][hardware]" class="form-select mb-2" required>
+        <option value="">Select Hardware</option>
+      </select>
+      <select name="hw_requirements[][rule]" class="form-select mb-2" required>
+        <option value="">Select Rule</option>
+      </select>
+      <input type="text" name="hw_requirements[][custom_equation]" class="form-control" placeholder="Custom equation?">
+      <input type="number" name="hw_requirements[][quantity]" class="form-control" placeholder="Quantity (optional)">
+    </div>
+  </div>
+</template>
+
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/wizard.js' %}"></script>
+<script src="{% static 'js/hardwarewiz.js' %}"></script>
+{% endblock %}

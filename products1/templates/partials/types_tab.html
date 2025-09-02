@@ -1,0 +1,118 @@
+{% extends "base2.html" %}
+{% load static %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Master Data Admin</h3>
+  <ul class="nav nav-tabs" id="masterTab">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#types-tab">Product Types</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#models-tab">Blueprints</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#units-tab">Measurement Units</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#billing-tab">Billing Units</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#attributes-tab">Attribute Definitions</button></li>
+  </ul>
+  <div class="tab-content mt-3">
+    <!-- Tabs Content: Tables and Add Buttons -->
+    <div class="tab-pane fade show active" id="types-tab">
+      <button id="btn-add-type" class="btn btn-primary mb-2">Add Type</button>
+      <table id="table-types" class="table"><thead>
+        <tr><th>Name</th><th>Slug</th><th>Actions</th></tr></thead><tbody></tbody>
+      </table>
+    </div>
+    <div class="tab-pane fade" id="models-tab">
+      <button id="btn-add-model" class="btn btn-primary mb-2">Add Blueprint</button>
+      <table id="table-models" class="table"><thead>
+        <tr><th>Name</th><th>Code</th><th>Type</th><th>Actions</th></tr></thead><tbody></tbody>
+      </table>
+    </div>
+    <div class="tab-pane fade" id="units-tab">
+      <button id="btn-add-unit" class="btn btn-primary mb-2">Add Measurement Unit</button>
+      <table id="table-units" class="table"><thead>
+        <tr><th>Name</th><th>Code</th><th>Actions</th></tr></thead><tbody></tbody>
+      </table>
+    </div>
+    <div class="tab-pane fade" id="billing-tab">
+      <button id="btn-add-billing" class="btn btn-primary mb-2">Add Billing Unit</button>
+      <table id="table-billing" class="table"><thead>
+        <tr><th>Name</th><th>Code</th><th>Actions</th></tr></thead><tbody></tbody>
+      </table>
+    </div>
+    <div class="tab-pane fade" id="attributes-tab">
+      <button id="btn-add-attribute" class="btn btn-primary mb-2">Add Attribute</button>
+      <table id="table-attributes" class="table"><thead>
+        <tr><th>Name</th><th>Field Type</th><th>Choices</th><th>Actions</th></tr></thead><tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Product Type Modal -->
+<div class="modal fade" id="typeModal"><div class="modal-dialog"><form id="form-type" class="modal-content">
+  <div class="modal-header"><h5>Product Type</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="type-id">
+    <div class="mb-3"><label>Name</label><input required id="type-name" class="form-control"></div>
+    <div class="mb-3"><label>Slug</label><input required id="type-slug" class="form-control"></div>
+  </div>
+  <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>
+</form></div></div>
+
+<!-- Blueprint Modal -->
+<div class="modal fade" id="modelModal"><div class="modal-dialog"><form id="form-model" class="modal-content">
+  <div class="modal-header"><h5>Product Blueprint</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="model-id">
+    <div class="mb-3"><label>Name</label><input required id="model-name" class="form-control"></div>
+    <div class="mb-3"><label>Code</label><input required id="model-code" class="form-control"></div>
+    <div class="mb-3"><label>Type</label>
+      <select id="model-type-id" class="form-select"></select></div>
+  </div>
+  <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>
+</form></div></div>
+
+<!-- Measurement Unit Modal -->
+<div class="modal fade" id="unitModal"><div class="modal-dialog"><form id="form-unit" class="modal-content">
+  <div class="modal-header"><h5>Measurement Unit</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="unit-id">
+    <div class="mb-3"><label>Name</label><input required id="unit-name" class="form-control"></div>
+    <div class="mb-3"><label>Code</label><input required id="unit-code" class="form-control"></div>
+  </div>
+  <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>
+</form></div></div>
+
+<!-- Billing Unit Modal -->
+<div class="modal fade" id="billingModal"><div class="modal-dialog"><form id="form-billing" class="modal-content">
+  <div class="modal-header"><h5>Billing Unit</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="billing-id">
+    <div class="mb-3"><label>Name</label><input required id="billing-name" class="form-control"></div>
+    <div class="mb-3"><label>Code</label><input required id="billing-code" class="form-control"></div>
+  </div>
+  <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>
+</form></div></div>
+
+<!-- Attribute Definition Modal -->
+<div class="modal fade" id="attributeModal"><div class="modal-dialog"><form id="form-attribute" class="modal-content">
+  <div class="modal-header"><h5>Attribute Definition</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="attribute-id">
+    <div class="mb-3"><label>Name</label><input required id="attribute-name" class="form-control"></div>
+    <div class="mb-3">
+      <label>Field Type</label>
+      <select required id="attribute-type" class="form-select">
+        <option value="text">Text</option>
+        <option value="number">Number</option>
+        <option value="boolean">Boolean</option>
+        <option value="choice">Choice</option>
+      </select>
+    </div>
+    <div class="mb-3" id="choice-container" style="display:none">
+      <label>Choices (JSON array)</label>
+      <textarea id="attribute-choices" class="form-control" placeholder='["Opt1","Opt2"]'></textarea>
+    </div>
+  </div>
+  <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>
+</form></div></div>
+{% endblock %}

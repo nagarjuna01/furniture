@@ -1,15 +1,15 @@
 {% extends "base_b.html" %}
 
 {% block content %}
-<div class="container mt-5"> {# Removed gaming-container #}
-    <h1 class="mb-4">Hardware Inventory</h1> {# Removed gaming-title #}
+<div class="container mt-5"> 
+    <h1 class="mb-4">Hardware Inventory</h1> 
 
     <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#hardwareModal" id="addHardwareBtn"> {# Removed gaming-btn primary-glow #}
         <i class="fas fa-plus-circle"></i> Add New Hardware
     </button>
 
     <div class="table-responsive">
-        <table class="table table-bordered table-hover"> {# Removed gaming-table #}
+        <table class="table table-bordered table-hover">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -127,9 +127,9 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
-        const HARDWARE_API_URL = '/material/hardware/';
-        const HARDWARE_GROUP_API_URL = '/material/hardware-groups/';
-        const BRAND_API_URL = '/material/brands/';
+        const HARDWARE_API_URL = '/material/v1/hardware/';
+        const HARDWARE_GROUP_API_URL = '/material/v1/hardware-groups/';
+        const BRAND_API_URL = '/material/v1/brands/';
         let editingHardwareId = null; // To keep track of the hardware being edited
 
         // Get CSRF Token from meta tag
@@ -282,9 +282,9 @@
             e.preventDefault();
 
             const hardwareData = {
-                h_group: $('#h_group').val(),
+                h_group_id: $('#h_group').val(),
                 h_name: $('#h_name').val(),
-                brand: $('#brand').val(),
+                brand_id: $('#brand').val(),
                 unit: $('#unit').val(),
                 p_price: $('#p_price').val(),
                 s_price: $('#s_price').val(),

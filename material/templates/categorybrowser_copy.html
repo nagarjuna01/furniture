@@ -1,0 +1,916 @@
+{% extends 'base_b.html'%}
+{% block content %}
+
+<style>
+  .table-responsive {
+  overflow-x: auto;   /* allow scrolling if table too wide */
+}
+
+#woodensTable th,
+#woodensTable td {
+  white-space: normal;
+  word-break: break-word;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Fixed numeric columns */
+#woodensTable th:nth-child(6),
+#woodensTable td:nth-child(6), /* Length */
+#woodensTable th:nth-child(7),
+#woodensTable td:nth-child(7), /* Width */
+#woodensTable th:nth-child(8),
+#woodensTable td:nth-child(8)  /* Thickness */ {
+  width: 70px;
+  min-width: 70px;
+  white-space: nowrap;
+  text-align: right;   /* better for numbers */
+}
+
+</style>
+<div class="container mt-4">
+  <ul class="nav nav-tabs" id="materialTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="wooden-tab" data-bs-toggle="tab" data-bs-target="#wooden" type="button">Panels</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="category-tab" data-bs-toggle="tab" data-bs-target="#category" type="button">Categories</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="category-type-tab" data-bs-toggle="tab" data-bs-target="#category-type" type="button">Category Types</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="category-model-tab" data-bs-toggle="tab" data-bs-target="#category-model" type="button">Category Models</button>
+    </li>
+    
+  </ul>
+
+  <div class="tab-content mt-3">
+    <!-- Categories Tab -->
+    <div class="tab-pane fade" id="category">
+      <div class="mb-2">
+        <button class="btn btn-primary btn-sm" id="addCategoryBtn">Add Category</button>
+        <input type="text" id="categorySearch" placeholder="Search Categories..." class="form-control form-control-sm d-inline-block w-auto ms-2">
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="categoriesTable">
+          <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <button class="btn btn-sm btn-outline-secondary" id="categoryPrev">Prev</button>
+        <span id="categoryCount"></span>
+        <button class="btn btn-sm btn-outline-secondary" id="categoryNext">Next</button>
+      </div>
+    </div>
+
+    <!-- Category Types Tab -->
+    <div class="tab-pane fade" id="category-type">
+      <div class="mb-2">
+        <button class="btn btn-primary btn-sm" id="addCategoryTypeBtn">Add Category Type</button>
+        <input type="text" id="categoryTypeSearch" placeholder="Search Types..." class="form-control form-control-sm d-inline-block w-auto ms-2">
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="categoryTypesTable">
+          <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <button class="btn btn-sm btn-outline-secondary" id="categoryTypePrev">Prev</button>
+        <span id="categoryTypeCount"></span>
+        <button class="btn btn-sm btn-outline-secondary" id="categoryTypeNext">Next</button>
+      </div>
+    </div>
+
+    <!-- Category Models Tab -->
+    <div class="tab-pane fade" id="category-model">
+      <div class="mb-2">
+        <button class="btn btn-primary btn-sm" id="addCategoryModelBtn">Add Category Model</button>
+        <input type="text" id="categoryModelSearch" placeholder="Search Models..." class="form-control form-control-sm d-inline-block w-auto ms-2">
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="categoryModelsTable">
+          <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Category Type</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <button class="btn btn-sm btn-outline-secondary" id="categoryModelPrev">Prev</button>
+        <span id="categoryModelCount"></span>
+        <button class="btn btn-sm btn-outline-secondary" id="categoryModelNext">Next</button>
+      </div>
+    </div>
+
+    <!-- WoodEn Tab -->
+    <div class="tab-pane fade show active" id="wooden">
+      <div class="mb-2">
+        <button class="btn btn-primary btn-sm" id="addWoodenBtn">Add Panel</button>
+        <input type="text" id="woodenSearch" placeholder="Search WoodEn..." class="form-control form-control-sm d-inline-block w-auto ms-2">
+      </div>
+      <div class="row mb-3">
+  
+  <div class="table-responsive">
+  <table class="table table-bordered table-hover align-middle" id="woodensTable">
+    <thead class="table-light">
+      <tr>
+        <th>Name<br>
+          <input type="text" id="filterName" class="form-control form-control-sm" placeholder="Search">
+        </th>
+        <th>Category<br>
+          <select id="filterCategory" class="form-select form-select-sm">
+            <option value="">All</option>
+          </select>
+        </th>
+        <th>Type<br>
+          <select id="filterType" class="form-select form-select-sm">
+            <option value="">All</option>
+          </select>
+        </th>
+        <th>Model<br>
+          <select id="filterModel" class="form-select form-select-sm">
+            <option value="">All</option>
+          </select>
+        </th>
+        <th>Brand<br>
+          <select id="filterBrand" class="form-select form-select-sm">
+            <option value="">All</option>
+          </select>
+        </th>
+        <th>Length</th>
+        <th>Width</th>
+        <th>Thickness</th>
+        <th>Purchase Price (Panel / Sqft)</th>
+        <th>Selling Price (Panel / Sqft)</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+      <div class="d-flex justify-content-between align-items-center">
+        <button class="btn btn-sm btn-outline-secondary" id="woodenPrev">Prev</button>
+        <span id="woodenCount"></span>
+        <button class="btn btn-sm btn-outline-secondary" id="woodenNext">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modals for CRUD -->
+<!-- Category Modal -->
+<div class="modal fade" id="categoryModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="categoryForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="categoryModalTitle"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="categoryId">
+        <div class="mb-2">
+          <label>Name</label>
+          <input type="text" id="categoryName" class="form-control" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Category Type Modal -->
+<div class="modal fade" id="categoryTypeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="categoryTypeForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="categoryTypeModalTitle"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="categoryTypeId">
+        <div class="mb-2">
+          <label>Name</label>
+          <input type="text" id="categoryTypeName" class="form-control" required>
+        </div>
+        <div class="mb-2">
+          <label>Category</label>
+          <select id="categoryTypeCategoryId" class="form-select" required></select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Category Model Modal -->
+<div class="modal fade" id="categoryModelModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="categoryModelForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="categoryModelModalTitle"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="categoryModelId">
+        <div class="mb-2">
+          <label>Name</label>
+          <input type="text" id="categoryModelName" class="form-control" required>
+        </div>
+        <div class="mb-2">
+          <label>Category Type</label>
+          <select id="categoryModelTypeId" class="form-select" required></select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- WoodEn Modal -->
+<div class="modal fade" id="woodenModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <form id="woodenForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="woodenModalTitle"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body row">
+        <input type="hidden" id="woodenId">
+        <div class="col-md-3 mb-2">
+          <label>Name</label>
+          <input type="text" id="woodenName" class="form-control">
+        </div>
+        <div class="col-md-3 mb-2">
+          <label>Category</label>
+          <select id="woodenCategoryId" class="form-select" required></select>
+        </div>
+        <div class="col-md-3 mb-2">
+          <label>Category Type</label>
+          <select id="woodenTypeId" class="form-select" required></select>
+        </div>
+        <div class="col-md-3 mb-2">
+          <label>Category Model</label>
+          <select id="woodenModelId" class="form-select"></select>
+        </div>
+        <div class="col-md-3 mb-2">
+          <label>Brand</label>
+          <select id="woodenBrandId" class="form-select"></select>
+        </div>
+        <div class="col-md-3 mb-2">
+        <label>Grain</label>
+        <select id="woodenGrain" class="form-select">
+            <option value="0">Horizontal</option>
+            <option value="1">None</option>
+            <option value="2" selected>Vertical</option>
+        </select>
+        </div>
+        <div class="col-md-3 mb-2">
+          <label>Length</label>
+          <input type="number" step="0.01" id="woodenLength" class="form-control" required>
+        </div>
+        <div class="col-md-3 mb-2">
+        <label>Length Unit</label>
+        <select id="woodenLengthUnit" class="form-select">
+            <option value="mm">mm</option>
+            <option value="cm">cm</option>
+            <option value="m">m</option>
+            <option value="inch">inch</option>
+            <option value="ft">ft</option>
+        </select>
+        </div>
+        <div class="col-md-3 mb-2">
+          <label>Width</label>
+          <input type="number" step="0.01" id="woodenWidth" class="form-control" required>
+        </div>
+        <div class="col-md-3 mb-2">
+            <label>Width Unit</label>
+            <select id="woodenWidthUnit" class="form-select">
+                <option value="mm">mm</option>
+                <option value="cm">cm</option>
+                <option value="m">m</option>
+                <option value="inch">inch</option>
+                <option value="ft">ft</option>
+            </select>
+            </div>
+        <div class="col-md-3 mb-2">
+          <label>Thickness</label>
+          <input type="number" step="0.01" id="woodenThickness" class="form-control" required>
+        </div>
+        <div class="col-md-3 mb-2">
+            <label>Thickness Unit</label>
+            <select id="woodenThicknessUnit" class="form-select">
+                <option value="mm">mm</option>
+                <option value="cm">cm</option>
+                <option value="m">m</option>
+                <option value="inch">inch</option>
+                <option value="ft">ft</option>
+            </select>
+            </div>
+        <div class="col-md-3 mb-2">
+          <label>Cost Price</label>
+          <input type="number" step="0.01" id="woodenCostPrice" class="form-control" required>
+        </div>
+        <div class="col-md-3 mb-2">
+            <label>Cost Price Type</label>
+            <select id="woodenCostPriceType" class="form-select">
+                <option value="panel">Panel Price</option>
+                <option value="sft">Price per Sqft</option>
+            </select>
+            </div>
+        <div class="col-md-3 mb-2">
+          <label>Sell Price</label>
+          <input type="number" step="0.01" id="woodenSellPrice" class="form-control" required>
+        </div>
+        <div class="col-md-3 mb-2">
+            <label>Sell Price Type</label>
+            <select id="woodenSellPriceType" class="form-select">
+                <option value="panel">Panel Price</option>
+                <option value="sft">Price per Sqft</option>
+            </select>
+            </div>
+            <div class="col-md-3 mb-2">
+                <label>Color</label>
+                <input type="text" id="woodenColor" class="form-control" value="no color">
+                </div>
+
+            <div class="col-md-3 mb-2">
+                <label>Is Sheet?</label>
+                <select id="woodenIsSheet" class="form-select">
+                    <option value="true" selected>Yes</option>
+                    <option value="false">No</option>
+                </select>
+                </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+<!-- Bootstrap JS Bundle -->
+{% block extra_js %}
+<script>
+// ===== API Endpoints =====
+const API = {
+  categories: "/material/v1/categories/",
+  categoryTypes: "/material/v1/category-types/",
+  categoryModels: "/material/v1/category-models/",
+  woodens: "/material/v1/woodens/",
+  brands: "/material/v1/brands/"
+};
+
+// ===== Helper Functions =====
+function alertError(err){
+  console.error(err);
+  alert("Error: " + (err.responseJSON?.detail || JSON.stringify(err)));
+}
+function toArrayOrResults(res){
+    if(Array.isArray(res)) return { results: res, count: res.length, next: null, previous: null };
+    if(res && Array.isArray(res.results)) return res;
+    return { results: [], count: 0, next: null, previous: null };
+}
+
+// ======== CATEGORY CRUD =========
+function loadCategories(url){
+    const fetchUrl = url || '/material/v1/categories/';
+    $.get(fetchUrl, function(res){
+        // Always access 'results' array
+        const data = res.results || [];
+        const rows = data.map(c => `
+            <tr data-id="${c.id}">
+                <td>${c.name}</td>
+                <td class="text-nowrap">
+                    <button class="btn btn-sm btn-warning me-1 btn-edit-cat">Edit</button>
+                    <button class="btn btn-sm btn-danger btn-del-cat">Delete</button>
+                </td>
+            </tr>
+        `).join("");
+        $("#categoriesTable tbody").html(rows);
+
+        // Pagination
+        $("#categoriesPrev").prop("disabled", !res.previous).off("click").on("click", ()=> loadCategories(res.previous));
+        $("#categoriesNext").prop("disabled", !res.next).off("click").on("click", ()=> loadCategories(res.next));
+        $("#categoriesCount").text(`${res.count} items`);
+    }).fail(alertError);
+}
+
+
+
+// Create/Update
+$("#categoryForm").on("submit", function(e){
+    e.preventDefault();
+    const id = $("#categoryId").val();
+    const name = $("#categoryName").val().trim();
+
+    if(!name){
+        alert("Name is required.");
+        return;
+    }
+
+    // Pre-check duplicate
+    $.get(API.categories, { search: name }, function(res){
+        const duplicate = res.results.find(c => c.name.toLowerCase() === name.toLowerCase() && c.id != id);
+        if(duplicate){
+            alert("Category with this name already exists.");
+            $("#categoryModal").modal("hide");
+            return;
+        }
+
+        // No duplicate, submit
+        const payload = { name: name };
+        const req = id
+            ? $.ajax({ url: API.categories + id + "/", type: "PUT", data: JSON.stringify(payload), contentType:"application/json" })
+            : $.ajax({ url: API.categories, type: "POST", data: JSON.stringify(payload), contentType:"application/json" });
+
+        req.done(()=> {
+            $("#categoryModal").modal("hide");
+            loadCategories();
+        }).fail(err => {
+            $("#categoryModal").modal("hide");
+            if(err.responseJSON){
+                alert(Object.values(err.responseJSON).flat().join("\n"));
+            } else {
+                alert("Unexpected error");
+            }
+        });
+
+    }).fail(err => {
+        $("#categoryModal").modal("hide");
+        alert("Failed to validate duplicate: " + (err.responseText || err.statusText));
+    });
+});
+
+
+
+// Edit
+$("#categoryTable").on("click", ".btn-edit-cat", function(){
+  const id = $(this).closest("tr").data("id");
+  $.get(API.categories + id + "/", function(c){
+    $("#categoryId").val(c.id);
+    $("#categoryName").val(c.name);
+    $("#categoryModalTitle").text("Edit Category");
+    $("#categoryModal").modal("show");
+  }).fail(alertError);
+});
+
+// Delete
+$("#categoryTable").on("click", ".btn-del-cat", function(){
+  if(!confirm("Delete this category?")) return;
+  const id = $(this).closest("tr").data("id");
+  $.ajax({ url: API.categories + id + "/", type: "DELETE" }).done(()=> loadCategories()).fail(alertError);
+});
+
+// Search
+$("#categorySearch").on("input", function(){ loadCategories(null, $(this).val()); });
+$("#addCategoryBtn").click(()=> { $("#categoryModalTitle").text("Add Category"); $("#categoryForm")[0].reset(); $("#categoryId").val(""); $("#categoryModal").modal("show"); });
+
+
+// ======== CATEGORY TYPES CRUD =========
+function loadCategoryTypes(url){
+    const fetchUrl = url || '/material/v1/category-types/';
+    $.get(fetchUrl, function(res){
+        const data = toArrayOrResults(res);
+        const rows = (data.results || []).map(t => `
+            <tr data-id="${t.id}">
+                <td>${t.name}</td>
+                <td>${t.category?.name || '-'}</td>
+                <td class="text-nowrap">
+                    <button class="btn btn-sm btn-warning me-1 btn-edit-type">Edit</button>
+                    <button class="btn btn-sm btn-danger btn-del-type">Delete</button>
+                </td>
+            </tr>
+        `).join("");
+        $("#categoryTypesTable tbody").html(rows);
+
+        $("#categoryTypesPrev").prop("disabled", !data.previous).off("click").on("click", ()=> loadCategoryTypes(data.previous));
+        $("#categoryTypesNext").prop("disabled", !data.next).off("click").on("click", ()=> loadCategoryTypes(data.next));
+        $("#categoryTypesCount").text(`${data.count} items`);
+    }).fail(alertError);
+}
+
+
+// Load categories for select
+function loadCategoryOptions(){
+  $.get(API.categories, function(data){
+    const options = data.results.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+    $("#categoryTypeCategoryId").html(options);
+    $("#woodenCategoryId").html(options);
+  });
+}
+
+// CategoryType Create/Update
+$("#categoryTypeForm").on("submit", function(e){
+  e.preventDefault();
+  const id = $("#categoryTypeId").val();
+  const payload = {
+    name: $("#categoryTypeName").val(),
+    category_id: $("#categoryTypeCategoryId").val()
+  };
+  const req = id ? $.ajax({ url: API.categoryTypes + id + "/", type: "PUT", data: JSON.stringify(payload), contentType:"application/json" })
+                 : $.ajax({ url: API.categoryTypes, type: "POST", data: JSON.stringify(payload), contentType:"application/json" });
+  req.done(()=> { $("#categoryTypeModal").modal("hide"); loadCategoryTypes(); }).fail(alertError);
+});
+
+// Edit
+$("#categoryTypeTable").on("click", ".btn-edit-type", function(){
+  const id = $(this).closest("tr").data("id");
+  $.get(API.categoryTypes + id + "/", function(t){
+    $("#categoryTypeId").val(t.id);
+    $("#categoryTypeName").val(t.name);
+    $("#categoryTypeCategoryId").val(t.category?.id ?? "");
+    $("#categoryTypeModalTitle").text("Edit Category Type");
+    $("#categoryTypeModal").modal("show");
+  }).fail(alertError);
+});
+
+// Delete
+$("#categoryTypeTable").on("click", ".btn-del-type", function(){
+  if(!confirm("Delete this type?")) return;
+  const id = $(this).closest("tr").data("id");
+  $.ajax({ url: API.categoryTypes + id + "/", type: "DELETE" }).done(()=> loadCategoryTypes()).fail(alertError);
+});
+
+$("#categoryTypeSearch").on("input", function(){ loadCategoryTypes(null, $(this).val()); });
+$("#addCategoryTypeBtn").click(()=> { $("#categoryTypeModalTitle").text("Add Category Type"); $("#categoryTypeForm")[0].reset(); $("#categoryTypeId").val(""); loadCategoryOptions(); $("#categoryTypeModal").modal("show"); });
+
+
+// ======== CATEGORY MODELS CRUD =========
+function loadCategoryModels(url){
+    const fetchUrl = url || '/material/v1/category-models/';
+    $.get(fetchUrl, function(res){
+        const data = toArrayOrResults(res);
+        const rows = (data.results || []).map(m => `
+            <tr data-id="${m.id}">
+                <td>${m.name}</td>
+                <td>${m.model_category?.name || '-'}</td>
+                <td class="text-nowrap">
+                    <button class="btn btn-sm btn-warning me-1 btn-edit-model">Edit</button>
+                    <button class="btn btn-sm btn-danger btn-del-model">Delete</button>
+                </td>
+            </tr>
+        `).join("");
+        $("#categoryModelsTable tbody").html(rows);
+
+        $("#categoryModelsPrev").prop("disabled", !data.previous).off("click").on("click", ()=> loadCategoryModels(data.previous));
+        $("#categoryModelsNext").prop("disabled", !data.next).off("click").on("click", ()=> loadCategoryModels(data.next));
+        $("#categoryModelsCount").text(`${data.count} items`);
+    }).fail(alertError);
+}
+
+// Load types for select
+function loadCategoryTypeOptions(){
+  $.get(API.categoryTypes, function(data){
+    const options = data.results.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+    $("#categoryModelTypeId").html(options);
+    $("#woodenTypeId").html(options);
+  });
+}
+
+// Create/Update
+$("#categoryModelForm").on("submit", function(e){
+  e.preventDefault();
+  const id = $("#categoryModelId").val();
+  const payload = {
+    name: $("#categoryModelName").val(),
+    model_category_id: $("#categoryModelTypeId").val()
+  };
+  const req = id ? $.ajax({ url: API.categoryModels + id + "/", type: "PUT", data: JSON.stringify(payload), contentType:"application/json" })
+                 : $.ajax({ url: API.categoryModels, type: "POST", data: JSON.stringify(payload), contentType:"application/json" });
+  req.done(()=> { $("#categoryModelModal").modal("hide"); loadCategoryModels(); }).fail(alertError);
+});
+
+// Edit
+$("#categoryModelTable").on("click", ".btn-edit-model", function(){
+  const id = $(this).closest("tr").data("id");
+  $.get(API.categoryModels + id + "/", function(m){
+    $("#categoryModelId").val(m.id);
+    $("#categoryModelName").val(m.name);
+    $("#categoryModelTypeId").val(m.model_category?.id ?? "");
+    $("#categoryModelModalTitle").text("Edit Category Model");
+    $("#categoryModelModal").modal("show");
+  }).fail(alertError);
+});
+
+// Delete
+$("#categoryModelTable").on("click", ".btn-del-model", function(){
+  if(!confirm("Delete this model?")) return;
+  const id = $(this).closest("tr").data("id");
+  $.ajax({ url: API.categoryModels + id + "/", type: "DELETE" }).done(()=> loadCategoryModels()).fail(alertError);
+});
+
+$("#categoryModelSearch").on("input", function(){ loadCategoryModels(null, $(this).val()); });
+$("#addCategoryModelBtn").click(()=> { $("#categoryModelModalTitle").text("Add Category Model"); $("#categoryModelForm")[0].reset(); $("#categoryModelId").val(""); loadCategoryTypeOptions(); $("#categoryModelModal").modal("show"); });
+
+
+// ======== WOODEN CRUD =========
+// Debounce to prevent too many API calls while typing
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+function buildWoodenFilterUrl(baseUrl) {
+    const params = new URLSearchParams();
+
+    const name = $("#filterName").val()?.trim();
+    const category = $("#filterCategory").val();
+    const type = $("#filterType").val();
+    const model = $("#filterModel").val();
+    const brand = $("#filterBrand").val();
+
+    // Match backend expectations
+    if (name) params.append("name__icontains", name);   // icontains for partial search
+    if (category) params.append("material_grp", category);
+    if (type) params.append("material_type", type);
+    if (model) params.append("material_model", model);
+    if (brand) params.append("brand", brand);
+
+    const query = params.toString();
+    return query ? `${baseUrl}?${query}` : baseUrl;
+}
+
+function loadWoodens(url) {
+    const fetchUrl = url || buildWoodenFilterUrl('/material/v1/woodens/');
+
+    $.get(fetchUrl, function (res) {
+        const data = toArrayOrResults(res);
+
+        const rows = (data.results || []).map(w => `
+    <tr data-id="${w.id}">
+        <td>${w.name || '-'}</td>
+        <td>${w.material_grp?.name || '-'}</td>
+        <td>${w.material_type?.name || '-'}</td>
+        <td>${w.material_model?.name || '-'}</td>
+        <td>${w.brand?.name || '-'}</td>
+        <td>${w.length ?? '-'}</td>
+        <td>${w.width ?? '-'}</td>
+        <td>${w.thickness ?? '-'}</td>
+        <td>
+            ${w.p_price ?? '-'} / ${w.p_price_sft ?? '-'}
+        </td>
+        <td>
+            ${w.s_price ?? '-'} / ${w.s_price_sft ?? '-'}
+        </td>
+        <td class="text-nowrap">
+            <button class="btn btn-sm btn-warning me-1 btn-edit-wood">Edit</button>
+            <button class="btn btn-sm btn-danger btn-del-wood">Delete</button>
+        </td>
+    </tr>
+`).join("");
+
+        $("#woodensTable tbody").html(rows || `<tr><td colspan="11" class="text-center">No records found</td></tr>`);
+
+        // Pagination
+        $("#woodensPrev")
+            .prop("disabled", !data.previous)
+            .off("click")
+            .on("click", () => loadWoodens(data.previous));
+
+        $("#woodensNext")
+            .prop("disabled", !data.next)
+            .off("click")
+            .on("click", () => loadWoodens(data.next));
+
+        $("#woodensCount").text(`${data.count} items`);
+    }).fail(err => {
+        console.error("Failed to fetch wooden items:", err);
+        alertError(err);
+    });
+}
+
+// Hook filters (keyup & select change)
+$("#filterName").on("keyup", debounce(() => loadWoodens(), 400));
+$("#filterCategory, #filterType, #filterModel, #filterBrand").on("change", () => loadWoodens());
+
+
+
+// Load brands
+function loadBrandOptions(){
+  $.get(API.brands, function(data){
+    const options = data.results.map(b=>`<option value="${b.id}">${b.name}</option>`).join("");
+    $("#woodenBrandId").html(options);
+  });
+}
+
+// Utility to handle paginated API responses
+function parseResults(res){
+    if(Array.isArray(res)) return res;
+    if(res && res.results) return res.results;
+    return [];
+}
+
+// Dependent dropdown: Category → Type → Model
+$("#woodenCategoryId").on("change", function(){
+    const catId = $(this).val();
+    $("#woodenTypeId").html('<option>Loading...</option>');
+    $("#woodenModelId").html('<option value="">--Select Model--</option>'); // reset models
+    if(!catId) return;
+
+    $.get(API.categoryTypes, { category: catId }, function(data){
+        const types = parseResults(data);
+        const options = types.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
+        $("#woodenTypeId").html('<option value="">--Select Type--</option>' + options);
+    });
+});
+
+$("#woodenTypeId").on("change", function(){
+    const typeId = $(this).val();
+    $("#woodenModelId").html('<option>Loading...</option>'); // show loading
+    if(!typeId) return;
+
+    $.get(API.categoryModels, { model_category: typeId }, function(data){
+        const models = parseResults(data);
+        const options = models.map(m=>`<option value="${m.id}">${m.name}</option>`).join("");
+        $("#woodenModelId").html('<option value="">--Select Model--</option>' + options);
+    });
+});
+
+// Create/Update WoodEn
+$("#woodenForm").on("submit", function(e){
+  e.preventDefault();
+  const id = $("#woodenId").val();
+  const payload = {
+  name: $("#woodenName").val(),
+  material_grp_id: $("#woodenCategoryId").val() || null,
+  material_type_id: $("#woodenTypeId").val() || null,
+  material_model_id: $("#woodenModelId").val() || null,
+  brand_id: $("#woodenBrandId").val() || null,
+  length: parseFloat($("#woodenLength").val()) || null,
+  length_unit: $("#woodenLengthUnit").val(),
+  width: parseFloat($("#woodenWidth").val()) || null,
+  width_unit: $("#woodenWidthUnit").val(),
+  thickness: parseFloat($("#woodenThickness").val()) || null,
+  thickness_unit: $("#woodenThicknessUnit").val(),
+  cost_price: parseFloat($("#woodenCostPrice").val()) || null,
+  costprice_type: $("#woodenCostPriceType").val() || null,   // make sure input exists
+  sell_price: parseFloat($("#woodenSellPrice").val()) || null,
+  sellprice_type: $("#woodenSellPriceType").val() || null,
+  grain: parseInt($("#woodenGrain").val()) || null,
+  color: $("#woodenColor").val(),
+  is_sheet: $("#woodenIsSheet").val() === "true"
+};
+
+  const req = id ? $.ajax({ url: API.woodens + id + "/", type: "PUT", data: JSON.stringify(payload), contentType:"application/json" })
+                 : $.ajax({ url: API.woodens, type: "POST", data: JSON.stringify(payload), contentType:"application/json" });
+  req.done(()=> { $("#woodenModal").modal("hide"); loadWoodens(); }).fail(alertError);
+});
+
+// Edit WoodEn
+$("#woodensTable").on("click", ".btn-edit-wood", function(){
+    const id = $(this).closest("tr").data("id");
+
+    $.get(API.woodens + id + "/", function(w){
+        $("#woodenId").val(w.id);
+        $("#woodenName").val(w.name);
+
+        // Load categories and select
+        $.get(API.categories, function(cats){
+            const catOptions = cats.results.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+            $("#woodenCategoryId").html('<option value="">--Select Category--</option>' + catOptions);
+            $("#woodenCategoryId").val(w.material_grp?.id ?? "").trigger("change");
+
+            // Load types after category is set
+            if(w.material_grp?.id){
+                $.get(API.categoryTypes, { category: w.material_grp.id }, function(types){
+                    const typeOptions = types.results.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
+                    $("#woodenTypeId").html('<option value="">--Select Type--</option>' + typeOptions);
+                    $("#woodenTypeId").val(w.material_type?.id ?? "").trigger("change");
+
+                    // Load models after type is set
+                    if(w.material_type?.id){
+                        $.get(API.categoryModels, { model_category: w.material_type.id }, function(models){
+                            const modelOptions = models.results.map(m=>`<option value="${m.id}">${m.name}</option>`).join("");
+                            $("#woodenModelId").html('<option value="">--Select Model--</option>' + modelOptions);
+                            $("#woodenModelId").val(w.material_model?.id ?? "");
+                        });
+                    }
+                });
+            }
+        });
+
+        // Load brands and select
+        $.get(API.brands, function(brands){
+            const brandOptions = brands.results.map(b=>`<option value="${b.id}">${b.name}</option>`).join("");
+            $("#woodenBrandId").html('<option value="">--Select Brand--</option>' + brandOptions);
+            $("#woodenBrandId").val(w.brand?.id ?? "");
+        });
+
+        $("#woodenLength").val(w.length);
+        $("#woodenWidth").val(w.width);
+        $("#woodenThickness").val(w.thickness);
+        $("#woodenCostPrice").val(w.cost_price);
+        $("#woodenSellPrice").val(w.sell_price);
+
+        $("#woodenModalTitle").text("Edit WoodEn");
+        $("#woodenModal").modal("show");
+    }).fail(alertError);
+});
+
+// Delete WoodEn
+$("#woodensTable").on("click", ".btn-del-wood", function(){
+  if(!confirm("Delete this WoodEn?")) return;
+  const id = $(this).closest("tr").data("id");
+  $.ajax({ url: API.woodens + id + "/", type: "DELETE" }).done(()=> loadWoodens()).fail(alertError);
+});
+
+$("#woodenSearch").on("input", function(){ loadWoodens(null, $(this).val()); });
+$("#addWoodenBtn").click(()=> {
+  $("#woodenModalTitle").text("Add WoodEn");
+  $("#woodenForm")[0].reset();
+  $("#woodenId").val("");
+  loadCategoryOptions();
+  loadCategoryTypeOptions();
+  loadBrandOptions();
+  $("#woodenModal").modal("show");
+});
+
+function populateFilters() {
+    // helper to normalize DRF paginated/non-paginated response
+    function getResults(data) {
+        return data.results || data; // if paginated, use results; else use raw
+    }
+
+    // categories
+    $.getJSON("/material/v1/categories/", function(data) {
+        const $cat = $("#filterCategory");
+        $cat.empty().append(`<option value="">All</option>`);
+        getResults(data).forEach(c => {
+            $cat.append(`<option value="${c.id}">${c.name}</option>`);
+        });
+    });
+
+    // types
+    $.getJSON("/material/v1/category-types/", function(data) {
+        const $type = $("#filterType");
+        $type.empty().append(`<option value="">All</option>`);
+        getResults(data).forEach(t => {
+            $type.append(`<option value="${t.id}">${t.name}</option>`);
+        });
+    });
+
+    // models
+    $.getJSON("/material/v1/category-models/", function(data) {
+        const $model = $("#filterModel");
+        $model.empty().append(`<option value="">All</option>`);
+        getResults(data).forEach(m => {
+            $model.append(`<option value="${m.id}">${m.name}</option>`);
+        });
+    });
+
+    // brands
+    $.getJSON("/material/v1/brands/", function(data) {
+        const $brand = $("#filterBrand");
+        $brand.empty().append(`<option value="">All</option>`);
+        getResults(data).forEach(b => {
+            $brand.append(`<option value="${b.id}">${b.name}</option>`);
+        });
+    });
+}
+
+
+// ====== INITIAL LOAD ======
+$(document).ready(function(){
+  loadCategories();
+  loadCategoryTypes();
+  loadCategoryModels();
+  populateFilters();
+  loadWoodens();
+  loadCategoryOptions();
+  loadCategoryTypeOptions();
+  loadBrandOptions();
+});
+
+</script>
+{%endblock%}

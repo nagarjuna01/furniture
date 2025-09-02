@@ -1,0 +1,115 @@
+{% extends "base_b.html" %}
+{% load static %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Product Management</h2>
+  <button id="btn-add-product" class="btn btn-primary mb-3">Add Product</button>
+  <table id="productTable" class="table">
+    <thead><tr><th>Name</th><th>SKU</th><th>Actions</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div class="modal fade" id="productModal">
+  <div class="modal-dialog modal-lg">
+    <form id="productForm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5>Product</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="product-id">
+            <div id="existing-images" class="d-flex gap-2 flex-wrap mt-2"></div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label>Name</label>
+              <input type="text" id="product-name" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label>SKU (Auto)</label>
+              <input type="text" id="sku" class="form-control" readonly>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label>Type</label>
+              <select id="product-type-id" class="form-select select2"></select>
+            </div>
+            <div class="col-md-6">
+              <label>Model</label>
+              <select id="product-model-id" class="form-select select2"></select>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <h6>Variants</h6>
+            <button type="button" id="btn-add-variant" class="btn btn-sm btn-secondary">Add Variant</button>
+            <div id="variants-container" class="mt-2"></div>
+          </div>
+
+          <div class="mt-4">
+            <h6>Product Images</h6>
+            <div id="existing-images" class="d-flex flex-wrap gap-2 mb-2"></div>
+            <input type="file" id="product-images" class="form-control" multiple accept="image/*">
+          </div>
+        </div>
+        <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Product</button></div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- VARIANT MODAL -->
+<div class="modal fade" id="variantModal">
+  <div class="modal-dialog modal-lg">
+    <form id="variantForm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5>Variant</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="variant-id">
+            <div id="variant-existing-images" class="d-flex gap-2 flex-wrap mt-2"></div>
+          <div class="row mb-3">
+            <div class="col"><label>Length</label><input type="number" id="variant-length" class="form-control"></div>
+            <div class="col"><label>Width</label><input type="number" id="variant-width" class="form-control"></div>
+            <div class="col"><label>Height</label><input type="number" id="variant-height" class="form-control"></div>
+            <div class="col-md-3"><label>Measurement Unit</label><select id="variant-measurement-unit" class="form-select select2"></select></div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-4"><label>Purchase Price</label><input id="variant-purchase-price" class="form-control" type="number" step="0.01"></div>
+            <div class="col-md-2"><label>Billing Unit</label><select id="variant-purchase-billing-unit" class="form-select select2"></select></div>
+            <div class="col-md-4"><label>Selling Price</label><input id="variant-selling-price" class="form-control" type="number" step="0.01"></div>
+            <div class="col-md-2"><label>Billing Unit</label><select id="variant-selling-billing-unit" class="form-select select2"></select></div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6"><label>Pricing Per Unit?</label><select id="variant-pricing-per-unit" class="form-select"><option value="false">No</option><option value="true">Yes</option></select></div>
+            <div class="col-md-6"><label>SKU (Auto)</label><input type="text" id="variant-sku" class="form-control" readonly></div>
+          </div>
+
+          <div class="mt-3"><h6>Attributes</h6><div id="attributes-container"></div><button type="button" id="btn-add-attribute" class="btn btn-sm btn-secondary mt-2">Add Attribute</button></div>
+
+          <div class="mt-4">
+            <h6>Variant Images</h6>
+            <div id="variant-existing-images" class="d-flex flex-wrap gap-2 mb-2"></div>
+            <input type="file" id="variant-images" class="form-control" multiple accept="image/*">
+          </div>
+        </div>
+        <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Variant</button></div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{#<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
+<script src="{% static 'js/products.js' %}"></script> #}
+{% endblock %}

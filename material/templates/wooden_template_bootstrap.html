@@ -6,6 +6,7 @@
 {% block content %}
 <div class="container mt-4">
     <h1 class="mb-4">Wooden Products</h1>
+    {% include "material/subnav.html" %}  {# Sub-navbar placed below heading #}
 
     <div class="card card-body mb-4 sticky-top" style="top: 0; z-index: 1020;"> {# sticky-top for fixed position on scroll #}
         <form id="filter-form" class="row g-3 align-items-center">
@@ -259,11 +260,11 @@
     const grainSelect = document.getElementById('grain');
 
     // --- API URLs ---
-    const API_URL = 'http://127.0.0.1:8000/material/woodens/';
-    const BRANDS_API_URL = 'http://127.0.0.1:8000/material/brands/';
-    const CATEGORIES_API_URL = 'http://127.0.0.1:8000/material/categories/'; // This is Material Groups
-    const CATEGORY_TYPES_API_URL = 'http://127.0.0.1:8000/material/category-types/'; // This is Material Types
-    const CATEGORY_MODELS_API_URL = 'http://127.0.0.1:8000/material/category-models/'; // This is Material Models
+    const API_URL = 'http://127.0.0.1:8000/material/v1/woodens/';
+    const BRANDS_API_URL = 'http://127.0.0.1:8000/material/v1/brands/';
+    const CATEGORIES_API_URL = 'http://127.0.0.1:8000/material/v1/categories/'; // This is Material Groups
+    const CATEGORY_TYPES_API_URL = 'http://127.0.0.1:8000/material/v1/category-types/'; // This is Material Types
+    const CATEGORY_MODELS_API_URL = 'http://127.0.0.1:8000/material/v1/category-models/'; // This is Material Models
 
     // --- Helper Functions ---
 

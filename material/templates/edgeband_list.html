@@ -3,7 +3,6 @@
 {% block content %}
 <div class="container mt-5">
     <h1 class="mb-4">EdgeBands Data</h1>
-
     <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#edgebandModal">
         <i class="fas fa-plus"></i> Add Edgeband
     </button>
@@ -78,7 +77,7 @@
 <script>
 $(document).ready(function () {
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
-    const apiUrl = '/material/edgebands/';
+    const apiUrl = '/material/v1/edgebands/';
 
     function fetchEdgeBands() {
         $.get(apiUrl, function (data) {
@@ -90,7 +89,7 @@ $(document).ready(function () {
                     <tr>
                         <td>${item.edge_depth}</td>
                         <td>${item.e_thickness}</td>
-                        <td>${item.brand.name}</td>
+                        <td>${item.brand ? item.brand.name : 'N/A'}</td>
                         <td>${item.p_price}</td>
                         <td>${item.s_price}</td>
                         <td>
@@ -108,7 +107,7 @@ $(document).ready(function () {
     }
 
     function fetchBrands() {
-        $.get('/material/brands/', function (data) {
+        $.get('/material/v1/brands/', function (data) {
             const brandSelect = $('#brand').empty().append('<option value="">Select Brand</option>');
             const brands = Array.isArray(data) ? data : data.results || [];
             brands.forEach(brand => {
@@ -126,11 +125,11 @@ $(document).ready(function () {
 
         
         const payload = {
-            edge_depth: $('#edge_depth').val(),
-            e_thickness: $('#e_thickness').val(),
-            brand: $('#brand').val(),
-            p_price: $('#p_price').val(),
-            s_price: $('#s_price').val()
+    edge_depth: $('#edge_depth').val(),
+    e_thickness: $('#e_thickness').val(),
+    brand_id: $('#brand').val(),  // <-- use brand_id here
+    p_price: $('#p_price').val(),
+    s_price: $('#s_price').val()
         };
 
         $.ajax({

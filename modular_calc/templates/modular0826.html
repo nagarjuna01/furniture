@@ -1,0 +1,523 @@
+{% extends "base_b.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Modular Products</h4>
+    <div>
+      <input id="searchProducts" class="form-control form-control-sm d-inline-block" style="width:260px" placeholder="Search products by name">
+      <button id="btnNewProduct" class="btn btn-primary btn-sm ms-2">
+        <i class="bi bi-plus"></i> New Product
+      </button>
+    </div>
+  </div>
+
+  <div id="productsList" class="row g-3"></div>
+  <nav><ul id="productsPagination" class="pagination pagination-sm mt-3"></ul></nav>
+</div>
+
+<!-- Product Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form id="productForm" class="modal-content" novalidate>
+      <div class="modal-header">
+        <h5 class="modal-title">Product</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body row g-3">
+        <input type="hidden" id="product_id">
+        <div class="col-md-6">
+          <label class="form-label">Name</label>
+          <input type="text" id="product_name" class="form-control" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Validation Expression</label>
+          <input type="text" id="product_validation_expression" class="form-control" placeholder="e.g., 600 <= product_width <= 2400 and quantity >= 1">
+          <div class="form-text">Vars: product_length, product_width, product_height, product_depth, quantity</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">2D Template SVG (optional)</label>
+          <textarea id="two_d_template_svg" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">3D Asset (GLB/GLTF)</label>
+          <input type="file" id="three_d_asset" class="form-control" accept=".glb,.gltf">
+          <div class="form-text">Leave empty to keep existing.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Part Modal -->
+<div class="modal fade" id="partModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form id="partForm" class="modal-content" novalidate>
+      <div class="modal-header">
+        <h5 class="modal-title">Part Template</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body row g-3">
+        <input type="hidden" id="part_id">
+        <input type="hidden" id="part_product">
+        <div class="col-md-6">
+          <label class="form-label">Part Name</label>
+          <input type="text" id="part_name" class="form-control" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Thickness (mm)</label>
+          <input type="number" step="0.01" id="part_thickness_mm" class="form-control" required>
+        </div>
+        <div class="col-md-12">
+          <label class="form-label">Length Equation</label>
+          <input type="text" id="part_length_equation" class="form-control" placeholder="e.g., product_height" required>
+        </div>
+        <div class="col-md-12">
+          <label class="form-label">Width Equation</label>
+          <input type="text" id="part_width_equation" class="form-control" placeholder="e.g., product_depth - part_thickness" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Quantity Equation</label>
+          <input type="text" id="part_qty_equation" class="form-control" value="1" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Wastage Multiplier</label>
+          <input type="number" step="0.01" id="shape_wastage_multiplier" class="form-control" value="1.00">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">EdgeBand Top</label>
+          <select id="edgeband_top" class="form-select select2-edgeband"></select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">EdgeBand Bottom</label>
+          <select id="edgeband_bottom" class="form-select select2-edgeband"></select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">EdgeBand Left</label>
+          <select id="edgeband_left" class="form-select select2-edgeband"></select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">EdgeBand Right</label>
+          <select id="edgeband_right" class="form-select select2-edgeband"></select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+  <div id="appToast" class="toast align-items-center text-bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="toastBody">Error</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.full.min.js"></script>
+<script>
+(function () {
+  // ---- CONFIG ----
+  const API = {
+    products: "/modularcalc/api/products/",
+    parts: (pid, partId = "") => `/modularcalc/api/products/${pid}/parts/${partId ? partId + "/" : ""}`,
+    edgebands: "/material/v1/edgebands/", // adjust to your edgeband listing
+  };
+
+  // ---- CSRF ----
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + "=")) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie("csrftoken");
+  $.ajaxSetup({
+    headers: {"X-CSRFToken": csrftoken},
+    error: function (xhr) {
+      const msg = xhr.responseJSON && xhr.responseJSON.detail ? xhr.responseJSON.detail : xhr.responseText || "Request failed";
+      console.error("[AJAX ERROR]", xhr.status, msg);
+      showToast(`Error ${xhr.status}: ${msg}`);
+    }
+  });
+
+  // ---- Toast ----
+  let toast;
+  function showToast(msg, ok=false) {
+    const el = $("#appToast");
+    $("#toastBody").text(msg);
+    el.removeClass("text-bg-danger text-bg-success").addClass(ok ? "text-bg-success" : "text-bg-danger");
+    toast = toast || new bootstrap.Toast(el[0], {delay: 3000});
+    toast.show();
+  }
+
+  // ---- State ----
+  let productPage = 1;
+  let productSearch = "";
+  let lastProductsResp = null;
+
+  // ---- Helpers ----
+  function queryString(params) {
+    const usp = new URLSearchParams(params);
+    return "?" + usp.toString();
+  }
+
+  function paginate(container, resp, onClick) {
+    const ul = $(container);
+    ul.empty();
+    if (!resp || resp.count <= resp.results.length) return;
+
+    const pageSize = resp.results.length;
+    const total = resp.count;
+    const pages = Math.ceil(total / pageSize);
+    const current = getPageFromUrl(resp.next, resp.previous, pages);
+
+    function li(p, label, disabled=false, active=false) {
+      return `<li class="page-item ${disabled ? "disabled" : ""} ${active ? "active" : ""}">
+        <a class="page-link" href="#" data-page="${p}">${label}</a></li>`;
+    }
+
+    ul.append(li(current - 1, "&laquo;", current <= 1));
+    for (let p = 1; p <= pages; p++) {
+      ul.append(li(p, p, false, p === current));
+    }
+    ul.append(li(current + 1, "&raquo;", current >= pages));
+
+    ul.off("click").on("click", "a.page-link", function (e) {
+      e.preventDefault();
+      const p = Number($(this).data("page"));
+      if (!p || p < 1 || p > pages) return;
+      onClick(p);
+    });
+  }
+
+  function getPageFromUrl(next, prev, pages) {
+    // derive current page from next/prev URLs
+    const parse = (url) => {
+      if (!url) return null;
+      const u = new URL(url, window.location.origin);
+      return Number(u.searchParams.get("page"));
+    };
+    const n = parse(next);
+    const p = parse(prev);
+    if (!n && !p) return 1;
+    if (!n && p) return pages;
+    return n - 1;
+  }
+
+  // ---- Load Edgebands into Select2 (once per modal open) ----
+  function initEdgebandSelects(defaults = {}) {
+    $(".select2-edgeband").select2({
+      dropdownParent: $("#partModal"),
+      width: "100%",
+      allowClear: true,
+      placeholder: "Select EdgeBand (optional)",
+      ajax: {
+        url: API.edgebands,
+        delay: 150,
+        data: (p) => ({search: p.term || "", page: p.page || 1}),
+        processResults: (data) => ({
+  results: data.results.map(e => ({
+    id: e.id,
+    text: e.display_name || `${e.edgeband_name.name} (${e.e_thickness}mm)`
+  })),
+  pagination: { more: !!data.next }
+})
+      }
+    });
+
+    // Set defaults if provided
+    for (const key of ["edgeband_top","edgeband_bottom","edgeband_left","edgeband_right"]) {
+      if (defaults[key]) {
+        const $sel = $("#" + key);
+        const opt = new Option(defaults[key].text || defaults[key].label || defaults[key].id, defaults[key].id, true, true);
+        $sel.append(opt).trigger("change");
+      }
+    }
+  }
+
+  // ---- Products ----
+  function fetchProducts(page=1) {
+    const params = {page};
+    if (productSearch) params.search = productSearch;
+    return $.get(API.products + queryString(params))
+      .done((resp) => {
+        lastProductsResp = resp;
+        renderProducts(resp.results);
+        paginate("#productsPagination", resp, (p) => { productPage = p; fetchProducts(p); });
+      });
+  }
+
+  function renderProducts(items) {
+    const wrap = $("#productsList");
+    wrap.empty();
+
+    if (!items || !items.length) {
+      wrap.html(`<div class="col-12"><div class="alert alert-info">No products found.</div></div>`);
+      return;
+    }
+
+    for (const p of items) {
+      wrap.append(`
+        <div class="col-12">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <h5 class="mb-0">${escapeHtml(p.name)}</h5>
+                  <small class="text-muted">Updated: ${new Date(p.updated_at).toLocaleString()}</small>
+                  <div class="mt-2"><code>${escapeHtml(p.product_validation_expression || "")}</code></div>
+                </div>
+                <div>
+                  <button class="btn btn-sm btn-outline-primary me-1 btn-edit-product" data-id="${p.id}">Edit</button>
+                  <button class="btn btn-sm btn-outline-danger me-1 btn-delete-product" data-id="${p.id}">Delete</button>
+                  <button class="btn btn-sm btn-success btn-add-part" data-id="${p.id}">Add Part</button>
+                </div>
+              </div>
+              <hr>
+              <div class="mt-2">
+                <h6 class="d-flex justify-content-between align-items-center">
+                  <span>Parts</span>
+                  <a href="#" class="small btn-refresh-parts" data-id="${p.id}">Refresh</a>
+                </h6>
+                <div id="parts-${p.id}" class="table-responsive"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `);
+      fetchPartsTable(p.id);
+    }
+  }
+
+  function fetchPartsTable(productId) {
+    $.get(`${API.products}${productId}/parts/`)
+      .done((resp) => {
+        const rows = resp.results || resp; // paginated or not
+        const html = `
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Eq (L × W)</th>
+                <th>Qty Eq</th>
+                <th>Thick</th>
+                <th>Wastage</th>
+                <th>Edges (T/B/L/R)</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(pt => `
+                <tr>
+                  <td>${escapeHtml(pt.name)}</td>
+                  <td><code>${escapeHtml(pt.part_length_equation)} × ${escapeHtml(pt.part_width_equation)}</code></td>
+                  <td><code>${escapeHtml(pt.part_qty_equation)}</code></td>
+                  <td>${pt.part_thickness_mm}</td>
+                  <td>${pt.shape_wastage_multiplier}</td>
+                  <td>
+                      ${pt.edgeband_top?.display_name || "-"} /
+                      ${pt.edgeband_bottom?.display_name || "-"} /
+                      ${pt.edgeband_left?.display_name || "-"} /
+                      ${pt.edgeband_right?.display_name || "-"}
+                  </td>
+                  <td class="text-end">
+                    <button class="btn btn-sm btn-outline-secondary btn-edit-part" data-id="${pt.id}" data-pid="${productId}">Edit</button>
+                    <button class="btn btn-sm btn-outline-danger btn-delete-part" data-id="${pt.id}" data-pid="${productId}">Delete</button>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>`;
+        $(`#parts-${productId}`).html(html);
+      });
+  }
+
+  // ---- Product Handlers ----
+  $("#btnNewProduct").on("click", () => {
+    $("#productForm")[0].reset();
+    $("#product_id").val("");
+    $("#productModal").modal("show");
+  });
+
+  $("#productsList").on("click", ".btn-edit-product", function () {
+    const id = $(this).data("id");
+    $.get(API.products + id + "/").done((p) => {
+      $("#product_id").val(p.id);
+      $("#product_name").val(p.name);
+      $("#product_validation_expression").val(p.product_validation_expression || "");
+      $("#two_d_template_svg").val(p.two_d_template_svg || "");
+      // file input is not set programmatically for security; leave it blank
+      $("#productModal").modal("show");
+    });
+  });
+
+  $("#productsList").on("click", ".btn-delete-product", function () {
+    const id = $(this).data("id");
+    if (!confirm("Delete this product? This will remove its parts too.")) return;
+    $.ajax({url: API.products + id + "/", method: "DELETE"})
+      .done(() => { showToast("Product deleted", true); fetchProducts(productPage); });
+  });
+
+  $("#productsList").on("click", ".btn-refresh-parts", function (e) {
+    e.preventDefault();
+    const pid = $(this).data("id");
+    fetchPartsTable(pid);
+  });
+
+  $("#productForm").on("submit", function (e) {
+    e.preventDefault();
+    const id = $("#product_id").val();
+    const formData = new FormData();
+    formData.append("name", $("#product_name").val());
+    formData.append("product_validation_expression", $("#product_validation_expression").val());
+    formData.append("two_d_template_svg", $("#two_d_template_svg").val());
+    const file = $("#three_d_asset")[0].files[0];
+    if (file) formData.append("three_d_asset", file);
+
+    $.ajax({
+      url: API.products + (id ? id + "/" : ""),
+      method: id ? "PATCH" : "POST",
+      data: formData,
+      processData: false,
+      contentType: false
+    })
+    .done(() => { $("#productModal").modal("hide"); showToast("Product saved", true); fetchProducts(productPage); });
+  });
+
+  // ---- Part Handlers ----
+  $("#productsList").on("click", ".btn-add-part", function () {
+    const productId = $(this).data("id");
+    $("#partForm")[0].reset();
+    $("#part_id").val("");
+    $("#part_product").val(productId);
+    // init Select2 each time (ensures dropdownParent works)
+    initEdgebandSelects();
+    $("#partModal").modal("show");
+  });
+
+  $("#productsList").on("click", ".btn-edit-part", function () {
+    const id = $(this).data("id");
+    const pid = $(this).data("pid");
+    $.get(API.parts(pid, id)).done((pt) => {
+      $("#part_id").val(pt.id);
+      $("#part_product").val(pid);
+      $("#part_name").val(pt.name);
+      $("#part_thickness_mm").val(pt.part_thickness_mm);
+      $("#part_length_equation").val(pt.part_length_equation);
+      $("#part_width_equation").val(pt.part_width_equation);
+      $("#part_qty_equation").val(pt.part_qty_equation);
+      $("#shape_wastage_multiplier").val(pt.shape_wastage_multiplier);
+
+      initEdgebandSelects({
+        edgeband_top: pt.edgeband_top ? {id: pt.edgeband_top, text: String(pt.edgeband_top)} : null,
+        edgeband_bottom: pt.edgeband_bottom ? {id: pt.edgeband_bottom, text: String(pt.edgeband_bottom)} : null,
+        edgeband_left: pt.edgeband_left ? {id: pt.edgeband_left, text: String(pt.edgeband_left)} : null,
+        edgeband_right: pt.edgeband_right ? {id: pt.edgeband_right, text: String(pt.edgeband_right)} : null,
+      });
+
+      $("#partModal").modal("show");
+    });
+  });
+
+  $("#productsList").on("click", ".btn-delete-part", function () {
+    const id = $(this).data("id");
+    const pid = $(this).data("pid");
+    if (!confirm("Delete this part template?")) return;
+    $.ajax({url: API.parts(pid, id), method: "DELETE"})
+
+      .done(() => { showToast("Part deleted", true); fetchPartsTable(pid); });
+  });
+
+  $("#partForm").on("submit", function (e) {
+    e.preventDefault();
+
+    const pid = $("#part_product").val();   // product id from hidden/select field
+    const id = $("#part_id").val();         // part id for edit
+    console.log("Submitting part for product id:", pid, "part id:", id);
+
+    const payload = {
+      name: $("#part_name").val(),
+      part_thickness_mm: $("#part_thickness_mm").val(),
+      part_length_equation: $("#part_length_equation").val(),
+      part_width_equation: $("#part_width_equation").val(),
+      part_qty_equation: $("#part_qty_equation").val(),
+      shape_wastage_multiplier: $("#shape_wastage_multiplier").val(),
+      edgeband_top: $("#edgeband_top").val() || null,
+      edgeband_bottom: $("#edgeband_bottom").val() || null,
+      edgeband_left: $("#edgeband_left").val() || null,
+      edgeband_right: $("#edgeband_right").val() || null,
+    };
+
+    $.ajax({
+      url: id ? API.parts(pid, id) : API.parts(pid),  // e.g. /products/{pid}/parts/ or /products/{pid}/parts/{id}/
+      method: id ? "PATCH" : "POST",
+      contentType: "application/json",
+      data: JSON.stringify(payload)
+    })
+    .done(() => {
+      $("#partModal").modal("hide");
+      showToast("✅ Part saved", true);
+      fetchPartsTable(pid);   // refresh part list for this product
+    })
+    .fail((xhr) => {
+      console.error("❌ Failed to save part:", xhr.responseText);
+      showToast("Error saving part", false);
+    });
+});
+
+
+
+  // ---- Search ----
+  let searchTimer;
+  $("#searchProducts").on("input", function () {
+    clearTimeout(searchTimer);
+    productSearch = $(this).val();
+    searchTimer = setTimeout(() => {
+      productPage = 1;
+      fetchProducts(productPage);
+    }, 250);
+  });
+
+  // ---- Escape HTML (avoid XSS from expressions) ----
+  function escapeHtml(s) {
+    if (s == null) return "";
+    return String(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  // ---- Init ----
+  $(document).ready(() => {
+    fetchProducts(productPage).fail((e) => console.error(e));
+  });
+})();
+</script>
+{% endblock %}
+
+
+

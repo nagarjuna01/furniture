@@ -154,13 +154,18 @@
                                 <input type="text" id="wooden-color" class="form-control">
                             </div>
                         </div>
-
+                        
                         <div class="tab-pane fade" id="pricing-other" role="tabpanel" aria-labelledby="pricing-other-tab">
                             <div class="form-group mb-3">
                                 <label for="wooden-compatible-edgebands">Compatible EdgeBands</label>
                                 <select id="wooden-compatible-edgebands" class="form-control" multiple></select>
                             </div>
-
+                            <div class="form-group mb-3">
+                            <label for="wooden-primary-edgeband">Primary EdgeBand (Default)</label>
+                            <select id="wooden-primary-edgeband" class="form-control">
+                                <option value="">-- None --</option>
+                            </select>
+                        </div>
                             <div class="form-group mb-3">
                                 <label for="wooden-cost-price">Cost Price</label>
                                 <div class="input-group">
@@ -254,10 +259,10 @@ $.ajaxSetup({
 });
 
 // API URLs
-const categoriesApi = 'http://127.0.0.1:8000/material/categories/';
-const typesApi = 'http://127.0.0.1:8000/material/category-types/';
-const modelsApi = 'http://127.0.0.1:8000/material/category-models/';
-const woodenApi = 'http://127.0.0.1:8000/material/woodens/';
+const categoriesApi = 'http://127.0.0.1:8000/material/v1/categories/';
+const typesApi = 'http://127.0.0.1:8000/material/v1/category-types/';
+const modelsApi = 'http://127.0.0.1:8000/material/v1/category-models/';
+const woodenApi = 'http://127.0.0.1:8000/material/v1/woodens/';
 
 let currentPage = 1;
 const itemsPerPage = 12;
@@ -322,44 +327,45 @@ function renderWoodensPage(page) {
         const brand = item.brand?.name || 'Unknown';
 
         let grainText = 'N/A';
-        if (item.grain === 0) {
-            grainText = 'Horizontal';
-        } else if (item.grain === 1) {
-            grainText = 'None';
-        } else if (item.grain === 2) {
-            grainText = 'Vertical';
-        }
+        console.log('item.grain raw:', item.grain);
+        switch (String(item.grain)) {
+    case '0':
+        grainText = 'Horizontal';
+        break;
+    case '1':
+        grainText = 'None';
+        break;
+    case '2':
+        grainText = 'Vertical';
+        break;
+}
 
         const color = item.color && item.color !== "none" ? item.color : "N/A";
 
         const compatibleEdgebandsNames = (item.compatible_edgebands || [])
-            .map(ebId => {
-                const eb = window.allEdgebands.find(e => e.id === ebId);
-                return eb ? `${eb.edge_depth}x${eb.e_thickness}` : '';
-            })
-            .filter(Boolean)
-            .join(', ');
+    .map(eb => `${eb.edge_depth}x${eb.e_thickness}`)
+    .join(', ');
 
         $woodenList.append(`
-            <div class="col-md-4">
-                <div class="card h-100 shadow-sm wooden-card" data-id="${item.id}">
-                    <div class="card-body">
-                        <h5 class="card-title">${item.name}</h5>
-                        <h6 class="card-subtitle mb-2 text-muted">${brand}</h6>
-                        <p class="card-text">
-                            <strong>Thickness:</strong> ${thickness}<br>
-                            <strong>Size:</strong> ${size}<br>
-                            <strong>Grain:</strong> ${grainText}<br>
-                            <strong>Color:</strong> ${color}<br>
-                            <strong>Price:</strong> ${price}<br>
-                            <strong>Compatible Edgebands:</strong> ${compatibleEdgebandsNames || 'None'}
-                        </p>
-                        <button class="btn btn-sm btn-primary edit-wooden-btn" data-id="${item.id}">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-wooden-btn" data-id="${item.id}">Delete</button>
-                    </div>
-                </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm wooden-card" data-id="${item.id}">
+            <div class="card-body">
+                <h5 class="card-title">${item.name}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">${brand}</h6>
+                <p class="card-text">
+                    <strong>Thickness:</strong> ${thickness}<br>
+                    <strong>Size:</strong> ${size}<br>
+                    <strong>Grain:</strong> ${grainText}<br>
+                    <strong>Color:</strong> ${color}<br>
+                    <strong>Price:</strong> ${price}<br>
+                    <strong>Compatible Edgebands:</strong> ${compatibleEdgebandsNames || 'None'}
+                </p>
+                <button class="btn btn-sm btn-primary edit-wooden-btn" data-id="${item.id}">Edit</button>
+                <button class="btn btn-sm btn-danger delete-wooden-btn" data-id="${item.id}">Delete</button>
             </div>
-        `);
+        </div>
+    </div>
+`);
     });
 
     renderPaginationControls();
@@ -394,11 +400,12 @@ function renderPaginationControls() {
 }
 
 function loadBrands() {
-    $.get('http://127.0.0.1:8000/material/brands/')
+    $.get('http://127.0.0.1:8000/material/v1/brands/')
         .done(data => {
+            const brands = Array.isArray(data) ? data : data.results || [];
             const $brandSelect = $('#wooden-brand');
             $brandSelect.empty().append('<option value="">Select Brand</option>');
-            data.forEach(brand => {
+            brands.forEach(brand => {
                 $brandSelect.append(new Option(brand.name, brand.id));
             });
             $brandSelect.select2({
@@ -415,20 +422,43 @@ function loadBrands() {
 }
 
 function loadEdgebands() {
-    $.get('/material/edgebands/')
+    $.get('/material/v1/edgebands/')
         .done(data => {
             window.allEdgebands = data.results;
-            const $select = $('#wooden-compatible-edgebands');
-            $select.empty();
+
+            const $compatibleSelect = $('#wooden-compatible-edgebands');
+            const $primarySelect = $('#wooden-primary-edgeband');
+
+            // Clear existing options from both dropdowns
+            $compatibleSelect.empty();
+            $primarySelect.empty();
+            
+            // Add a default "None" option to the primary select dropdown
+            $primarySelect.append(new Option('-- None --', ''));
+
             window.allEdgebands.forEach(edgeband => {
                 const optionText = `${edgeband.edge_depth}mm / ${edgeband.e_thickness}mm (${edgeband.brand?.name || 'No Brand'})`;
-                $select.append(new Option(optionText, edgeband.id));
+                const newOption = new Option(optionText, edgeband.id);
+
+                // Clone the option and append to both dropdowns
+                $compatibleSelect.append($(newOption).clone());
+                $primarySelect.append(newOption);
             });
-            $select.select2({
+
+            // Re-initialize select2 for the compatible edgebands dropdown
+            $compatibleSelect.select2({
                 placeholder: 'Select compatible edgebands',
                 allowClear: true,
                 width: '100%',
                 multiple: true,
+                dropdownParent: $('#woodenModal')
+            });
+            
+            // Initialize select2 for the primary edgeband dropdown
+            $primarySelect.select2({
+                placeholder: 'Select a primary edgeband',
+                allowClear: true,
+                width: '100%',
                 dropdownParent: $('#woodenModal')
             });
         })
@@ -441,9 +471,10 @@ function loadEdgebands() {
 function loadCategories() {
     $.get(categoriesApi)
         .done(data => {
+            const categories = Array.isArray(data) ? data : data.results || [];
             const $catSelect = $('#categories-select');
             $catSelect.empty().append('<option value="">All Categories</option>');
-            data.forEach(cat => {
+            categories.forEach(cat => {
                 $catSelect.append(new Option(cat.name, cat.id));
             });
             $('#types-select').empty().append('<option value="">All Types</option>');
@@ -466,9 +497,10 @@ function loadTypes(categoryId) {
 
     $.get(`${typesApi}?category=${categoryId}`)
         .done(data => {
+            const types = Array.isArray(data) ? data : data.results || [];
             const $typeSelect = $('#types-select');
             $typeSelect.empty().append('<option value="">All Types</option>');
-            data.forEach(type => {
+            types.forEach(type => {
                 $typeSelect.append(new Option(type.name, type.id));
             });
             $('#models-select').empty().append('<option value="">All Models</option>');
@@ -488,9 +520,10 @@ function loadModels(type_id) {
 
     $.get(`${modelsApi}?model_category=${type_id}`)
         .done(data => {
+            const models = Array.isArray(data) ? data : data.results || [];
             const $modelSelect = $('#models-select');
             $modelSelect.empty().append('<option value="">All Models</option>');
-            data.forEach(model => {
+            models.forEach(model => {
                 $modelSelect.append(new Option(model.name, model.id));
             });
             $('#add-wooden-container').empty();
@@ -576,6 +609,15 @@ function applyFiltersAndRenderWoodens() {
     }
 }
 
+$('#woodenTab button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+    const targetTabId = $(e.target).attr('data-bs-target'); // e.g. #basic-details or #pricing-other
+
+    if (targetTabId === '#pricing-other') {
+        $('.modal-footer').show(); // Show footer only in Pricing tab
+    } else {
+        $('.modal-footer').hide(); // Hide it on Basic Details
+    }
+});
 function openEntityModal(type, id = '', name = '') {
     $('#entity-type').val(type);
     $('#entity-id').val(id);
@@ -726,9 +768,10 @@ $(function () {
             showAlert('Please fill in all required fields (Name, Brand, Length, Width, Thickness, Cost Price, Sell Price).');
             return;
         }
-          const materialGrpId = $('#wooden-category-hidden').val();
+const materialGrpId = $('#wooden-category-hidden').val();
 const materialTypeId = $('#wooden-type-hidden').val();
 const materialModelId = $('#wooden-model-hidden').val(); // Make sure this is also included
+const primaryEdgebandId = $('#wooden-primary-edgeband').val() || null;
 
 // Add console logs here to double-check the values right before sending
 console.log("Payload values for wooden material submission:");
@@ -736,26 +779,28 @@ console.log("  material_grp:", materialGrpId);
 console.log("  material_type:", materialTypeId);
 console.log("  material_model:", materialModelId); // Check this one too!
         const payload = {
-           material_grp: materialGrpId,
-    material_type: materialTypeId,
-    material_model: materialModelId, // Ensure this is always sent
-            brand: $('#wooden-brand').val(),
+            material_grp_id: materialGrpId,
+            material_type_id: materialTypeId,
+            material_model_id: materialModelId,
+            brand_id: $('#wooden-brand').val(), 
             name: $('#wooden-name').val().trim(),
-            grain: parseInt($('#wooden-grain').val()),
+            grain: $('#wooden-grain').val(),
             length: parseFloat($('#wooden-length').val()),
             length_unit: $('#wooden-length-unit').val(),
             width: parseFloat($('#wooden-width').val()),
             width_unit: $('#wooden-width-unit').val(),
             thickness: parseFloat($('#wooden-thickness').val()),
             thickness_unit: $('#wooden-thickness-unit').val(),
-            compatible_edgebands: $('#wooden-compatible-edgebands').val() || [],
+            compatible_edgebands_ids: $('#wooden-compatible-edgebands').val() || [],
+            primary_edgeband: primaryEdgebandId,
             cost_price: parseFloat($('#wooden-cost-price').val()),
             costprice_type: $('#wooden-costprice-type').val(),
             sell_price: parseFloat($('#wooden-sell-price').val()),
             sellprice_type: $('#wooden-sellprice-type').val(),
             color: $('#wooden-color').val() || 'no color',
         };
-
+            console.log("Final payload to be sent:");
+            console.log(JSON.stringify(payload, null, 2));
         const method = woodenId ? 'PUT' : 'POST';
         const url = woodenId ? `${woodenApi}${woodenId}/` : woodenApi;
 
@@ -793,7 +838,11 @@ console.log("  material_model:", materialModelId); // Check this one too!
             showAlert('Wooden item not found for editing.');
             return;
         }
-
+        $('#wooden-brand').val(item.brand?.id).trigger('change');
+        $('#wooden-material-grp').val(item.material_grp?.id).trigger('change');
+        $('#wooden-material-type').val(item.material_type?.id).trigger('change');
+        $('#wooden-material-model').val(item.material_model?.id).trigger('change');
+        $('#wooden-compatible-edgebands').val(item.compatible_edgebands?.map(e => e.id)).trigger('change');
         $('#wooden-id').val(item.id);
         $('#wooden-name').val(item.name);
         $('#wooden-thickness').val(item.thickness);
@@ -809,16 +858,15 @@ console.log("  material_model:", materialModelId); // Check this one too!
         $('#wooden-sell-price').val(item.sell_price);
         $('#wooden-sellprice-type').val(item.sellprice_type);
 
-        loadBrands();
-        loadEdgebands();
-
+        
+        
         const brandIdToSet = item.brand && typeof item.brand === 'object' ? item.brand.id : item.brand;
         $('#wooden-brand').val(brandIdToSet).trigger('change');
         $('#wooden-compatible-edgebands').val(item.compatible_edgebands || []).trigger('change');
-
-        $('#wooden-category-hidden').val(item.material_grp);
-        $('#wooden-type-hidden').val(item.material_type);
-        $('#wooden-model-hidden').val(item.material_model);
+        $('#wooden-primary-edgeband').val(item.primary_edgeband?.id).trigger('change');
+        $('#wooden-category-hidden').val(item.material_grp?.id || item.material_grp);
+        $('#wooden-type-hidden').val(item.material_type?.id || item.material_type);
+        $('#wooden-model-hidden').val(item.material_model?.id || item.material_model);
 
         $('#woodenModalLabel').text('Edit Wooden');
         const modal = new bootstrap.Modal(document.getElementById('woodenModal'));

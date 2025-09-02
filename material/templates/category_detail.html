@@ -8,6 +8,8 @@
     
 
     <h3>Category Types</h3>
+
+    {% include "material/subnav.html" %}  {# Sub-navbar placed below heading #}
     <div class="list-group">
         {% for category_type in category.categorytypes.all %}
         <a href="{% url 'category_type_detail' category_type.id %}" class="list-group-item list-group-item-action">

@@ -1,0 +1,297 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Product SPA</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Select2 CSS (correct version) -->
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+</head>
+<style>
+ /* Ensure Select2 renders like Bootstrap's .form-select inside input-group */
+.select2-container--default .select2-selection--single {
+  height: 38px;               /* Match Bootstrap form-select height */
+  padding: 6px 12px;          /* Match Bootstrap input padding */
+  display: flex;
+  align-items: center;
+  border: 1px solid #ced4da;  /* Match form-select border */
+  border-radius: 0.375rem;    /* Bootstrap default border radius */
+  width: 100% !important;     /* Force full width inside input-group */
+  box-sizing: border-box;
+}
+
+/* Force full width on the Select2 container */
+.select2-container {
+  width: 100% !important;
+}
+
+/* Optional: reduce the default Select2 arrow padding */
+.select2-selection__arrow {
+  height: 38px !important;
+  top: 0 !important;
+  right: 6px;
+}
+.select2-container {
+  width: 100% !important;
+}
+
+.select2-container--default .select2-selection--single {
+  height: 38px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  box-sizing: border-box;
+}
+
+.select2-selection__arrow {
+  height: 38px !important;
+  top: 0 !important;
+  right: 6px;
+}
+
+</style>
+<body>
+<div class="container mt-4">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <select id="filter-type" class="form-select select2" style="width:200px;"></select>
+    <select id="filter-model" class="form-select select2" style="width:200px;"></select>
+    <select id="filter-billing" class="form-select select2" style="width:200px;"></select>
+    <button class="btn btn-primary ms-auto"
+        style="height: 38px; white-space: nowrap; min-width: 120px;"
+        data-bs-toggle="modal" data-bs-target="#productModal">
+  Add Product
+</button>
+  </div>
+</div>
+
+<div class="row" id="product-cards"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="productModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form id="product-form">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Product</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input name="name" class="form-control mb-2" placeholder="Product Name" required>
+          <input name="sku" class="form-control mb-2" placeholder="SKU" required>
+
+<!-- Type -->
+<div class="mb-2">
+  <label for="type-select" class="form-label">Type</label>
+  <div class="input-group">
+    <select name="type" id="type-select" class="form-select select2"></select>
+    <button type="button" class="btn btn-outline-primary" onclick="addType()">+ Type</button>
+  </div>
+</div>
+
+<!-- Model -->
+<div class="mb-2">
+  <label for="model-select" class="form-label">Model</label>
+  <div class="input-group">
+    <select name="model" id="model-select" class="form-select select2"></select>
+    <button type="button" class="btn btn-outline-primary" onclick="addModel()">+ Model</button>
+  </div>
+</div>
+
+<!-- Billing Unit -->
+<div class="mb-2">
+  <label for="billing-select" class="form-label">Billing Unit</label>
+  <div class="input-group">
+    <select name="billing_unit" id="billing-select" class="form-select select2"></select>
+    <button type="button" class="btn btn-outline-primary" onclick="addBillingUnit()">+ Billing</button>
+  </div>
+</div>
+
+<!-- Measurement Unit -->
+<div class="mb-2">
+  <label for="measure-select" class="form-label">Measurement Unit</label>
+  <div class="input-group">
+    <select name="measurement_unit" id="measure-select" class="form-select select2"></select>
+    <button type="button" class="btn btn-outline-primary" onclick="addMeasurementUnit()">+ Unit</button>
+  </div>
+</div>
+          <input name="purchase_price" class="form-control mb-2" placeholder="Purchase Price">
+          <input name="selling_price" class="form-control mb-2" placeholder="Selling Price">
+          <div class="mb-3">
+  <label class="form-label">Dynamic Attributes</label>
+  <div id="dynamic-attributes-container"></div>
+  <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addAttributeField()">+ Add Attribute</button>
+</div>
+
+          <div id="response" class="mt-2"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-success" type="submit">Save</button>
+          <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+const csrftoken = document.querySelector('meta[name="csrf-token"]').content;
+$.ajaxSetup({ headers: { 'X-CSRFToken': csrftoken } });
+
+function loadDropdown(url, $el, placeholder = 'Select') {
+  $.get(url, function (data) {
+    const results = Array.isArray(data) ? data : data.results;
+    $el.empty().append(`<option value="">${placeholder}</option>`);
+    results.forEach(d => {
+      $el.append(`<option value="${d.id}">${d.name || d.code}</option>`);
+    });
+  });
+}
+
+function loadFilters() {
+  loadDropdown('/products1/api/product-types/', $('#filter-type'));
+  loadDropdown('/products1/api/product-models/', $('#filter-model'));
+  loadDropdown('/products1/api/billing-units/', $('#filter-billing'));
+}
+
+function loadProducts(filters = {}) {
+  const query = new URLSearchParams(filters).toString();
+  $.get(`/products1/api/products/?${query}`, data => {
+    const products = data.results || [];
+    const $c = $('#product-cards').empty();
+    
+    if (!products.length) {
+      return $c.html('<div class="alert alert-warning">No products found.</div>');
+    }
+
+    products.forEach(p => {
+      $c.append(`
+        <div class="col-md-4">
+          <div class="card mb-3 shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title">${p.name}</h5>
+              <p class="card-text small">
+                <strong>SKU:</strong> ${p.sku}<br>
+                <strong>Type:</strong> ${p.type_display || ''}<br>
+                <strong>Model:</strong> ${p.model_display || ''}<br>
+                <strong>Billing:</strong> ${p.billing_unit_display || ''}<br>
+                <strong>Unit:</strong> ${p.measurement_unit_display || ''}<br>
+                <strong>Buy:</strong> ₹${p.purchase_price || 0}<br>
+                <strong>Sell:</strong> ₹${p.selling_price || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      `);
+    });
+  });
+}
+
+function addAttributeField(key = '', value = '') {
+  const rowId = Date.now();
+  $('#dynamic-attributes-container').append(`
+    <div class="row g-2 mb-2 align-items-center dynamic-field-row" data-id="${rowId}">
+      <div class="col-5">
+        <input type="text" class="form-control key-input" placeholder="Attribute Name" value="${key}">
+      </div>
+      <div class="col-5">
+        <input type="text" class="form-control val-input" placeholder="Value" value="${value}">
+      </div>
+      <div class="col-2 text-end">
+        <button type="button" class="btn btn-danger btn-sm" onclick="removeAttributeField(${rowId})">✖</button>
+      </div>
+    </div>
+  `);
+}
+
+function removeAttributeField(id) {
+  $(`[data-id="${id}"]`).remove();
+}
+
+function collectDynamicAttributes() {
+  const attrs = {};
+  $('#dynamic-attributes-container .dynamic-field-row').each(function () {
+    const key = $(this).find('.key-input').val().trim();
+    const val = $(this).find('.val-input').val().trim();
+    if (key) attrs[key] = val;
+  });
+  return attrs;
+}
+
+function getFilterValues() {
+  return {
+    type: $('#filter-type').val(),
+    model: $('#filter-model').val(),
+    billing_unit: $('#filter-billing').val()
+  };
+}
+
+function addEntry(api, data, reloadUrl, $select) {
+  $.post(api, data, () => loadDropdown(reloadUrl, $select));
+}
+
+// Inline add handlers
+function addType()  { const name = prompt('Type name:'); if (name) addEntry('/products1/api/product-types/', {name,slug:name.toLowerCase().replace(/\s+/g,'-')}, '/products1/api/product-types/', $('#type-select')); }
+function addModel() {
+  const typeId = $('#type-select').val(), name = prompt('Model name:'); 
+  if (!typeId) return alert('Select type first');
+  addEntry('/products1/api/product-models/', {name, code:name.toLowerCase().replace(/\s+/g,'-'), type:typeId}, `/products1/api/product-models/by_type/?type_id=${typeId}`, $('#model-select'));
+}
+function addBillingUnit() { const name = prompt('Billing unit:'); if (name) addEntry('/products1/api/billing-units/', {name,code:name.toLowerCase()}, '/products1/api/billing-units/', $('#billing-select')); }
+function addMeasurementUnit() { const name = prompt('Measurement unit:'); if (name) addEntry('/products1/api/measurement-units/', {name,code:name.toLowerCase()}, '/products1/api/measurement-units/', $('#measure-select')); }
+
+$(function(){
+  $('.select2').select2({ dropdownParent: $('#productModal') });
+  loadFilters();
+  loadDropdown('/products1/api/product-types/', $('#type-select'));
+  loadDropdown('/products1/api/billing-units/', $('#billing-select'));
+  loadDropdown('/products1/api/measurement-units/', $('#measure-select'));
+  loadProducts();
+
+  $('#filter-type').on('change', function() {
+    const typeId = $(this).val();
+    loadDropdown(`/products1/api/product-models/by_type/?type_id=${typeId}`, $('#filter-model'));
+    $('#filter-model').val('').trigger('change');
+    loadProducts(getFilterValues());
+  });
+  $('#filter-model, #filter-billing').on('change', () => loadProducts(getFilterValues()));
+  $('#type-select').on('change', () => loadDropdown(`/products1/api/product-models/by_type/?type_id=${$('#type-select').val()}`, $('#model-select')));
+
+  $('#product-form').on('submit', function(e){
+    e.preventDefault();
+    const data = $(this).serializeArray().reduce((a,b)=> (a[b.name]=b.value,a), {});
+    data.dynamic_attributes = collectDynamicAttributes();
+    
+
+    $.ajax({
+  url: '/products1/api/products/',
+  method: 'POST',
+  contentType: 'application/json',
+  data: JSON.stringify(data),
+  success: function () {
+    $('#response').html('<div class="alert alert-success">Saved</div>');
+    $('#product-form')[0].reset();  // ✅ Correct reset
+    $('#dynamic-attributes-container').empty();
+    $('.select2').val(null).trigger('change');
+    loadProducts();
+    setTimeout(() => bootstrap.Modal.getInstance($('#productModal')[0]).hide(), 1000);
+  },
+  error: function (xhr) {
+    $('#response').html(`<div class="alert alert-danger">${xhr.statusText}</div>`);
+  }
+});
+  });
+});
+</script>
+</body>
+</html>

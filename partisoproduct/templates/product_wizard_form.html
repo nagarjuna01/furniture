@@ -1,0 +1,152 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Product Wizard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        table input, table select {
+            width: 100%;
+            padding: 0.25rem;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body class="container py-4">
+
+<h2 class="mb-4">Configure Modular Product</h2>
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    <!-- ✅ Product Basic Info -->
+    <div class="card mb-4">
+        <div class="card-header"><strong>Product Details</strong></div>
+        <div class="card-body">
+            {{ form.non_field_errors }}
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.name.label }}</label>
+                    {{ form.name }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.length_mm.label }}</label>
+                    {{ form.length_mm }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.width_mm.label }}</label>
+                    {{ form.width_mm }}
+                </div>
+                <div class="col-md-4 mt-3">
+                    <label class="form-label">{{ form.height_mm.label }}</label>
+                    {{ form.height_mm }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ Constraint Input Grid -->
+    <div class="card mb-4">
+        <div class="card-header"><strong>Constraints</strong></div>
+        <div class="card-body">
+            {{ constraint_formset.management_form }}
+            <div class="row g-3">
+                {% for form in constraint_formset %}
+                    <div class="col-md-6">
+                        <label class="form-label">{{ form.abbreviation.label }}</label>
+                        {{ form.abbreviation }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">{{ form.value.label }}</label>
+                        {{ form.value }}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+   <!-- ✅ Parts Entry Section -->
+<!-- ✅ Parts Entry Section -->
+<div class="card mb-4">
+  <div class="card-header"><strong>Parts</strong></div>
+  <div class="card-body">
+    {{ part_formset.management_form }}
+
+    {% for form in part_formset %}
+      <div class="border p-3 mb-4 rounded bg-light-subtle">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Name</label>
+            {{ form.name.errors }}{{ form.name }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Shape</label>
+            {{ form.part_shape.errors }}{{ form.part_shape }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Grain Direction</label>
+            {{ form.grain_direction.errors }}{{ form.grain_direction }}
+          </div>
+        </div>
+
+        <div class="row g-3 mt-2">
+          <div class="col-md-4">
+            <label class="form-label">Length Equation</label>
+            {{ form.part_length_equation.errors }}{{ form.part_length_equation }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Width Equation</label>
+            {{ form.part_width_equation.errors }}{{ form.part_width_equation }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Qty Equation</label>
+            {{ form.part_qty_equation.errors }}{{ form.part_qty_equation }}
+          </div>
+        </div>
+
+        <div class="row g-3 mt-2">
+          <div class="col-md-4">
+            <label class="form-label">Material</label>
+            {{ form.part_material.errors }}{{ form.part_material }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Wastage Multiplier</label>
+            {{ form.shape_wastage_multiplier.errors }}{{ form.shape_wastage_multiplier }}
+          </div>
+        </div>
+
+        <div class="row g-3 mt-2">
+          <div class="col-md-3">
+            <label class="form-label">Top Edge</label>
+            {{ form.part_edgematerial_top.errors }}{{ form.part_edgematerial_top }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Left Edge</label>
+            {{ form.part_edgematerial_left.errors }}{{ form.part_edgematerial_left }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Right Edge</label>
+            {{ form.part_edgematerial_right.errors }}{{ form.part_edgematerial_right }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Bottom Edge</label>
+            {{ form.part_edgematerial_bottom.errors }}{{ form.part_edgematerial_bottom }}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+
+
+
+    <!-- ✅ Submit -->
+    <div class="text-end">
+        <button type="submit" class="btn btn-primary">Preview</button>
+    </div>
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

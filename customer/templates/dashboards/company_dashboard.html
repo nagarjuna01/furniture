@@ -1,0 +1,39 @@
+{% extends 'base_customer.html' %}
+{% block title %}Company Dashboard{% endblock %}
+
+{% block content %}
+<h3>Welcome, {{ request.user.get_full_name }}</h3>
+<p>Company: {{ request.user.company.name }}</p>
+
+<div class="card my-3">
+    <div class="card-body">
+        <h5 class="card-title">Manage Materials</h5>
+        <p class="card-text">Add/edit your company-specific inventory.</p>
+        <a href="{% url 'brand_page' %}" class="btn btn-primary">Go to Material Management</a>
+    </div>
+</div>
+
+<div class="card my-3">
+    <div class="card-body">
+        <h5 class="card-title">View Orders</h5>
+        <a href="#" class="btn btn-secondary">Coming Soon</a>
+    </div>
+</div>
+<button id="logout-btn" class="btn btn-outline-danger">Logout</button>
+{% endblock %}
+
+<script>
+$(document).on('click', '#logout-btn', function() {
+    $.post('/ajax-logout/', {
+        csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+    })
+    .done(function(response) {
+        toastr.success(response.message);
+        window.location.href = '/login/';
+    })
+    .fail(function() {
+        toastr.error('Logout failed');
+    });
+});
+</script>
+

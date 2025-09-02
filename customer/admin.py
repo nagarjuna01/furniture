@@ -1,3 +1,5 @@
 from django.contrib import admin
 
-# Register your models here.
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ['username', 'email', 'company', 'user_type']
+    list_filter = ['company', 'user_type']

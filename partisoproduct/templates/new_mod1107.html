@@ -1,0 +1,549 @@
+{% extends 'base_b.html' %}
+{% comment %}{% load static %}
+
+{% block title %}Modular Product Management{% endblock %}
+    
+{% block content %}
+        <div id="loading" class="text-center d-none">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading products...</p>
+        </div>
+        <div id="error" class="alert alert-danger d-none" role="alert"></div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Products</h2>
+            <button id="createProductBtn" class="btn btn-primary">Create New Product</button>
+        </div>
+        <div id="productCardsContainer" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            </div>
+    </div>
+
+    <div class="container my-5 d-none" id="partFormContainer">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 id="partFormTitle">Add New Part</h5>
+                <button type="button" class="btn-close" aria-label="Close" id="closePartFormBtn"></button>
+            </div>
+            <div class="card-body">
+                <form id="partForm">
+                    <input type="hidden" id="partId" name="id">
+                    <input type="hidden" id="partProductId" name="modular_product">
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="partName" class="form-label">Part Name</label>
+                            <input type="text" class="form-control" id="partName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="partShape" class="form-label">Part Shape</label>
+                            <select class="form-select" id="partShape" required>
+                                <option value="Rectangle">Rectangle</option>
+                                <option value="Circle">Circle</option>
+                                <option value="Polygon">Polygon</option>
+                                <option value="Profile">Profile</option>
+                            </select>
+                        </div>
+                    </div>
+    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="partLength" class="form-label">Part Length (Equation)</label>
+                            <input type="text" class="form-control" id="partLength" placeholder="e.g., L - 2*t">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="partWidth" class="form-label">Part Width (Equation)</label>
+                            <input type="text" class="form-control" id="partWidth" placeholder="e.g., W - 2*t">
+                        </div>
+                    </div>
+    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="partQty" class="form-label">Part Quantity (Equation)</label>
+                            <input type="text" class="form-control" id="partQty" placeholder="e.g., Qty">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="grainDirection" class="form-label">Grain Direction</label>
+                            <select class="form-select" id="grainDirection">
+                                <option value="Length">Length</option>
+                                <option value="Width">Width</option>
+                                <option value="None">None</option>
+                            </select>
+                        </div>
+                    </div>
+    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="wastageMultiplier" class="form-label">Wastage Multiplier</label>
+                            <input type="number" class="form-control" id="wastageMultiplier" step="0.01" value="1.0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edgeCost" class="form-label">Edge Banding/Grooving Cost</label>
+                            <input type="number" class="form-control" id="edgeCost" step="0.01" value="0.0">
+                        </div>
+                    </div>
+    
+                    <h6 class="mt-4">Edge Banding</h6>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="edgeTop" class="form-label">Top Edge</label>
+                            <select class="form-select" id="edgeTop"></select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edgeBottom" class="form-label">Bottom Edge</label>
+                            <select class="form-select" id="edgeBottom"></select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edgeLeft" class="form-label">Left Edge</label>
+                            <select class="form-select" id="edgeLeft"></select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edgeRight" class="form-label">Right Edge</label>
+                            <select class="form-select" id="edgeRight"></select>
+                        </div>
+                    </div>
+                    
+                    <h6 class="mt-4">Compatible Materials</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="materialTree" class="form-label">Available Materials</label>
+                            <div id="materialTree" class="material-tree-container border rounded p-2" style="max-height: 250px; overflow-y: auto;">
+                                </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="compatibleWoodsList" class="form-label">Selected Wood Panels</label>
+                            <div id="compatibleWoodsList" class="selected-woods-container border rounded p-2" style="max-height: 250px; overflow-y: auto;">
+                                <ul class="list-unstyled mb-0">
+                                    </ul>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <h6 class="mt-4">Hardware Requirements</h6>
+                    <div id="hardwareRequirementsContainer" class="mb-3">
+                        <div id="noHardwareMessage">No hardware requirements added.</div>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="addHardwareRequirementBtn">Add Hardware Requirement</button>
+    
+                    <hr>
+                    <button type="submit" class="btn btn-success">Save Part</button>
+                    <button type="button" class="btn btn-secondary" id="cancelPartFormBtn">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="productModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create/Edit Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="productForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="productId">
+                        <div class="mb-3">
+                            <label for="productName" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="productName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="productDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="productDescription"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="productValidationExpression" class="form-label">Validation Expression</label>
+                            <input type="text" class="form-control" id="productValidationExpression">
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="productIsStandard">
+                            <label class="form-check-label" for="productIsStandard">
+                                Is Standard?
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="productIsActive">
+                            <label class="form-check-label" for="productIsActive">
+                                Is Active?
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="partsParametersModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Manage Parts & Parameters for <span id="modalProductName"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Parts <button id="addPartBtn" class="btn btn-sm btn-success ms-2">Add New Part</button></h6>
+                            <div id="partsList" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                                </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <h6>Parameters <button id="addParameterBtn" class="btn btn-sm btn-success ms-2">Add New Parameter</button></h6>
+                            <div id="parametersList" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                                </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="parameterFormModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add/Edit Parameter</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="parameterForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="parameterId">
+                        <input type="hidden" id="parameterProductId">
+                        <div class="mb-3">
+                            <label for="parameterName" class="form-label">Parameter Name</label>
+                            <input type="text" class="form-control" id="parameterName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="parameterAbbreviation" class="form-label">Abbreviation</label>
+                            <input type="text" class="form-control" id="parameterAbbreviation" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="parameterValue" class="form-label">Default Value</label>
+                            <input type="number" class="form-control" id="parameterValue" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+   {% endblock %}
+
+{% block extra_js %} 
+    <script type="module" src="/static/js/modular_api.js"></script>
+    <script type="module" src="/static/js/modular_dom.js"></script>
+{% endblock %} {% endcomment %}
+
+
+{% load static %}
+
+{% block title %}Modular Product Management{% endblock %}
+    
+{% block content %}
+    <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="products-tab" data-bs-toggle="tab" data-bs-target="#products" type="button" role="tab" aria-controls="products" aria-selected="true">Products</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="new-quote-tab" data-bs-toggle="tab" data-bs-target="#new-quote" type="button" role="tab" aria-controls="new-quote" aria-selected="false">New Quote</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="products" role="tabpanel" aria-labelledby="products-tab">
+            <div id="loading" class="text-center d-none">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading products...</p>
+            </div>
+            <div id="error" class="alert alert-danger d-none" role="alert"></div>
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2>Products</h2>
+                <button id="createProductBtn" class="btn btn-primary">Create New Product</button>
+            </div>
+            <div id="productCardsContainer" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="new-quote" role="tabpanel" aria-labelledby="new-quote-tab">
+            <div class="container my-5">
+                <h2>Create New Quote</h2>
+                <div class="card">
+                    <div class="card-body">
+                        <p>This is where the new quote creation form will go.</p>
+                        <form id="newQuoteForm">
+                            <div class="mb-3">
+                                <label for="quoteName" class="form-label">Quote Name</label>
+                                <input type="text" class="form-control" id="quoteName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="customerName" class="form-label">Customer Name</label>
+                                <input type="text" class="form-control" id="customerName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="quoteDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="quoteDescription" rows="3"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Generate Quote</button>
+                            <button type="button" class="btn btn-secondary">Clear</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container my-5 d-none" id="partFormContainer">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 id="partFormTitle">Add New Part</h5>
+                <button type="button" class="btn-close" aria-label="Close" id="closePartFormBtn"></button>
+            </div>
+            <div class="card-body">
+                <form id="partForm">
+                    <input type="hidden" id="partId" name="id">
+                    <input type="hidden" id="partProductId" name="modular_product">
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="partName" class="form-label">Part Name</label>
+                            <input type="text" class="form-control" id="partName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="partShape" class="form-label">Part Shape</label>
+                            <select class="form-select" id="partShape" required>
+                            <option value="rectangle">Rectangle</option>
+                            <option value="circle">Circle</option>
+                            <option value="curvilinear">Curvilinear</option>
+                            <option value="l_shape">L Shape</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                        </div>
+                    </div>
+    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="partLength" class="form-label">Part Length (Equation)</label>
+                            <input type="text" class="form-control" id="partLength" placeholder="e.g., L - 2*t">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="partWidth" class="form-label">Part Width (Equation)</label>
+                            <input type="text" class="form-control" id="partWidth" placeholder="e.g., W - 2*t">
+                        </div>
+                    </div>
+    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="partQty" class="form-label">Part Quantity (Equation)</label>
+                            <input type="text" class="form-control" id="partQty" placeholder="e.g., Qty">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="grainDirection" class="form-label">Grain Direction</label>
+                            <select class="form-select" id="grainDirection">
+                            <option value="none">None</option>
+                            <option value="along_length">Length</option>
+                            <option value="along_width">Width</option>
+                        </select>
+                        </div>
+                    </div>
+    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="wastageMultiplier" class="form-label">Wastage Multiplier</label>
+                            <input type="number" class="form-control" id="wastageMultiplier" step="0.01" value="1.0">
+                        </div>
+                        
+                    </div>
+    
+                    
+                    
+                    
+                    <h6 class="mt-4">Compatible Materials</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="materialTree" class="form-label">Available Materials</label>
+                            <div id="materialTree" class="material-tree-container border rounded p-2" style="max-height: 250px; overflow-y: auto;">
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="compatibleWoodsList" class="form-label">Selected Wood Panels</label>
+                            <div id="compatibleWoodsList" class="selected-woods-container border rounded p-2" style="max-height: 250px; overflow-y: auto;">
+                                <ul class="list-unstyled mb-0">
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <h6 class="mt-4">Edge Banding</h6>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="edgeTop" class="form-label">Top Edge</label>
+                            <select class="form-select" id="edgeTop"></select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edgeBottom" class="form-label">Bottom Edge</label>
+                            <select class="form-select" id="edgeBottom"></select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edgeLeft" class="form-label">Left Edge</label>
+                            <select class="form-select" id="edgeLeft"></select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edgeRight" class="form-label">Right Edge</label>
+                            <select class="form-select" id="edgeRight"></select>
+                        </div>
+                    </div>
+                    <h6 class="mt-4">Hardware Requirements</h6>
+                    <div id="hardwareRequirementsContainer" class="mb-3">
+                        <div id="noHardwareMessage">No hardware requirements added.</div>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="addHardwareRequirementBtn">Add Hardware Requirement</button>
+    
+                    <hr>
+                    <button type="submit" class="btn btn-success">Save Part</button>
+                    <button type="submit" class="btn btn-primary" id="saveAddAnotherPartBtn" data-action="save-add">Save & Add Another</button>
+                    <button type="button" class="btn btn-secondary" id="cancelPartFormBtn">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="productModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create/Edit Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="productForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="productId">
+                        <div class="mb-3">
+                            <label for="productName" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="productName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="productDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="productDescription"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="productValidationExpression" class="form-label">Validation Expression</label>
+                            <input type="text" class="form-control" id="productValidationExpression">
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="productIsStandard">
+                            <label class="form-check-label" for="productIsStandard">
+                                Is Standard?
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="productIsActive">
+                            <label class="form-check-label" for="productIsActive">
+                                Is Active?
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="partsParametersModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Manage Parts & Parameters for <span id="modalProductName"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Parts <button id="addPartBtn" class="btn btn-sm btn-success ms-2">Add New Part</button></h6>
+                            <div id="partsList" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <h6>Parameters <button id="addParameterBtn" class="btn btn-sm btn-success ms-2">Add New Parameter</button></h6>
+                            <div id="parametersList" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="parameterFormModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add/Edit Parameter</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="parameterForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="parameterId">
+                        <input type="hidden" id="parameterProductId">
+                        <div class="mb-3">
+                            <label for="parameterName" class="form-label">Parameter Name</label>
+                            <input type="text" class="form-control" id="parameterName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="parameterAbbreviation" class="form-label">Abbreviation</label>
+                            <input type="text" class="form-control" id="parameterAbbreviation" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="parameterValue" class="form-label">Default Value</label>
+                            <input type="number" class="form-control" id="parameterValue" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %} 
+    <script type="module" src="/static/js/modular_api.js"></script>
+    <script type="module" src="/static/js/modular_dom.js"></script>
+    <script>
+        // Initialize Bootstrap tabs
+        document.addEventListener('DOMContentLoaded', function () {
+            var triggerTabList = document.querySelectorAll('#myTab button')
+            triggerTabList.forEach(triggerTab => {
+                var tabTrigger = new bootstrap.Tab(triggerTab)
+
+                triggerTab.addEventListener('click', event => {
+                    event.preventDefault()
+                    tabTrigger.show()
+                })
+            })
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,469 @@
+{% extends "base_b.html" %}
+{% load static %}
+{% csrf_token %}
+<style>
+    .select2-container--open {
+        z-index: 99999 !important;
+    }
+    .select2-container--open .select2-dropdown {
+        z-index: 99999 !important;
+    }
+    .select2-container .select2-results__option {
+        display: block !important;
+        visibility: visible !important;
+        height: auto !important;
+    }
+</style>
+
+{% block content %}
+<div class="container mt-4">
+    <h3>Standard Products Admin</h3>
+
+    <!-- Nav tabs -->
+    <ul class="nav nav-tabs" id="masterTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="products-tab" data-bs-toggle="tab" data-bs-target="#products-tab-pane" type="button" role="tab" aria-controls="products-tab-pane" aria-selected="true">
+                Standard Products
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="types-tab" data-bs-toggle="tab" data-bs-target="#types-tab-pane" type="button" role="tab" aria-controls="types-tab-pane" aria-selected="false">
+                Product Types
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="models-tab" data-bs-toggle="tab" data-bs-target="#models-tab-pane" type="button" role="tab" aria-controls="models-tab-pane" aria-selected="false">
+                Product Models
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="units-tab" data-bs-toggle="tab" data-bs-target="#units-tab-pane" type="button" role="tab" aria-controls="units-tab-pane" aria-selected="false">
+                Measurement Units
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="billing-tab" data-bs-toggle="tab" data-bs-target="#billing-tab-pane" type="button" role="tab" aria-controls="billing-tab-pane" aria-selected="false">
+                Billing Units
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="attributes-tab" data-bs-toggle="tab" data-bs-target="#attributes-tab-pane" type="button" role="tab" aria-controls="attributes-tab-pane" aria-selected="false">
+                Attribute Definitions
+            </button>
+        </li>
+    </ul>
+  
+    <!-- Tabs content -->
+    <div class="tab-content mt-3" id="adminTabContent">
+    <div class="tab-pane fade show active" id="products-tab-pane" role="tabpanel" aria-labelledby="products-tab">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4>Products</h4>
+            <div class="d-flex align-items-center gap-3">
+                <button id="btn-add-product" class="btn btn-primary">Add Product</button>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="viewToggleSwitch">
+                    <label class="form-check-label" for="viewToggleSwitch">Card View</label>
+                </div>
+            </div>
+            </div>
+        
+
+        <div id="productTableView" class="table-responsive">
+            <table class="table table-bordered align-middle">
+                <tbody id="productTableBody">
+                    </tbody>
+            </table>
+        </div>
+
+        <div id="productCardView" class="row" style="display: none;">
+            </div>
+    </div>
+
+
+        <!-- Product Types Tab -->
+        <div class="tab-pane fade" id="types-tab-pane" role="tabpanel" aria-labelledby="types-tab">
+            <button id="btn-add-type" class="btn btn-primary mb-2">Add Type</button>
+            <table id="table-types" class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Slug</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Product Models Tab -->
+        <div class="tab-pane fade" id="models-tab-pane" role="tabpanel" aria-labelledby="models-tab">
+            <button id="btn-add-model" class="btn btn-primary mb-2">Add Product Model</button>
+            <table id="table-models" class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Code</th>
+                        <th>Type</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Measurement Units Tab -->
+        <div class="tab-pane fade" id="units-tab-pane" role="tabpanel" aria-labelledby="units-tab">
+            <button id="btn-add-unit" class="btn btn-primary mb-2">Add Measurement Unit</button>
+            <table id="table-units" class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Code</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Billing Units Tab -->
+        <div class="tab-pane fade" id="billing-tab-pane" role="tabpanel" aria-labelledby="billing-tab">
+            <button id="btn-add-billing" class="btn btn-primary mb-2">Add Billing Unit</button>
+            <table id="table-billing" class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Code</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Attribute Definitions Tab -->
+        <div class="tab-pane fade" id="attributes-tab-pane" role="tabpanel" aria-labelledby="attributes-tab">
+            <button id="btn-add-attribute-definition" class="btn btn-primary mb-2">Add Attribute</button>
+            <table id="table-attributes" class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Field Type</th>
+                        <th>Choices</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modals all inline below -->
+
+<!-- Product Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form id="productForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="productModalLabel">Add Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body row g-3">
+        <input type="hidden" id="product-id">
+
+        <div class="col-md-6">
+          <label for="product-name" class="form-label">Product Name</label>
+          <input type="text" class="form-control" id="product-name" required>
+        </div>
+
+        
+
+        <div class="col-md-6">
+          <label for="product-type-id" class="form-label">Category</label>
+          <select id="product-type-id" class="form-select" required>
+            <!-- Filled by JS -->
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label for="product-model-id" class="form-label">Type</label>
+          <select id="product-model-id" class="form-select" required>
+            <!-- Filled by JS -->
+          </select>
+        </div>
+        <div class="col-12 mt-4">
+            <h6>Product Images</h6>
+            <input type="file" id="product-images" name="images" multiple class="form-control">
+            <div id="product-image-preview" class="mt-2 d-flex flex-wrap gap-2"></div>
+        </div>
+
+      
+      </div>
+
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save Product</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Product Type Modal -->
+<div class="modal fade" id="typeModal" tabindex="-1" aria-labelledby="typeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="form-type" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 id="typeModalLabel" class="modal-title">Product Type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="type-id">
+        <div class="mb-3">
+          <label for="type-name" class="form-label">Name</label>
+          <input required id="type-name" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label for="type-slug" class="form-label">Slug</label>
+          <input required id="type-slug" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Product Model Modal -->
+<div class="modal fade" id="modelModal" tabindex="-1" aria-labelledby="modelModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="form-model" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 id="modelModalLabel" class="modal-title">Product Blueprint</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="model-id">
+        <div class="mb-3">
+          <label for="model-name" class="form-label">Name</label>
+          <input required id="model-name" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label for="model-code" class="form-label">Code</label>
+          <input required id="model-code" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label for="model-type-id" class="form-label">Type</label>
+          <select id="model-type-id" class="form-select"></select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Measurement Unit Modal -->
+<div class="modal fade" id="unitModal" tabindex="-1" aria-labelledby="unitModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="form-unit" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 id="unitModalLabel" class="modal-title">Measurement Unit</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="unit-id">
+        <div class="mb-3">
+          <label for="unit-name" class="form-label">Name</label>
+          <input required id="unit-name" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label for="unit-code" class="form-label">Code</label>
+          <input required id="unit-code" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Billing Unit Modal -->
+<div class="modal fade" id="billingModal" tabindex="-1" aria-labelledby="billingModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="form-billing" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 id="billingModalLabel" class="modal-title">Billing Unit</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="billing-id">
+        <div class="mb-3">
+          <label for="billing-name" class="form-label">Name</label>
+          <input required id="billing-name" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label for="billing-code" class="form-label">Code</label>
+          <input required id="billing-code" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Attribute Definition Modal -->
+<div class="modal fade" id="attributeModal" tabindex="-1" aria-labelledby="attributeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="form-attribute" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 id="attributeModalLabel" class="modal-title">Attribute Definition</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="attribute-id">
+        <div class="mb-3">
+          <label for="attribute-name" class="form-label">Name</label>
+          <input required id="attribute-name" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label for="attribute-type" class="form-label">Field Type</label>
+          <select required id="attribute-type" class="form-select">
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="boolean">Boolean</option>
+            <option value="choice">Choice</option>
+          </select>
+        </div>
+        <div class="mb-3" id="choice-container" style="display:none;">
+          <label for="attribute-choices" class="form-label">Choices (JSON array)</label>
+          <textarea id="attribute-choices" class="form-control" placeholder='["Opt1","Opt2"]'></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Variant Modal -->
+<div class="modal fade" id="variantModal" tabindex="-1" aria-labelledby="variantModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <form id="variantForm" class="modal-content" enctype="multipart/form-data">
+      <div class="modal-header">
+        <h5 id="variantModalLabel" class="modal-title">Add Variant</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="variant-id" name="id">
+        <input type="hidden" id="variant-product-id" name="product_id">
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="variant-length" class="form-label">Length</label>
+            <input type="number" class="form-control" id="variant-length" name="length" step="0.01">
+          </div>
+          <div class="col-md-4">
+            <label for="variant-width" class="form-label">Width</label>
+            <input type="number" class="form-control" id="variant-width" name="width" step="0.01">
+          </div>
+          <div class="col-md-4">
+            <label for="variant-height" class="form-label">Height</label>
+            <input type="number" class="form-control" id="variant-height" name="height" step="0.01">
+          </div>
+
+          <div class="col-md-6">
+            <label for="variant-purchase-price" class="form-label">Purchase Price</label>
+            <input type="number" class="form-control" id="variant-purchase-price" name="purchase_price" step="0.01">
+          </div>
+          <div class="col-md-6">
+            <label for="variant-selling-price" class="form-label">Selling Price</label>
+            <input type="number" class="form-control" id="variant-selling-price" name="selling_price" step="0.01">
+          </div>
+
+          <div class="col-md-6">
+            <label for="variant-measurement-unit" class="form-label">Measurement Unit</label>
+            <select id="variant-measurement-unit" name="measurement_unit" class="form-select"></select>
+          </div>
+          <div class="col-md-6">
+            <label for="variant-billing-unit" class="form-label">Billing Unit</label>
+            <select id="variant-billing-unit" name="billing_unit" class="form-select"></select>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <h6>Attributes</h6>
+        <div id="variant-attribute-container"></div>
+        <button type="button" class="btn btn-sm btn-outline-primary mb-3" onclick="addAttributeRow()">
+          <i class="bi bi-plus-circle"></i> Add Attribute
+        </button>
+
+        <hr class="my-3">
+
+        <h6>Images</h6>
+        <input type="file" id="variant-images" name="images" multiple class="form-control">
+        <div id="variant-image-preview" class="mt-2 d-flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success">Save Variant</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast container for notifications -->
+<div id="toast-container" class="position-fixed bottom-0 end-0 p-3 z-3" style="z-index: 1100;"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.showToast = function (message, type = 'success') {
+  const toastId = 'toast-' + Date.now();
+  const toastHtml = `
+    <div id="${toastId}" class="toast align-items-center text-bg-${type} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>`;
+  $('#toast-container').append(toastHtml);
+  const toast = new bootstrap.Toast(document.getElementById(toastId), { delay: 3000 });
+  toast.show();
+};
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie('csrftoken');
+</script>
+<script src="{% static 'js/master_admin.js' %}"></script>
+<script src="{% static 'js/products.js' %}"></script>
+<script src="{% static 'js/variant.js' %}"></script>
+{% endblock %} 
+
+ 

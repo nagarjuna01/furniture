@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Product Preview</title>
+    <style>
+        body.container { font-family: sans-serif; max-width: 800px; margin: 20px auto; }
+        .part-box { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
+        .edgeband-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .edgeband-table th, .edgeband-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+    </style>
+</head>
+<body class="container">
+
+    <h2>Preview Modular Product</h2>
+    <ul>
+        <li><strong>Name:</strong> {{ product.name }}</li>
+        <li><strong>Length:</strong> {{ product.length_mm }} mm</li>
+        <li><strong>Width:</strong> {{ product.width_mm }} mm</li>
+        <li><strong>Height:</strong> {{ product.height_mm }} mm</li>
+    </ul>
+
+    <h3>Constraints</h3>
+    {% if constraints %}
+        <ul>
+            {% for c in constraints %}
+                <li>{{ c.abbreviation }} = {{ c.value }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No constraints defined.</p>
+    {% endif %}
+
+    <h3>Parts Preview</h3>
+    {% for part in parts %}
+        <div class="part-box">
+            <strong>{{ part.name }}</strong>
+            <ul>
+                <li><strong>Length:</strong> {{ part.length }} mm ({{ part.length_eq }})</li>
+                <li><strong>Width:</strong> {{ part.width }} mm ({{ part.width_eq }})</li>
+                <li><strong>Quantity:</strong> {{ part.qty }}</li>
+                <li><strong>Area:</strong> {{ part.area }} mm²</li>
+                <li><strong>Usage (sqft):</strong> {{ part.usage_sqft }}</li>
+                <li><strong>Material Purchase:</strong> ₹{{ part.purchase_cost }}</li>
+                <li><strong>Material Selling:</strong> ₹{{ part.selling_cost }}</li>
+            </ul>
+
+            {% if part.edgeband_details %}
+                <h4>Edgebands</h4>
+                <table class="edgeband-table">
+                    <thead>
+                        <tr>
+                            <th>Edge</th>
+                            <th>Length (m)</th>
+                            <th>Purchase ₹</th>
+                            <th>Selling ₹</th>
+                            <th>EdgeBand ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eb in part.edgeband_details %}
+                        <tr>
+                            <td>{{ eb.edge }}</td>
+                            <td>{{ eb.meters_total }}</td>
+                            <td>{{ eb.purchase_cost }}</td>
+                            <td>{{ eb.selling_cost }}</td>
+                            <td>{{ eb.band_id }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <ul>
+                    <li><strong>Total EB Purchase:</strong> ₹{{ part.edgeband_purchase_cost }}</li>
+                    <li><strong>Total EB Selling:</strong> ₹{{ part.edgeband_selling_cost }}</li>
+                </ul>
+            {% else %}
+                <p><em>No edgebands applied.</em></p>
+            {% endif %}
+        </div>
+    {% empty %}
+        <p>No parts configured.</p>
+    {% endfor %}
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'wizard-create' %}" class="btn btn-primary">New</a>
+        <a href="{% url 'wizard-edit' %}" class="btn btn-warning">Back to Edit</a>
+    </div>
+
+</body>
+</html>

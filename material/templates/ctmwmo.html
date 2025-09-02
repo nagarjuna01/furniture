@@ -1,326 +1,265 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Material Selector</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+{% extends "base_b.html" %}
+{% load static %}
+{% block content %}
 
-<!-- Bootstrap JS Bundle (includes Popper) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <style>
-.card {
-    animation: fadeIn 0.4s ease-in;
-}
+<div class="container mt-4">
+  <h3>Panel Material Admin</h3>
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.97); }
-    to { opacity: 1; transform: scale(1); }
-}
-        .wrap-text {
-    white-space: normal;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-        .sidebar {
-            float: left;
-            width: 200px;
-            padding: 20px;
-            background-color: #f4f4f4;
-            height: 100vh;
-        }
-        .main-content {
-            margin-left: 220px;
-            padding: 20px;
-        }
-        .sidebar ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        .sidebar li {
-            cursor: pointer;
-            padding: 8px;
-            margin-bottom: 5px;
-            background-color: #ddd;
-        }
-        .sidebar li:hover {
-            background-color: #ccc;
-        }
-        .active {
-            background-color: #bbb;
-        }
-    </style>
-</head>
-<body>
-    <div id="loading-spinner" style="display:none;">
-        <img src="loading.gif" alt="Loading..." />
+  <!-- Nav Tabs -->
+  <ul class="nav nav-tabs" id="panelMaterialTabs">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-categories">Categories</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-types">Types</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-models">Models</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-panels">Wooden Panels</button></li>
+  </ul>
+
+  <!-- Tabs Content -->
+  <div class="tab-content mt-3">
+    
+    <!-- Categories -->
+    <div class="tab-pane fade show active" id="tab-categories">
+      <button id="btn-add-category" class="btn btn-primary mb-3">Add Category</button>
+      <table id="categoryTable" class="table table-bordered">
+        <thead><tr><th>Name</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="category-pagination" class="d-flex justify-content-center mt-3"></div>
+
     </div>
-    <div class="sidebar">
-        <ul id="category-type-list">
-            <li data-value="Panel">Panel</li>
-            <li data-value="Metal">Metal</li>
-            <li data-value="Other">Other</li>
-        </ul>
+    <!-- Types -->
+    <div class="tab-pane fade" id="tab-types">
+      <button id="btn-add-type" class="btn btn-primary mb-3">Add Type</button>
+      <table id="typeTable" class="table table-bordered">
+        <thead><tr><th>Category</th><th>Name</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="type-pagination" class="d-flex justify-content-center mt-3"></div>
+    </div>
+<div id="typeFormError" class="text-danger small mt-2" style="display:none;"></div>
+    <!-- Models -->
+    <div class="tab-pane fade" id="tab-models">
+  <button id="btn-add-model" class="btn btn-primary mb-3">Add Model</button>
+  <table id="modelTable" class="table table-bordered">
+    <thead><tr><th>Type</th><th>Name</th><th>Actions</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div id="model-pagination" class="d-flex justify-content-center mt-3"></div>
+</div>
 
-        <h6>Categories</h6>
-        <ul id="category-list">
-            <!-- Categories will be populated here -->
-        </ul>
-
-        <h6>Types</h6>
-        <ul id="type-list" style="display:none;">
-            <!-- Types will be populated here -->
-        </ul>
-
-        <h6>Models</h6>
-        <ul id="model-list" style="display:none;">
-            <!-- Models will be populated here -->
-        </ul>
+    <!-- Panels -->
+    <div class="tab-pane fade" id="tab-panels">
+      <button id="btn-add-panel" class="btn btn-primary mb-3">Add Panel</button>
+      <table id="panelTable" class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Name</th><th>Category</th><th>Type</th><th>Model</th>
+            <th>Dimensions</th><th>Price</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
 
-    <div class="main-content">
-        <h3>Materials</h3>
-        <ul id="material-list" class="row list-unstyled"></ul>
-            <!-- Wooden/Metal/Other materials will be listed here based on model -->
-       
+  </div>
+</div>
+
+<!-- Category Modal -->
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="categoryForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Category</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" id="category-id" />
+          <div class="mb-3">
+            <label for="category-name" class="form-label">Category Name</label>
+            <input type="text" id="category-name" name="name" class="form-control" required />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
     </div>
+  </div>
+</div>
+<div class="modal fade" id="typeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="typeForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Product Type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
 
-    <script>
-// Loader controls
-function showLoader() { $('#loading-spinner').show(); }
-function hideLoader() { $('#loading-spinner').hide(); }
+      <div class="modal-body">
+        <input type="hidden" id="type-id">
 
-// Track selections in variables (global scope)
-let selectedCategoryType = null;
-let selectedCategoryId = null;
-let selectedTypeId = null;
+        <div class="mb-3">
+          <label for="type-name" class="form-label">Name</label>
+          <input type="text" id="type-name" class="form-control" required>
+        </div>
 
-// Fetch categories based on type
-function fetchCategoriesByType(type) {
-    showLoader();
-    $.ajax({
-        url: '/material/categories/',
-        method: 'GET',
-        data: { select: type },
-        success: function(data) {
-            $('#category-list').empty();
-            data.forEach(function(category) {
-                $('#category-list').append(`<li class="wrap-text" data-id="${category.id}" data-select="${category.select}">${category.name}</li>`);
-            });
-            resetModelsAndTypes();
-            hideLoader();
-        },
-        error: function(xhr, status, error) {
-            console.error("Error fetching categories:", status, error);
-            alert("An error occurred while fetching categories.");
-            hideLoader();
-        }
-    });
-}
-
-// Reset dependent lists
-function resetModelsAndTypes() {
-    $('#type-list').empty().hide();
-    $('#model-list').empty().hide();
-    $('#material-list').empty();
-    selectedTypeId = null;
-}
-
-// Category type click
-$('#category-type-list').on('click', 'li', function () {
-    $('#category-type-list li').removeClass('active');
-    $(this).addClass('active');
-    selectedCategoryType = $(this).data('value');
-    selectedCategoryId = null;
-    selectedTypeId = null;
-    fetchCategoriesByType(selectedCategoryType);
-});
-
-// Category click
-$('#category-list').on('click', 'li', function () {
-    $('#category-list li').removeClass('active');
-    $(this).addClass('active');
-    selectedCategoryId = $(this).data('id');
-    selectedTypeId = null;
-
-    resetModelsAndTypes();
-    showLoader();
-
-    $.ajax({
-        url: `/material/categorytypes/?category=${selectedCategoryId}`,
-        method: 'GET',
-        success: function (data) {
-            $('#type-list').empty().show();
-            data.results.forEach(function (type) {
-                $('#type-list').append(`<li class="wrap-text" data-id="${type.id}" data-name="${type.name}">${type.name}</li>`);
-            });
-            hideLoader();
-        },
-        error: function (xhr, status, error) {
-            console.error("Error fetching types:", status, error);
-            alert("An error occurred while fetching types.");
-            hideLoader();
-        }
-    });
-});
-
-// Type click
-$('#type-list').on('click', 'li', function () {
-    $('#type-list li').removeClass('active');
-    $(this).addClass('active');
-    selectedTypeId = $(this).data('id');
-
-    
-    showLoader();
-
-    $.ajax({
-        url: `/material/category-models/?model_category=${selectedTypeId}`,
-        method: 'GET',
-        success: function (data) {
-            $('#model-list').empty().show();
-            if (data.results && data.results.length > 0) {
-                data.results.forEach(function (model) {
-                    $('#model-list').append(`<li class="wrap-text"  data-id="${model.id}">${model.name}</li>`);
-                });
-            } else {
-                alert("No models found for this type.");
-            }
-            hideLoader();
-        },
-        error: function (xhr, status, error) {
-            console.error("Error fetching models:", status, error);
-            alert("An error occurred while fetching models.");
-            hideLoader();
-        }
-    });
-});
-
-// Model click
-$('#model-list').on('click', 'li', function () {
-    const modelId = $(this).data('id');
-    if (!modelId) {
-        alert('Please select a model.');
-        return;
-    }
-
-    showLoader();
-
-    const typeUrls = {
-        'Panel': '/material/wooden/',
-        'Metal': '/material/metals/',
-        'Other': '/material/other-materials/'
-    };
-
-    const queryParams = {
-        'Panel': 'model_id',
-        'Other': 'model_id',
-        'Metal': 'metal_shape'
-    };
-
-    const paramKey = queryParams[selectedCategoryType];
-    const url = `${typeUrls[selectedCategoryType]}?${paramKey}=${modelId}`;
-
-    $.ajax({
-        url: url,
-        method: 'GET',
-        success: function (response) {
-            $('#material-list').empty();
-
-            const materials = Array.isArray(response)
-                ? response
-                : (response.results || [response]);
-
-            let filteredMaterials = materials;
-
-            // ✅ Apply manual filtering only for Panel & Other
-            if (selectedCategoryType === 'Panel' || selectedCategoryType === 'Other') {
-                filteredMaterials = materials.filter(m => {
-                    const model = m.material_model;
-                    return (typeof model === 'object' ? model.id : model) == modelId;
-                });
-            }
-
-            if (!filteredMaterials.length) {
-                alert("No materials found for this model.");
-                hideLoader();
-                return;
-            }
-
-            filteredMaterials.forEach(function (material) {
-                const image = material.image || '';
-                const card = `
-                    <li class="col-md-4 mb-4">
-                        <div class="card h-100 shadow-sm">
-                            ${image ? `<img src="${image}" class="card-img-top" alt="${material.name || 'Material'}">` : ''}
-                            <div class="card-body">
-                                <h5 class="card-title">${material.name}</h5>
-                                <ul class="list-group list-group-flush">
-                                    ${renderMaterialFields(material)}
-                                </ul>
-                                <a href="/material/${material.id}/" class="btn btn-sm btn-primary mt-2">View Details</a>
-                            </div>
-                        </div>
-                    </li>
-                `;
-                $('#material-list').append(card);
-            });
-
-            hideLoader();
-        },
-        error: function () {
-            alert('Failed to load materials.');
-            hideLoader();
-        }
-    });
-});
+        <div class="mb-3">
+          <label for="type-category-id" class="form-label">Category</label>
+          <select id="type-category-id" class="form-select" required>
+            <!-- Options loaded by JS -->
+          </select>
+        </div>
 
 
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
 
-// Function to format keys
-function formatKey(key) {
-    return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-}
+      
 
-// Function to render material fields
-function renderMaterialFields(material) {
-    let flatFields = '';
-    let nestedFields = '';
-    
-    for (const key in material) {
-        if (Object.hasOwnProperty.call(material, key)) {
-            const value = material[key];
-            
-            if (key === 'image' || value === null || value === '') continue;
+<div class="modal fade" id="modelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="modelForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Model</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      
+      <div class="modal-body">
+        <!-- ✅ Fixed: Added ID for hidden model-id -->
+        <input type="hidden" id="model-id" name="id" />
 
-            if (typeof value === 'object') {
-                nestedFields += `<li><strong>${formatKey(key)}:</strong> ${renderNestedObject(value)}</li>`;
-            } else {
-                flatFields += `<li><strong>${formatKey(key)}:</strong> ${value}</li>`;
-            }
-        }
-    }
+        <!-- ✅ Category -->
+        <div class="mb-3">
+          <label for="model-category-id" class="form-label">Category</label>
+          <select id="model-category-id" class="form-select select2" required></select>
+        </div>
 
-    return flatFields + nestedFields;
-}
+        <!-- ✅ Type -->
+        <div class="mb-3">
+          <label for="model-type-id" class="form-label">Type</label>
+          <select id="model-type-id" name="model-type-id" class="form-select select2" required></select>
+        </div>
 
-// Function to render nested objects
-function renderNestedObject(obj) {
-    let nestedHTML = '<ul>';
-    for (const key in obj) {
-        if (Object.hasOwnProperty.call(obj, key)) {
-            const value = obj[key];
-            if (value === null || value === '') continue;
-            nestedHTML += `<li><strong>${formatKey(key)}:</strong> ${value}</li>`;
-        }
-    }
-    nestedHTML += '</ul>';
-    return nestedHTML;
-}
+        <!-- ✅ Fixed: Added ID for model-name -->
+        <div class="mb-3">
+          <label for="model-name" class="form-label">Model Name</label>
+          <input type="text" id="model-name" name="name" class="form-control" required />
+        </div>
+      </div>
 
-    </script>
-    
-</body>
-</html>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<div class="modal fade" id="panelModal">
+  <div class="modal-dialog modal-lg">
+    <form id="panelForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Wooden Panel</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body row g-3">
+       <input type="hidden" id="model-id" name="id" />
+
+        <div class="col-md-4">
+          <label>Category</label>
+          <select name="material_grp" class="form-select select2" required></select>
+        </div>
+        <div class="col-md-4">
+          <label>Type</label>
+          <select name="material_type" class="form-select select2" required></select>
+        </div>
+        <div class="col-md-4">
+          <label>Model</label>
+          <select name="material_model" class="form-select select2"></select>
+        </div>
+
+        <div class="col-md-6">
+          <label>Panel Name</label>
+          <input name="name" class="form-control" />
+        </div>
+        <div class="col-md-6">
+          <label>Color</label>
+          <input name="color" class="form-control" />
+        </div>
+
+        <div class="col-md-4">
+          <label>Length (mm)</label>
+          <input type="number" name="length" class="form-control" />
+        </div>
+        <div class="col-md-4">
+          <label>Width (mm)</label>
+          <input type="number" name="width" class="form-control" />
+        </div>
+        <div class="col-md-4">
+          <label>Thickness (mm)</label>
+          <input type="number" step="0.01" name="thickness" class="form-control" />
+        </div>
+
+        <div class="col-md-6">
+          <label>Cost Price</label>
+          <input name="cost_price" class="form-control" />
+        </div>
+        <div class="col-md-6">
+          <label>Cost Type</label>
+          <select name="costprice_type" class="form-select">
+            <option value="panel">Panel</option>
+            <option value="sft">Per Sqft</option>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label>Sell Price</label>
+          <input name="sell_price" class="form-control" />
+        </div>
+        <div class="col-md-6">
+          <label>Sell Type</label>
+          <select name="sellprice_type" class="form-select">
+            <option value="panel">Panel</option>
+            <option value="sft">Per Sqft</option>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label>Grain</label>
+          <select name="grain" class="form-select">
+            <option value="0">Horizontal</option>
+            <option value="1">None</option>
+            <option value="2">Vertical</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label>Is Sheet?</label>
+          <select name="is_sheet" class="form-select">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary">Save Panel</button></div>
+    </form>
+  </div>
+</div>
+
+{%endblock%}
+
+{% block extra_js %}
+<script src="{% static 'js/categories.js' %}"></script>
+<script src="{% static 'js/types.js' %}"></script>
+<script src="{% static 'js/models.js' %}"></script>
+
+{%endblock%}
+
+

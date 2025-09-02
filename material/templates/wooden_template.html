@@ -6,7 +6,7 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <h1 class="text-3xl font-extrabold text-gray-900 mb-6">Wooden Products</h1>
-
+{% include "material/subnav.html" %}  {# Sub-navbar placed below heading #}
     <div class="bg-gray-100 p-4 shadow-md sticky top-0 z-10 mb-6">
     <form id="filter-form" class="flex items-center space-x-4 overflow-x-auto whitespace-nowrap">
         {# Removed flex-wrap, added space-x-4 for consistent spacing, overflow-x-auto for horizontal scrolling, and whitespace-nowrap to prevent wrapping #}
