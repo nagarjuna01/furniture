@@ -79,6 +79,16 @@ $(document).ready(function () {
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
     const apiUrl = '/material/v1/edgebands/';
 
+    window.openAddModal = function() {
+    // Reset form fields when opening the modal for a new edge band
+    $('#edgeband-form')[0].reset();
+    $('#edgeband-id').val('');  // Ensure that the id field is cleared
+
+    // Show the modal for adding a new edge band
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById('edgebandModal'));
+    modalInstance.show();
+};
+
     function fetchEdgeBands() {
         $.get(apiUrl, function (data) {
             const list = $('#edgeband-list').empty();
@@ -117,48 +127,54 @@ $(document).ready(function () {
     }
 
     $('#edgeband-form').submit(function (e) {
-        e.preventDefault();
+    e.preventDefault();
 
-        const id = $('#edgeband-id').val();
-        const method = id ? 'PUT' : 'POST';
-        const url = id ? `${apiUrl}${id}/` : apiUrl;
+    const id = $('#edgeband-id').val();
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${apiUrl}${id}/` : apiUrl;
 
-        
-        const payload = {
-    edge_depth: $('#edge_depth').val(),
-    e_thickness: $('#e_thickness').val(),
-    brand_id: $('#brand').val(),  // <-- use brand_id here
-    p_price: $('#p_price').val(),
-    s_price: $('#s_price').val()
-        };
-
-        $.ajax({
-            url: url,
-            type: method,
-            headers: { 'X-CSRFToken': csrfToken },
-            contentType: 'application/json',
-            data: JSON.stringify(payload),
-            success: function () {
-                fetchEdgeBands();
-                bootstrap.Modal.getOrCreateInstance(document.getElementById('edgebandModal')).hide();
-                $('#edgeband-form')[0].reset();
-            },
-            error: (xhr) => console.error('Save failed:', xhr)
-        });
-    });
-
-    window.editEdgeBand = function (id) {
-        $.get(`${apiUrl}${id}/`, function (data) {
-            $('#edgeband-id').val(data.id);
-            $('#edge_depth').val(data.edge_depth);
-            $('#e_thickness').val(data.e_thickness);
-            $('#brand').val(data.brand.id);
-            $('#compatible_thicknesses').val(JSON.stringify(data.compatible_thicknesses || []));
-            $('#p_price').val(data.p_price);
-            $('#s_price').val(data.s_price);
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('edgebandModal')).show();
-        });
+    const payload = {
+        edge_depth: $('#edge_depth').val(),
+        e_thickness: $('#e_thickness').val(),
+        brand_id: $('#brand').val(),
+        p_price: $('#p_price').val(),
+        s_price: $('#s_price').val()
     };
+
+    $.ajax({
+        url: url,
+        type: method,
+        headers: { 'X-CSRFToken': csrfToken },
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success: function () {
+            fetchEdgeBands();
+            const modalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById('edgebandModal'));
+            modalInstance.hide();
+        },
+        error: (xhr) => console.error('Save failed:', xhr)
+    });
+});
+$('#edgebandModal').on('hidden.bs.modal', function () {
+    // Reset the form when the modal is completely closed
+    $('#edgeband-form')[0].reset();
+    $('#edgeband-id').val('');  // Ensure the hidden ID field is cleared
+});
+window.editEdgeBand = function (id) {
+    $.get(`${apiUrl}${id}/`, function (data) {
+        $('#edgeband-id').val(data.id);
+        $('#edge_depth').val(data.edge_depth);
+        $('#e_thickness').val(data.e_thickness);
+        $('#brand').val(data.brand.id);
+        $('#p_price').val(data.p_price);
+        $('#s_price').val(data.s_price);
+
+        // Show the modal for editing
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById('edgebandModal'));
+        modalInstance.show();
+    });
+};
+
 
     window.deleteEdgeBand = function (id) {
         if (confirm('Are you sure you want to delete this?')) {

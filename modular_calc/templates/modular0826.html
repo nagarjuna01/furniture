@@ -71,7 +71,9 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Thickness (mm)</label>
-          <input type="number" step="0.01" id="part_thickness_mm" class="form-control" required>
+          <select id="part_thickness_mm" class="form-select" required>
+            <option value="">Loading...</option> <!-- Temporary loading message -->
+          </select>
         </div>
         <div class="col-md-12">
           <label class="form-label">Length Equation</label>
@@ -111,6 +113,71 @@
         <button class="btn btn-primary" type="submit">Save</button>
       </div>
     </form>
+  </div>
+</div>
+<!-- Parameters Modal -->
+<div class="modal fade" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Manage Parameters</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Add Parameter Form -->
+        <div class="row mb-3">
+          <div class="col">
+            <input type="text" id="paramName" class="form-control" placeholder="Name">
+          </div>
+          <div class="col">
+            <input type="text" id="paramAbr" class="form-control" placeholder="Abbreviation (e.g. h)">
+          </div>
+          <div class="col">
+            <input type="number" id="paramValue" class="form-control" placeholder="Value">
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-success" id="addParameterBtn">Add</button>
+          </div>
+        </div>
+
+        <!-- Parameters Table -->
+        <table class="table table-sm table-bordered">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Abbreviation</th>
+              <th>Value</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="parametersTableBody">
+            <!-- Parameters will be added here dynamically -->
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+  </div>
+</div>
+ <!-- Hardware Configurations Modal -->
+<div class="modal fade" id="hardwareModal" tabindex="-1" aria-labelledby="hardwareModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Hardware Configurations</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Container for dynamic hardware fields -->
+        <div id="hardwareGroupsContainer" class="row"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="saveHardwareConfigBtn">Save Configuration</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -225,37 +292,141 @@
     if (!n && p) return pages;
     return n - 1;
   }
+// Fetch Wooden Model Thicknesses and populate the dropdown
+function fetchWoodenModelThickness() {
+  $.get("http://127.0.0.1:8000/material/v1/woodens/")  // Fetch data from API
+    .done((response) => {
+      console.log('API Response:', response);  // Log the whole response
 
-  // ---- Load Edgebands into Select2 (once per modal open) ----
-  function initEdgebandSelects(defaults = {}) {
-    $(".select2-edgeband").select2({
-      dropdownParent: $("#partModal"),
-      width: "100%",
-      allowClear: true,
-      placeholder: "Select EdgeBand (optional)",
-      ajax: {
-        url: API.edgebands,
-        delay: 150,
-        data: (p) => ({search: p.term || "", page: p.page || 1}),
-        processResults: (data) => ({
-  results: data.results.map(e => ({
-    id: e.id,
-    text: e.display_name || `${e.edgeband_name.name} (${e.e_thickness}mm)`
-  })),
-  pagination: { more: !!data.next }
-})
+      const woodModels = response.results || [];
+      const thicknessSelect = $("#part_thickness_mm");
+
+      // Clear the existing options and reset Select2
+      thicknessSelect.empty();
+
+      // Add a placeholder option
+      thicknessSelect.append('<option value="">Select Thickness</option>');
+
+      // Check if woodModels has any items
+      if (woodModels.length === 0) {
+        console.log('No wooden models found.');
+        return; // Exit early if no models are found
       }
-    });
 
-    // Set defaults if provided
-    for (const key of ["edgeband_top","edgeband_bottom","edgeband_left","edgeband_right"]) {
-      if (defaults[key]) {
-        const $sel = $("#" + key);
-        const opt = new Option(defaults[key].text || defaults[key].label || defaults[key].id, defaults[key].id, true, true);
-        $sel.append(opt).trigger("change");
+      // Populate the thickness dropdown with available thicknesses from the wooden models
+      woodModels.forEach((wood, index) => {
+        console.log(`Wood Model ${index + 1}:`, wood); // Log each wood model to check its structure
+
+        const thickness = parseFloat(wood.thickness);  // Convert to float
+
+        if (!isNaN(thickness) && thickness > 0) {
+          console.log(`Thickness for Wood Model ${index + 1}:`, thickness);  // Log the thickness value
+
+          // Create the option for the dropdown
+          const option = new Option(`${thickness} mm`, thickness);
+
+          // Append the option to the select element
+          thicknessSelect.append(option);
+        } else {
+          console.warn(`Invalid thickness for Wood Model ${index + 1}: ${wood.thickness}`);
+        }
+      });
+
+      // Destroy and reinitialize Select2 to ensure it's refreshed
+      thicknessSelect.select2('destroy').select2();
+
+      // After setting up the thickness, you should trigger the initEdgebandSelects function with the chosen thickness
+      const selectedThickness = thicknessSelect.val(); // Get selected thickness
+      console.log("Selected Thickness: ", selectedThickness); // Debugging: Log the selected thickness
+
+      // Ensure the selected thickness is passed correctly to the initEdgebandSelects function
+      if (!isNaN(selectedThickness) && selectedThickness !== "") {
+        initEdgebandSelects({}, selectedThickness); // Pass the selected thickness to the function
+      } else {
+        console.error("Invalid selected thickness value: ", selectedThickness);
+      }
+
+    })
+    .fail((xhr) => {
+      console.error("Error fetching wooden models:", xhr.responseText);
+      showToast("Failed to load wooden models", false);
+    });
+}
+function initEdgebandSelects(defaults = {}, panelThickness) {
+  console.log("Received Panel Thickness: ", panelThickness);
+
+  // Ensure panelThickness is a number
+  panelThickness = parseFloat(panelThickness);
+
+  if (isNaN(panelThickness)) {
+    console.error("Invalid panel thickness value:", panelThickness);
+    showToast("Invalid panel thickness value.", false);
+    return;
+  }
+
+  console.log("Panel Thickness: ", panelThickness);
+
+  $(".select2-edgeband").select2({
+    dropdownParent: $("#partModal"),
+    width: "100%",
+    allowClear: true,
+    placeholder: "Select EdgeBand (optional)",
+    ajax: {
+      url: API.edgebands,
+      delay: 150,
+      data: (params) => {
+        return {
+          search: params.term || "",
+          page: params.page || 1,
+        };
+      },
+      processResults: (data) => {
+        console.log("API Response for Edgebands: ", data);
+
+        const filteredResults = data.results.filter(edgeband => {
+          const depth = parseFloat(edgeband.edgeband_name.depth);
+          console.log(`Checking Edgeband Depth: ${depth} <= Panel Thickness: ${panelThickness}`);
+          return depth >= panelThickness && depth <= (panelThickness + 5);
+        });
+
+        console.log("Filtered Edgebands: ", filteredResults);
+
+        const results = filteredResults.map(e => ({
+          id: e.id,
+          text: `${e.edgeband_name.name || e.display_name} (${e.e_thickness}mm)`,
+          depth: e.edgeband_name.depth,
+          thickness: e.e_thickness
+        }));
+
+        return {
+          results: results,
+          pagination: { more: !!data.next }
+        };
       }
     }
+  });
+
+  // Set defaults if provided
+  for (const key of ["edgeband_top", "edgeband_bottom", "edgeband_left", "edgeband_right"]) {
+    if (defaults[key]) {
+      const $sel = $("#" + key);
+      const opt = new Option(defaults[key].text || defaults[key].label || defaults[key].id, defaults[key].id, true, true);
+      $sel.append(opt).trigger("change");
+    }
   }
+}
+$("#part_thickness_mm").on("change", function () {
+  const selectedThickness = parseFloat($(this).val());
+  console.log("Selected thickness from dropdown:", selectedThickness);
+
+  if (!isNaN(selectedThickness)) {
+    // Call the init with correct thickness
+    initEdgebandSelects({}, selectedThickness);
+  } else {
+    console.warn("Invalid thickness selected.");
+  }
+});
+
 
   // ---- Products ----
   function fetchProducts(page=1) {
@@ -290,10 +461,14 @@
                   <div class="mt-2"><code>${escapeHtml(p.product_validation_expression || "")}</code></div>
                 </div>
                 <div>
+                  
+                  <button class="btn btn-sm btn-success btn-add-part" data-id="${p.id}">Add Part</button><br>
+                  <button class="btn btn-sm btn-info me-1 btn-parameters" data-id="${p.id}">Parameters</button><br>
+                  <button class="btn btn-sm btn-warning me-1 btn-hardware-configurations" data-id="${p.id}">Hardware Configurations</button>
+                  <hr>
                   <button class="btn btn-sm btn-outline-primary me-1 btn-edit-product" data-id="${p.id}">Edit</button>
                   <button class="btn btn-sm btn-outline-danger me-1 btn-delete-product" data-id="${p.id}">Delete</button>
-                  <button class="btn btn-sm btn-success btn-add-part" data-id="${p.id}">Add Part</button>
-                </div>
+                  </div>
               </div>
               <hr>
               <div class="mt-2">
@@ -312,47 +487,73 @@
   }
 
   function fetchPartsTable(productId) {
-    $.get(`${API.products}${productId}/parts/`)
-      .done((resp) => {
-        const rows = resp.results || resp; // paginated or not
-        const html = `
-          <table class="table table-sm align-middle">
-            <thead>
+  $.get(`${API.products}${productId}/parts/`)
+    .done((resp) => {
+      const rows = resp.results || resp; // Handle paginated or non-paginated responses
+
+      // Create HTML table
+      const html = `
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Eq (L × W)</th>
+              <th>Qty Eq</th>
+              
+              <th>Wastage</th>
+              <th>Edges (T/B/L/R)</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(pt => `
               <tr>
-                <th>Name</th>
-                <th>Eq (L × W)</th>
-                <th>Qty Eq</th>
-                <th>Thick</th>
-                <th>Wastage</th>
-                <th>Edges (T/B/L/R)</th>
-                <th class="text-end">Actions</th>
+                <td>${escapeHtml(pt.name) || '-'}</td> <!-- Default if name is missing -->
+                <td><code>${escapeHtml(pt.part_length_equation || '-')} × ${escapeHtml(pt.part_width_equation || '-')}</code></td>
+                <td><code>${escapeHtml(pt.part_qty_equation || '-')}</code></td>
+                
+                <td>${pt.shape_wastage_multiplier || '-'}</td>
+                <td>
+                  ${formatEdgeband(pt.edgeband_top)} /
+                  ${formatEdgeband(pt.edgeband_bottom)} /
+                  ${formatEdgeband(pt.edgeband_left)} /
+                  ${formatEdgeband(pt.edgeband_right)}
+                </td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-secondary btn-edit-part" data-id="${pt.id}" data-pid="${productId}">Edit</button>
+                  <button class="btn btn-sm btn-outline-danger btn-delete-part" data-id="${pt.id}" data-pid="${productId}">Delete</button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              ${rows.map(pt => `
-                <tr>
-                  <td>${escapeHtml(pt.name)}</td>
-                  <td><code>${escapeHtml(pt.part_length_equation)} × ${escapeHtml(pt.part_width_equation)}</code></td>
-                  <td><code>${escapeHtml(pt.part_qty_equation)}</code></td>
-                  <td>${pt.part_thickness_mm}</td>
-                  <td>${pt.shape_wastage_multiplier}</td>
-                  <td>
-                      ${pt.edgeband_top?.display_name || "-"} /
-                      ${pt.edgeband_bottom?.display_name || "-"} /
-                      ${pt.edgeband_left?.display_name || "-"} /
-                      ${pt.edgeband_right?.display_name || "-"}
-                  </td>
-                  <td class="text-end">
-                    <button class="btn btn-sm btn-outline-secondary btn-edit-part" data-id="${pt.id}" data-pid="${productId}">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger btn-delete-part" data-id="${pt.id}" data-pid="${productId}">Delete</button>
-                  </td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>`;
-        $(`#parts-${productId}`).html(html);
-      });
+            `).join('')}
+          </tbody>
+        </table>`;
+
+      // Update the DOM with the table HTML
+      $(`#parts-${productId}`).html(html);
+    })
+    .fail((xhr, status, error) => {
+      console.error("Error fetching parts:", error);
+      // Display an error message to the user
+      showToast("Failed to load parts. Please try again later.", false);
+    });
+}
+
+// Function to format the Edgeband as "16X2"
+function formatEdgeband(edgeband) {
+  if (edgeband && edgeband.display_name) {
+    // Updated regular expression to handle potential spaces or different formats
+    const match = edgeband.display_name.match(/(\d+(\.\d+)?)\s*\(\s*Thickness\s*(\d+\.\d+)mm\)/);
+    if (match) {
+      const depth = Math.floor(parseFloat(match[1]));  // Remove decimals for depth
+      const thickness = Math.floor(parseFloat(match[3]));  // Remove decimals for thickness
+      return `${depth}X${thickness}`;  // Format as "16X2"
+    }
   }
+  return "-";  // Return "-" if edgeband is missing or format doesn't match
+}
+
+
+
 
   // ---- Product Handlers ----
   $("#btnNewProduct").on("click", () => {
@@ -414,6 +615,7 @@
     $("#part_product").val(productId);
     // init Select2 each time (ensures dropdownParent works)
     initEdgebandSelects();
+    fetchWoodenModelThickness();
     $("#partModal").modal("show");
   });
 
@@ -516,6 +718,198 @@
     fetchProducts(productPage).fail((e) => console.error(e));
   });
 })();
+
+
+  let parameters = [];
+
+  // Show modal on "Parameters" button click
+  document.addEventListener('click', function (e) {
+    if (e.target.classList.contains('btn-parameters')) {
+      const itemId = e.target.dataset.id;
+      // You can filter parameters by itemId if needed
+      refreshParameterTable();
+      const modal = new bootstrap.Modal(document.getElementById('parametersModal'));
+      modal.show();
+    }
+  });
+
+  // Add parameter
+  document.getElementById('addParameterBtn').addEventListener('click', function () {
+    const name = document.getElementById('paramName').value.trim();
+    const abr = document.getElementById('paramAbr').value.trim();
+    const value = parseFloat(document.getElementById('paramValue').value.trim());
+
+    if (!name || !abr || isNaN(value)) {
+      alert("Please fill all fields correctly.");
+      return;
+    }
+
+    parameters.push({ name, abr, value });
+    refreshParameterTable();
+
+    // Clear inputs
+    document.getElementById('paramName').value = '';
+    document.getElementById('paramAbr').value = '';
+    document.getElementById('paramValue').value = '';
+  });
+
+  // Refresh table
+  function refreshParameterTable() {
+    const tbody = document.getElementById('parametersTableBody');
+    tbody.innerHTML = '';
+    parameters.forEach((param, index) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${param.name}</td>
+        <td>${param.abr}</td>
+        <td>${param.value}</td>
+        <td>
+          <button class="btn btn-sm btn-danger" onclick="deleteParameter(${index})">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  // Delete parameter
+  function deleteParameter(index) {
+    parameters.splice(index, 1);
+    refreshParameterTable();
+  }
+
+
+  const API_BASE = "http://127.0.0.1:8000/material/v1";
+
+  let allHardware = [];
+  let hardwareGroups = [];
+
+  // Store per-product configuration
+  let hardwareConfigs = {}; // productId => { groupId: { hardwareId, quantity } }
+
+  let currentProductId = null;
+
+  // Open modal when button is clicked
+  document.addEventListener('click', async function (e) {
+    if (e.target.classList.contains('btn-hardware-configurations')) {
+      currentProductId = e.target.dataset.id;
+
+      await fetchHardwareData(); // fetch if not already fetched
+      renderHardwareModal();
+      const modal = new bootstrap.Modal(document.getElementById('hardwareModal'));
+      modal.show();
+    }
+  });
+
+  // Fetch hardware data from API
+  async function fetchHardwareData() {
+  if (hardwareGroups.length && allHardware.length) return;
+
+  const [groupRes, hwRes] = await Promise.all([
+    fetch(`${API_BASE}/hardware-groups/`),
+    fetch(`${API_BASE}/hardware/`)
+  ]);
+
+  const groupData = await groupRes.json();
+  const hardwareData = await hwRes.json();
+
+  hardwareGroups = Array.isArray(groupData) ? groupData : groupData.results;
+  allHardware = Array.isArray(hardwareData) ? hardwareData : hardwareData.results;
+}
+
+
+  // Render modal content
+  function renderHardwareModal() {
+    const container = document.getElementById('hardwareGroupsContainer');
+    container.innerHTML = '';
+
+    const config = hardwareConfigs[currentProductId] || {};
+
+    hardwareGroups.forEach(group => {
+      const items = allHardware.filter(hw => hw.group === group.id);
+
+      const selectedHardwareId = config[group.id]?.hardwareId || '';
+      const selectedQuantity = config[group.id]?.quantity || 1;
+
+      const optionsHTML = items.map(item => `
+        <option value="${item.id}" ${item.id == selectedHardwareId ? 'selected' : ''}>
+          ${item.name}
+        </option>
+      `).join('');
+
+      container.innerHTML += `
+        <div class="col-md-6 mb-4">
+          <h6>${group.name}</h6>
+          <div class="input-group">
+            <select class="form-select hardware-select" data-group-id="${group.id}">
+              <option value="">-- Select ${group.name} --</option>
+              ${optionsHTML}
+            </select>
+            <input type="number" class="form-control hardware-qty" min="1" value="${selectedQuantity}" data-group-id="${group.id}">
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  // Save current selection on button click
+  document.getElementById('saveHardwareConfigBtn').addEventListener('click', function () {
+    const selects = document.querySelectorAll('.hardware-select');
+    const qtyInputs = document.querySelectorAll('.hardware-qty');
+
+    const config = {};
+
+    selects.forEach(select => {
+      const groupId = select.dataset.groupId;
+      const hardwareId = select.value;
+      const qtyInput = document.querySelector(`.hardware-qty[data-group-id="${groupId}"]`);
+      const quantity = parseInt(qtyInput.value) || 1;
+
+      if (hardwareId) {
+        config[groupId] = {
+          hardwareId,
+          quantity
+        };
+      }
+    });
+
+    hardwareConfigs[currentProductId] = config;
+
+    console.log("Saved config for product:", currentProductId);
+    console.log(config);
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('hardwareModal'));
+    modal.hide();
+
+    // Optionally POST to backend here
+    // saveHardwareToBackend(currentProductId, config);
+  });
+
+  // Optional: Save to backend
+  async function saveHardwareToBackend(productId, config) {
+    try {
+      const res = await fetch(`/your-api-endpoint/save-hardware/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          product_id: productId,
+          hardware: config
+        })
+      });
+
+      if (res.ok) {
+        alert("Configuration saved!");
+      } else {
+        alert("Failed to save configuration.");
+      }
+    } catch (err) {
+      console.error("Error saving config:", err);
+      alert("Error occurred.");
+    }
+  }
+
+
 </script>
 {% endblock %}
 
