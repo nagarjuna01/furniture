@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modular Product Configurator</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .section { border: 1px solid #ddd; padding: 20px; margin-bottom: 30px; border-radius: 6px; }
+        .nested-list { border-left: 4px solid #007bff; padding: 15px; margin-top: 15px; background-color: #f0f8ff; border-radius: 4px; }
+        .nested-item { border-bottom: 1px dashed #ccc; padding: 10px 0; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        label { font-weight: 600; margin-top: 10px; display: block; }
+        input[type="text"], input[type="number"], textarea, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex-grow: 1; min-width: 150px; }
+        textarea { resize: vertical; min-height: 80px; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; margin-right: 10px; }
+        button:hover { background-color: #0056b3; }
+        .delete-btn { background-color: #dc3545; }
+        .delete-btn:hover { background-color: #c82333; }
+        .actions { margin-bottom: 20px; }
+        .field-group { flex: 1 1 30%; min-width: 200px; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Modular Product Configuration Editor</h1>
+
+        <div class="actions">
+            <input type="text" id="load-product-id" placeholder="Enter Product UUID to Load" style="width: 300px; margin-right: 10px;">
+            <button onclick="loadProduct(document.getElementById('load-product-id').value)">Load Product</button>
+            <button onclick="saveProduct()">Save/Create Product</button>
+        </div>
+
+        <input type="hidden" id="product-id">
+        
+        <div class="section" id="material-selectors">
+            <h2>Core Material Configuration</h2>
+            <div class="field-group">
+                <label for="material-thickness">1. Select Core Material Thickness (mm):</label>
+                <select id="material-thickness" onchange="thicknessSelected(this.value)">
+                    <option value="">-- Loading Thicknesses --</option>
+                </select>
+            </div>
+            
+            <div class="field-group">
+                <label>2. Compatible Edgebands (0-5mm Filter):</label>
+                <div id="compatible-edgebands-display" style="padding: 10px; border: 1px dashed #ccc; margin-top: 5px;">
+                    Please select a thickness above.
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="product-metadata">
+            <h2>Product Details</h2>
+            <div class="field-group"><label for="product-name">Name:</label><input type="text" id="product-name" required></div>
+            <label for="product-validation">Validation Expression (e.g., '600 <= L <= 2400'):</label>
+            <textarea id="product-validation"></textarea>
+        </div>
+        
+        <div class="section">
+            <h2>Product Parameters</h2>
+            <div id="parameters-container"></div>
+            <button onclick="addParameter()">Add Parameter</button>
+        </div>
+        
+        <div class="section">
+            <h2>Product Hardware Rules (Fixed Quantity)</h2>
+            <div id="product-hardware-container"></div>
+            <button onclick="addProductHardware()">Add Hardware Rule</button>
+        </div>
+
+        <div class="section">
+            <h2>Part Templates (Components)</h2>
+            <div id="part-templates-container"></div>
+            <button onclick="addPartTemplate()">Add Part Template</button>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        // --- 1. STATE & API ENDPOINTS ---
+
+        let currentProduct = {
+            name: '',
+            product_validation_expression: '',
+            parameters: [],
+            product_hardware_config: [], 
+            part_templates: [],
+        };
+
+        // State object to hold dynamic, live data from API
+        let LIVE_OPTIONS = { 
+            materials: [],      // All WoodEns
+            hardware: [],       // All Hardware
+            edgebands: [],      // Filtered Edgebands (0-5mm compatible with selected thickness)
+            thicknesses: []     // Unique thicknesses from WoodEns
+        };
+
+        const API_ROOT = "http://127.0.0.1:8000/material/v1/";
+        const BASE_URLS = {
+            PRODUCTS: "/api/products/", // Assuming product config is separate
+            WOODENS: API_ROOT + "woodens/",
+            HARDWARE: API_ROOT + "hardware/",
+            EDGEBANDS: API_ROOT + "edgebands/",
+        };
+
+        // --- 2. CORE UTILITY FUNCTIONS ---
+        
+        /** Helper: Handles data structure differences (paginated vs. array) */
+        const getArrayFromResponse = (response) => response.results || response || [];
+
+        function updateUI() {
+            document.getElementById('product-id').value = currentProduct.id || '';
+            document.getElementById('product-name').value = currentProduct.name || '';
+            document.getElementById('product-validation').value = currentProduct.product_validation_expression || '';
+            
+            renderParameters();
+            renderProductHardware();
+            renderPartTemplates();
+        }
+
+        function updateNestedItem(arrayName, index, field, value) {
+            currentProduct[arrayName][index][field] = value;
+        }
+
+        function updateDeepNestedItem(parentArray, parentIndex, childArray, childIndex, field, value) {
+            currentProduct[parentArray][parentIndex][childArray][childIndex][field] = value;
+        }
+
+        function removeItemFromArray(arrayName, index) {
+            if(confirm('Are you sure you want to remove this item?')) {
+                currentProduct[arrayName].splice(index, 1);
+                updateUI();
+            }
+        }
+        
+        function removeDeepNestedItem(parentArray, parentIndex, childArray, childIndex) {
+            if(confirm('Are you sure you want to remove this nested rule?')) {
+                currentProduct[parentArray][parentIndex][childArray].splice(childIndex, 1);
+                updateUI();
+            }
+        }
+        
+        // Helper to render edgeband select options from filtered list
+        const renderEdgebandOptionsHTML = (selectedId) => {
+            // Null/empty value for the PrimaryKeyRelatedField(allow_null=True)
+            let options = `<option value="">-- None --</option>`; 
+            
+            options += LIVE_OPTIONS.edgebands.map(o => 
+                // Ensure correct ID and display fields are used
+                `<option value="${o.id}" ${o.id == selectedId ? 'selected' : ''}>${o.name || o.id} (${o.thickness_mm}mm)</option>`
+            ).join('');
+            
+            return options;
+        };
+
+
+        // --- 3. DYNAMIC DATA FETCHING (Chained) ---
+
+        /** * 1. Fetches all WoodEns, calculates unique thicknesses, and populates the thickness selector.
+         */
+        function fetchThicknessesAndMaterials() {
+            $.ajax({
+                url: BASE_URLS.WOODENS,
+                type: 'GET',
+                success: function(response) {
+                    const materials = getArrayFromResponse(response);
+                    LIVE_OPTIONS.materials = materials;
+                    
+                    // Extract unique thicknesses and sort them
+                    const uniqueThicknesses = [...new Set(materials.map(m => m.thickness_mm).filter(t => t !== undefined && t !== null))];
+                    LIVE_OPTIONS.thicknesses = uniqueThicknesses.sort((a, b) => a - b);
+                    
+                    // Populate the dropdown selector
+                    const select = document.getElementById('material-thickness');
+                    select.innerHTML = '';
+                    select.appendChild(new Option('-- Select Thickness --', ''));
+
+                    LIVE_OPTIONS.thicknesses.forEach(t => {
+                        select.appendChild(new Option(`${t} mm`, t));
+                    });
+
+                    // Trigger initial UI update
+                    updateUI(); 
+                },
+                error: (xhr) => console.error("Failed to load woodens/thicknesses:", xhr)
+            });
+        }
+        
+        /** * 2. Called when the user selects a thickness. Triggers Edgeband fetch.
+         */
+        function thicknessSelected(selectedThickness) {
+            if (!selectedThickness) {
+                document.getElementById('compatible-edgebands-display').innerHTML = 'Please select a thickness.';
+                LIVE_OPTIONS.edgebands = [];
+                renderPartTemplates(); // Clear edgebands on UI
+                return;
+            }
+            
+            const thickness = parseFloat(selectedThickness);
+            fetchEdgeBandsByThickness(thickness);
+        }
+        
+        /** * 3. Fetches compatible edgebands based on the core thickness.
+         */
+        function fetchEdgeBandsByThickness(coreThickness) {
+            // Pass core thickness and max thickness to the backend filter
+            $.ajax({
+                url: `${BASE_URLS.EDGEBANDS}?core_thickness_mm=${coreThickness}&max_thickness_mm=5`, 
+                type: 'GET',
+                success: function(response) {
+                    const edgebands = getArrayFromResponse(response);
+                    LIVE_OPTIONS.edgebands = edgebands;
+                    
+                    const display = document.getElementById('compatible-edgebands-display');
+                    display.innerHTML = `Found ${edgebands.length} compatible bands:`;
+                    display.innerHTML += '<ul style="list-style-type: none; margin: 0; padding: 0;">' + edgebands.map(b => 
+                        `<li>✅ ${b.name || b.id} (${b.thickness_mm}mm)</li>`
+                    ).join('') + '</ul>';
+                    
+                    // Re-render PartTemplates to update the EdgeBand dropdowns with the new filtered list
+                    renderPartTemplates();
+                },
+                error: (xhr) => console.error("Failed to load compatible edgebands:", xhr)
+            });
+        }
+        
+        /** * 4. Fetches Hardware (Other options not dependent on thickness).
+         */
+        function fetchDependentOptions() {
+            $.ajax({
+                url: BASE_URLS.HARDWARE, 
+                type: 'GET',
+                success: function(response) {
+                    LIVE_OPTIONS.hardware = getArrayFromResponse(response);
+                    updateUI(); 
+                },
+                error: (xhr) => console.error("Failed to load hardware options:", xhr)
+            });
+        }
+
+
+        // --- 4. ADDITION LOGIC ---
+
+        function addParameter() {
+            currentProduct.parameters.push({ id: null, name: `param_${currentProduct.parameters.length + 1}`, abbreviation: '', default_value: 0 });
+            renderParameters();
+        }
+
+        function addProductHardware() {
+            // Use the first available hardware ID or null if none
+            const defaultHardwareId = LIVE_OPTIONS.hardware.length > 0 ? LIVE_OPTIONS.hardware[0].id : null;
+            currentProduct.product_hardware_config.push({ id: null, hardware_id: defaultHardwareId, quantity: 1 });
+            renderProductHardware();
+        }
+
+        function addPartTemplate() {
+            currentProduct.part_templates.push({
+                id: null,
+                name: `Part ${currentProduct.part_templates.length + 1}`,
+                part_length_equation: 'L - 2*t',
+                part_width_equation: 'W',
+                part_qty_equation: '1',
+                part_thickness_mm: 18.0,
+                edgeband_top: null, // Initial PK value
+                edgeband_bottom: null,
+                edgeband_left: null,
+                edgeband_right: null,
+                material_whitelist: [], 
+                edgeband_whitelist: [], // Empty for now, as Edgebands are handled by the main selectors
+                hardware_rules: [], 
+            });
+            renderPartTemplates();
+        }
+
+        function addMaterialWhitelistItem(partIndex) {
+            // Use 'material' as the key to match PrimaryKeyRelatedField
+            const defaultMaterialId = LIVE_OPTIONS.materials.length > 0 ? LIVE_OPTIONS.materials[0].id : null;
+            currentProduct.part_templates[partIndex].material_whitelist.push({
+                id: null,
+                material: defaultMaterialId,
+                is_default: false
+            });
+            renderMaterialWhitelists(partIndex);
+        }
+
+        // --- 5. RENDERING LOGIC (UPDATED) ---
+
+        function renderParameters() {
+            // ... (parameters rendering logic - no change, but uses currentProduct.parameters) ...
+            const container = document.getElementById('parameters-container');
+            container.innerHTML = '';
+            
+            currentProduct.parameters.forEach((p, index) => {
+                const div = document.createElement('div');
+                div.classList.add('nested-item');
+                div.innerHTML = `
+                    <input type="hidden" data-id="${p.id || ''}" data-index="${index}" data-array="parameters">
+                    <div class="field-group">
+                        <label>Name:</label>
+                        <input type="text" data-field="name" value="${p.name}" oninput="updateNestedItem('parameters', ${index}, 'name', this.value)">
+                    </div>
+                    <div class="field-group">
+                        <label>Abbr:</label>
+                        <input type="text" data-field="abbreviation" value="${p.abbreviation || ''}" oninput="updateNestedItem('parameters', ${index}, 'abbreviation', this.value)">
+                    </div>
+                    <div class="field-group">
+                        <label>Default Value:</label>
+                        <input type="number" data-field="default_value" value="${p.default_value || 0}" oninput="updateNestedItem('parameters', ${index}, 'default_value', parseFloat(this.value) || 0)">
+                    </div>
+                    <button class="delete-btn" onclick="removeItemFromArray('parameters', ${index})">Remove</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderProductHardware() {
+            const container = document.getElementById('product-hardware-container');
+            container.innerHTML = '';
+            
+            currentProduct.product_hardware_config.forEach((h, index) => {
+                const div = document.createElement('div');
+                div.classList.add('nested-item');
+                div.innerHTML = `
+                    <input type="hidden" data-id="${h.id || ''}" data-index="${index}" data-array="product_hardware_config">
+                    <div class="field-group">
+                        <label>Hardware:</label>
+                        <select data-field="hardware_id" onchange="updateNestedItem('product_hardware_config', ${index}, 'hardware_id', parseInt(this.value))">
+                            ${LIVE_OPTIONS.hardware.map(o => `<option value="${o.id}" ${o.id === h.hardware_id ? 'selected' : ''}>${o.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Quantity:</label>
+                        <input type="number" data-field="quantity" value="${h.quantity}" oninput="updateNestedItem('product_hardware_config', ${index}, 'quantity', parseInt(this.value) || 0)">
+                    </div>
+                    <button class="delete-btn" onclick="removeItemFromArray('product_hardware_config', ${index})">Remove</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderPartTemplates() {
+            const container = document.getElementById('part-templates-container');
+            container.innerHTML = '';
+
+            currentProduct.part_templates.forEach((part, partIndex) => {
+                const div = document.createElement('div');
+                div.classList.add('section');
+                
+                // Get the ID for the edgeband fields. The API returns objects, but we need the ID for the dropdown logic.
+                // Assuming the API returns the PK directly (e.g., part.edgeband_top = 12)
+                const ebTopId = part.edgeband_top && part.edgeband_top.id ? part.edgeband_top.id : part.edgeband_top;
+                const ebBottomId = part.edgeband_bottom && part.edgeband_bottom.id ? part.edgeband_bottom.id : part.edgeband_bottom;
+                const ebLeftId = part.edgeband_left && part.edgeband_left.id ? part.edgeband_left.id : part.edgeband_left;
+                const ebRightId = part.edgeband_right && part.edgeband_right.id ? part.edgeband_right.id : part.edgeband_right;
+
+                div.innerHTML = `
+                    <h3>Part: ${part.name || 'New Part'} (DB ID: ${part.id || 'New'})</h3>
+                    <input type="hidden" data-id="${part.id || ''}" data-index="${partIndex}" data-array="part_templates">
+                    
+                    <div class="field-group"><label>Name:</label><input type="text" value="${part.name || ''}" oninput="updateNestedItem('part_templates', ${partIndex}, 'name', this.value)"></div>
+                    <div class="field-group"><label>Thickness (mm):</label><input type="number" value="${part.part_thickness_mm || 0}" oninput="updateNestedItem('part_templates', ${partIndex}, 'part_thickness_mm', parseFloat(this.value) || 0)"></div>
+                    
+                    <h4>Geometry Equations</h4>
+                    <div class="field-group"><label>Length Eq:</label><input type="text" value="${part.part_length_equation || ''}" oninput="updateNestedItem('part_templates', ${partIndex}, 'part_length_equation', this.value)"></div>
+                    <div class="field-group"><label>Width Eq:</label><input type="text" value="${part.part_width_equation || ''}" oninput="updateNestedItem('part_templates', ${partIndex}, 'part_width_equation', this.value)"></div>
+                    <div class="field-group"><label>Qty Eq:</label><input type="text" value="${part.part_qty_equation || '1'}" oninput="updateNestedItem('part_templates', ${partIndex}, 'part_qty_equation', this.value)"></div>
+                    
+                    <h4>Edgeband Application</h4>
+                    <div class="nested-list" style="display: flex; gap: 20px; flex-wrap: wrap; background-color: #e6f7ff;">
+                        <div class="field-group">
+                            <label>Edgeband Top:</label>
+                            <select onchange="updateNestedItem('part_templates', ${partIndex}, 'edgeband_top', parseInt(this.value) || null)">
+                                ${renderEdgebandOptionsHTML(ebTopId)}
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label>Edgeband Bottom:</label>
+                            <select onchange="updateNestedItem('part_templates', ${partIndex}, 'edgeband_bottom', parseInt(this.value) || null)">
+                                ${renderEdgebandOptionsHTML(ebBottomId)}
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label>Edgeband Left:</label>
+                            <select onchange="updateNestedItem('part_templates', ${partIndex}, 'edgeband_left', parseInt(this.value) || null)">
+                                ${renderEdgebandOptionsHTML(ebLeftId)}
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label>Edgeband Right:</label>
+                            <select onchange="updateNestedItem('part_templates', ${partIndex}, 'edgeband_right', parseInt(this.value) || null)">
+                                ${renderEdgebandOptionsHTML(ebRightId)}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <h4>Material Whitelist (PartMaterialWhitelist)</h4>
+                    <div class="nested-list" id="material-whitelist-${partIndex}"></div>
+                    <button onclick="addMaterialWhitelistItem(${partIndex})">Add Material</button>
+                    <button class="delete-btn" onclick="removeItemFromArray('part_templates', ${partIndex})">Delete Part</button>
+                `;
+                container.appendChild(div);
+                
+                // Call renderer for the next level of nesting
+                renderMaterialWhitelists(partIndex);
+            });
+        }
+
+        function renderMaterialWhitelists(partIndex) {
+            const container = document.getElementById(`material-whitelist-${partIndex}`);
+            if (!container) return;
+
+            const whitelists = currentProduct.part_templates[partIndex].material_whitelist || [];
+            container.innerHTML = '';
+            
+            whitelists.forEach((item, itemIndex) => {
+                const div = document.createElement('div');
+                div.classList.add('nested-item');
+
+                // Get the ID for comparison, handling the read-only detail object vs PK field
+                const materialId = item.material && item.material.id ? item.material.id : item.material;
+
+                div.innerHTML = `
+                    <input type="hidden" data-id="${item.id || ''}" data-index="${itemIndex}" data-array="material_whitelist" data-parent-index="${partIndex}">
+                    <div class="field-group">
+                        <label>Material:</label>
+                        <select data-field="material" onchange="updateDeepNestedItem('part_templates', ${partIndex}, 'material_whitelist', ${itemIndex}, 'material', parseInt(this.value))">
+                            ${LIVE_OPTIONS.materials.map(o => 
+                                `<option value="${o.id}" ${o.id == materialId ? 'selected' : ''}>${o.name || o.id} (${o.thickness_mm}mm)</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Default:</label>
+                        <input type="checkbox" data-field="is_default" ${item.is_default ? 'checked' : ''} onchange="updateDeepNestedItem('part_templates', ${partIndex}, 'material_whitelist', ${itemIndex}, 'is_default', this.checked)">
+                    </div>
+                    <button class="delete-btn" onclick="removeDeepNestedItem('part_templates', ${partIndex}, 'material_whitelist', ${itemIndex})">Delete Rule</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+
+        // --- 6. API INTERACTION (LOAD/SAVE) ---
+
+        function loadProduct(uuid) {
+            if (!uuid) {
+                alert("Please enter a valid UUID.");
+                return;
+            }
+            
+            if (typeof $ === 'undefined') {
+                console.error("jQuery is not loaded.");
+                return;
+            }
+
+            $.ajax({
+                url: `${BASE_URLS.PRODUCTS}${uuid}/`, 
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    const data = response.results ? response.results[0] : response;
+                    if (!data) {
+                        console.warn("API returned empty data.");
+                        return;
+                    }
+
+                    // Map the response data directly to the currentProduct state
+                    currentProduct = {
+                        ...data,
+                        // Ensure all nested arrays exist for iteration
+                        product_hardware_config: data.product_hardware_config || [],
+                        parameters: data.parameters || [],
+                        part_templates: (data.part_templates || []).map(p => ({
+                            ...p,
+                            material_whitelist: p.material_whitelist || [],
+                            edgeband_whitelist: p.edgeband_whitelist || [], // Keep this for completeness
+                            hardware_rules: p.hardware_rules || [],
+                        }))
+                    };
+
+                    updateUI();
+                    console.log("Product Loaded:", currentProduct);
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error loading product:", xhr.responseJSON || error);
+                    alert(`Error loading product: ${xhr.status}`);
+                }
+            });
+        }
+
+        function saveProduct() {
+            const productId = document.getElementById('product-id').value;
+            const url = productId ? `${BASE_URLS.PRODUCTS}${productId}/` : BASE_URLS.PRODUCTS;
+            const method = productId ? 'PUT' : 'POST';
+
+            const payload = {
+                id: productId || undefined, 
+                name: document.getElementById('product-name').value,
+                product_validation_expression: document.getElementById('product-validation').value,
+                
+                // Writable Nested Fields matching the serializer
+                parameters: currentProduct.parameters, 
+                // IMPORTANT: The serializer accepts product_hardware_config for writing:
+                product_hardware_config: currentProduct.product_hardware_config,
+                
+                // Part templates require a PUT/POST to a separate endpoint 
+                // OR must be explicitly handled by the ModularProductSerializer. 
+                // Since your serializer only has part_templates as read-only, 
+                // we only send the top-level product data here for simplicity. 
+                // In a real app, you'd save part templates via a dedicated nested update structure 
+                // or a separate API call loop.
+            };
+            
+            if (!payload.name) {
+                alert("Product name is required.");
+                return;
+            }
+
+            if (typeof $ === 'undefined') {
+                console.error("jQuery is not loaded.");
+                return;
+            }
+
+            $.ajax({
+                url: url,
+                type: method,
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function(savedData) {
+                    alert(`Product saved successfully! ID: ${savedData.id}`);
+                    
+                    // Reload state from saved data
+                    currentProduct = { 
+                        ...savedData, 
+                        product_hardware_config: savedData.product_hardware_config || [],
+                        part_templates: savedData.part_templates || [],
+                    };
+                    updateUI();
+                    console.log("Product Saved:", savedData);
+                },
+                error: function(xhr, status, error) {
+                    const errorData = xhr.responseJSON || { detail: error };
+                    console.error("API Error:", errorData);
+                    alert(`Error saving product: ${errorData.detail || errorData.name || 'Check console for errors.'}`);
+                }
+            });
+        }
+
+        // --- 7. INITIALIZATION ---
+        
+        // Expose functions globally
+        window.loadProduct = loadProduct;
+        window.saveProduct = saveProduct;
+        window.addParameter = addParameter;
+        window.addProductHardware = addProductHardware;
+        window.addPartTemplate = addPartTemplate;
+        window.addMaterialWhitelistItem = addMaterialWhitelistItem;
+        window.removeItemFromArray = removeItemFromArray;
+        window.updateNestedItem = updateNestedItem;
+        window.updateDeepNestedItem = updateDeepNestedItem;
+        window.removeDeepNestedItem = removeDeepNestedItem;
+        window.thicknessSelected = thicknessSelected;
+        
+        // Start by loading all independent options
+        fetchThicknessesAndMaterials(); // Loads Materials/Thicknesses
+        fetchDependentOptions(); // Loads Hardware
+
+    })(); // End IIFE
+    </script>
+
+</body>
+</html>

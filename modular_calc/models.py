@@ -35,6 +35,52 @@ class ModularProduct(models.Model):
     def __str__(self):
         return self.name
 
+class ProductParameter(models.Model):
+    """
+    Stores user-defined parameters/variables (name, value) for a specific ModularProduct.
+    These are used as inputs to the geometry equations.
+    """
+    product = models.ForeignKey(
+        ModularProduct, 
+        on_delete=models.CASCADE, 
+        related_name="parameters",
+        help_text="The product this parameter belongs to."
+    )
+    
+    # The variable name used in equations (e.g., 'product_length', 'product_width')
+    name = models.CharField(
+        max_length=50, 
+        help_text="The variable name used in equations (e.g., 'product_length', 'unit_gap')."
+    )
+    
+    # A short, unique abbreviation for use in UI/documentation (e.g., 'L', 'W')
+    abbreviation = models.CharField(
+        max_length=10, 
+        blank=True, 
+        help_text="A short abbreviation for display (e.g., 'L', 'W', 'H')."
+    )
+    
+    # The default numerical value (optional, as the final value might come from user input)
+    default_value = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="A default value for the parameter."
+    )
+    
+    # Optional: A description to guide the user/admin
+    description = models.TextField(
+        blank=True,
+        help_text="Explains the purpose and constraints of this parameter."
+    )
+
+    class Meta:
+        unique_together = ("product", "name")
+        ordering = ["product", "name"]
+
+    def __str__(self):
+        return f"{self.product.name} / {self.name} ({self.abbreviation})"
 
 class PartTemplate(models.Model):
     """
@@ -94,17 +140,26 @@ class PartEdgeBandWhitelist(models.Model):
         unique_together = ("part_template", "edgeband")
 
 
+class ProductHardwareRule(models.Model):
+    product = models.ForeignKey(ModularProduct, on_delete=models.CASCADE, related_name="hardware_rules")
+    hardware = models.ForeignKey(Hardware, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = ("product", "hardware")  # avoid duplicates
+
+    def __str__(self):
+        return f"{self.product} → {self.hardware} x{self.quantity}"
+
 class PartHardwareRule(models.Model):
-    """
-    LAYER 3: Hardware; quantity by expression.
-    Variables: product_* and part_* (length, width, qty) may be used.
-    """
     part_template = models.ForeignKey(PartTemplate, on_delete=models.CASCADE, related_name="hardware_rules")
     hardware = models.ForeignKey(Hardware, on_delete=models.CASCADE)
-    quantity_equation = models.CharField(max_length=255, default="1")  # e.g., "num_doors * 2", or "part_qty"
+    
+    # Equation to calculate quantity (e.g., 'part_width / 600 * 2')
+    quantity_equation = models.CharField(max_length=255, default="1") 
+    
+    # Optional: Condition for when this hardware applies (e.g., 'part_is_drawer == True')
+    applicability_condition = models.TextField(blank=True) 
 
     class Meta:
         unique_together = ("part_template", "hardware")
-
-    def __str__(self):
-        return f"{self.part_template} -> {self.hardware} ({self.quantity_equation})"

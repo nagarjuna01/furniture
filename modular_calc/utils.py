@@ -1,4 +1,5 @@
 from asteval import Interpreter
+from decimal import Decimal
 
 _ALLOWED_NAMES = {
     "min": min,
@@ -19,9 +20,15 @@ def build_context(product_dims: dict, part_thickness: float | int | None = None,
         "quantity":       float(product_dims.get("quantity", 1)),
     }
     if part_thickness is not None:
-        ctx["part_thickness"] = float(part_thickness)
+        ctx["part_thickness"] = Decimal(str(part_thickness)) # Cast thickness to Decimal
     if extras:
-        ctx.update(extras)
+        # Ensure any passed extras are also converted if they are numbers
+        for key, value in extras.items():
+            if isinstance(value, (float, int)):
+                 ctx[key] = Decimal(str(value))
+            else:
+                 ctx[key] = value
+        
     return ctx
 
 

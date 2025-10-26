@@ -1,6 +1,6 @@
 from decimal import Decimal
 from django.db import models, transaction
-from modular_calc.models import ModularProduct, PartTemplate, PartMaterialWhitelist, PartEdgeBandWhitelist, PartHardwareRule
+from modular_calc.models import ModularProduct, PartTemplate, PartMaterialWhitelist, PartEdgeBandWhitelist, ProductHardwareRule
 from material.models import WoodEn, EdgeBand, Hardware
 from modular_calc.utils import build_context, eval_expr, validate_product
 from django.conf import settings

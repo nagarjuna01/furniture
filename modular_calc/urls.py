@@ -1,30 +1,45 @@
-from rest_framework_nested import routers
 from django.urls import path, include
-from .views import (
-    ModularProductViewSet, PartTemplateViewSet,
-    PartMaterialWhitelistViewSet, PartEdgeBandWhitelistViewSet,
-    PartHardwareRuleViewSet, modular
-)
+from rest_framework.routers import DefaultRouter
+from . import views 
 
-# Main router
-router = routers.DefaultRouter()
-router.register(r"products", ModularProductViewSet, basename="products")
+# --- Router Setup ---
+# We use one router for all API endpoints, as they all fall under one architecture.
+router = DefaultRouter()
 
-# Nested router for parts under products
-products_router = routers.NestedDefaultRouter(router, r"products", lookup="product")
-products_router.register(
-    r"parts",
-    PartTemplateViewSet,
-    basename="product-parts"
-)
+# 🔑 Core CRUD Endpoint
+router.register(r'products', views.ModularProductViewSet, basename='modular-product')
 
-# Other isolated resources
-router.register(r"part-materials", PartMaterialWhitelistViewSet, basename="part-materials")
-router.register(r"part-edgebands", PartEdgeBandWhitelistViewSet, basename="part-edgebands")
-router.register(r"part-hardware", PartHardwareRuleViewSet, basename="part-hardware")
+# ----------------------------------------------------------------------------------
+# SOURCE DATA ENDPOINTS (Modified/Added to directly match the requested frontend paths)
+# ----------------------------------------------------------------------------------
 
+# 1. FIX: Register WoodEnFilterViewSet under 'materials/'
+# This resolves the 404 for GET /modularcalc/api/materials/
+router.register(r'materials', views.WoodEnFilterViewSet, basename='wooden-filter')
+
+# 2. FIX: Register EdgeBandFilterViewSet under 'edgebands/'
+# This resolves the 404 for GET /modularcalc/api/edgebands/
+router.register(r'edgebands', views.EdgeBandFilterViewSet, basename='edgeband-filter')
+
+# 3. NEW: Register HardwareFilterViewSet under 'hardware/'
+# This resolves the 404 for GET /modularcalc/api/hardware/
+router.register(r'hardware', views.HardwareFilterViewSet, basename='hardware-filter')
+
+
+# --- URL Patterns ---
 urlpatterns = [
-    path("api/", include(router.urls)),
-    path("api/", include(products_router.urls)),
-    path("modular/", modular, name="modular_page"),
+    # ----------------------------------------------------
+    # API ENDPOINTS 
+    # ----------------------------------------------------
+    
+    # The 'api/' prefix is defined here, which maps the router registers above:
+    # e.g., 'api/' + 'materials' -> /api/materials/
+    path('api/', include(router.urls)),
+
+    # ----------------------------------------------------
+    # UI/FRONTEND VIEW
+    # ----------------------------------------------------
+    
+    # Path to serve the main configuration UI
+    path('ui/', views.modular_config_ui, name='configurator_ui'),
 ]
