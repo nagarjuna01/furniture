@@ -1,0 +1,19 @@
+{% extends "base_product.html" %}
+
+{% block product_content %}
+<div class="row mb-3">
+    {% include 'includes/filters.html' %}
+</div>
+
+<div id="product-cards" class="row g-3">
+    {% include 'product/product_cards.html' %}
+</div>
+
+{% include 'product/modals/variant_modal.html' %}
+{% include 'product/modals/product_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/product.js' %}"></script>
+<script src="{% static 'js/variants.js' %}"></script>
+{% endblock %}

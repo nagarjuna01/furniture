@@ -2,14 +2,16 @@ const productApi = {
     list: '/products1/api/products/',
     // Add a detail method for consistency, used for GET/PUT/PATCH/DELETE on a single product
     detail: id => `/products1/api/products/${id}/`,
-    types: '/products1/api/types/',
-    models: '/products1/api/models/',
+    types: '/products1/api/product-types/',
+    models: '/products1/api/product-series/',
     // The 'update' is redundant if 'detail' is used for PUT/PATCH. I'll remove it below for clarity.
     // update: id => `/products1/api/products/${id}/`,
 };
-const productImageApi = { // New API endpoint for product images
-    list: '/products1/api/product-images/',
-    detail: id => `/products1/api/product-images/${id}/`,
+const productImageApi = {
+    upload: productId =>
+        `/products1/api/products/${productId}/upload-images/`,
+    delete: (productId, imageId) =>
+        `/products1/api/products/${productId}/delete-image/${imageId}/`,
 };
 
 $(function() {
@@ -69,132 +71,201 @@ $(function() {
         }
     }
 
-    // --- Product Variant Rendering (Keep as is) ---
-    function renderVariantSection(product, isCardView = false) {
-        const variantHtml = (product.variants_data || []).map(variant => {
-            const imgHtml = (variant.images && variant.images.length > 0)
-                ? `<div class="variant-image-gallery d-flex overflow-auto px-1" style="gap: 0.5rem; max-width: 100%; scroll-snap-type: x mandatory;">
-                        ${variant.images.map(img => `
-                          <div class="flex-shrink-0 border rounded shadow-sm" style="width: 75px; height: 75px; scroll-snap-align: start; overflow: hidden;">
-                            <img src="${img.image}" alt="Image" class="img-fluid" style="object-fit: cover; width: 100%; height: 100%;">
-                          </div>`).join('')}
-                    </div>`
-                : `<div class="text-muted">No images uploaded</div>`;
+    window.renderVariantSection =function renderVariantSection(product, isCardView = false) {
+    const variantHtml = (product.variants || []).map(variant => {
+    const imgHtml = (variant.images && variant.images.length > 0)
+            ? `<div class="variant-image-gallery d-flex overflow-auto"
+                style="gap: 0.5rem; scroll-snap-type: x mandatory;">
+                ${variant.images.map(img => `
+                    <div class="flex-shrink-0 border rounded shadow-sm"
+                        style="width: 75px; height: 75px; scroll-snap-align: start; overflow: hidden;">
+                        <img src="${resolveImageUrl(img.image)}"
+                            class="img-fluid"
+                            style="object-fit: cover; width: 100%; height: 100%;">
+                    </div>
+                `).join('')}
+            </div>`
+            : `<div class="text-muted small">No images uploaded</div>`;
 
-            const measurementUnitCode = variant.measurement_unit ? variant.measurement_unit.code : '';
-            const billingUnitCode = variant.billing_unit ? variant.billing_unit.code : '';
 
-            const attributesDisplay = (variant.attributes || [])
-                .map(attr => {
-                    const attrName = attr.attribute ? attr.attribute.name : 'N/A';
-                    return `<span class="badge bg-secondary me-1 mb-1">${attrName}: ${attr.value}</span>`;
-                }).join('');
+        const l = Number(variant.length || 0);
+        const w = Number(variant.width || 0);
+        const h = Number(variant.height || 0);
 
-            const variantInfo = `
-                <div><strong>SKU:</strong> ${variant.sku || '—'}</div>
-                <div><strong>L×W×H:</strong> ${Math.round(variant.length)}×${Math.round(variant.width)}×${Math.round(variant.height)} ${measurementUnitCode}</div>
-                <div><strong>Purchase:</strong> ₹${variant.purchase_price} | <strong>Selling:</strong> ₹${variant.selling_price} | ${billingUnitCode}</div>
-                ${attributesDisplay ? `<div class="mt-2">${attributesDisplay}</div>` : ''}
-            `;
+        const measurementUnitCode = variant.measurement_unit?.code || '';
+        const billingUnitCode = variant.billing_unit?.code || '';
 
-            const actionButtons = `
-                <div class="mt-3 text-end">
-                    <button class="btn btn-sm btn-outline-primary btn-edit-variant" data-id="${variant.id}" data-product="${product.id}">Edit</button>
-                    <button class="btn btn-sm btn-danger btn-delete-variant" data-id="${variant.id}" data-product="${product.id}"><i class="bi bi-trash"></i> Delete</button>
+        const attributesDisplay = (variant.attributes || [])
+            .map(attr => `
+                <span class="badge bg-secondary me-1 mb-1">
+                    ${attr.attribute?.name || 'N/A'}: ${attr.value}
+                </span>
+            `).join('');
+
+        const variantInfo = `
+            <div><strong>SKU:</strong> ${variant.sku || '—'}</div>
+            <div><strong>L×W×H:</strong> ${l}×${w}×${h} ${measurementUnitCode}</div>
+            <div>
+                <strong>Purchase:</strong> ₹${variant.purchase_price}
+                | <strong>Selling:</strong> ₹${variant.selling_price}
+                ${billingUnitCode}
+            </div>
+            ${attributesDisplay ? `<div class="mt-2">${attributesDisplay}</div>` : ''}
+        `;
+
+        const actionButtons = `
+            <div class="mt-3 text-end">
+                <button class="btn btn-sm btn-outline-primary btn-edit-variant"
+                        data-id="${variant.id}"
+                        data-product="${product.id}">
+                    Edit
+                </button>
+                <button class="btn btn-sm btn-danger btn-delete-variant"
+                        data-id="${variant.id}"
+                        data-product="${product.id}">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </div>
+        `;
+
+        return `
+            <div class="col-md-6 mb-3">
+                <div class="border rounded p-3 bg-light">
+                    <div class="row g-2 align-items-start">
+                        <div class="col-12">
+                            ${imgHtml}
+                        </div>
+                        <div class="col-12 small">
+                            ${variantInfo}
+                            ${actionButtons}
+                        </div>
+                    </div>
                 </div>
-            `;
+            </div>
+        `;
+    }).join('');
 
-            return isCardView
-                ? `<div class="col-md-12 mb-2"><div class="border rounded p-2 bg-white shadow-sm"><div class="row">
-                        <div class="col-auto pe-0">${imgHtml}</div>
-                        <div class="col ps-3 small">${variantInfo}${actionButtons}</div>
-                    </div></div></div>`
-                : `<div class="col-md-6 mb-3"><div class="border rounded p-3 bg-light"><div class="row">
-                        <div class="col-auto">${imgHtml}</div>
-                        <div class="col small">${variantInfo}${actionButtons}</div>
-                    </div></div></div>`;
-        }).join('');
+    return `
+        <div class="variant-section mt-2 collapse" id="variant-section-${product.id}">
+            <h6>Variants</h6>
+            <div class="row" id="variant-list-${product.id}">
+                ${variantHtml || '<p class="text-muted small">No variants available</p>'}
+            </div>
+        </div>
+    `;
+}
 
-        return `<div class="variant-section mt-2 collapse" id="variant-section-${product.id}">
-                    <h6>Variants</h6>
-                    <div class="row" id="variant-list-${product.id}">${variantHtml || '<p class="text-muted">No variants available</p>'}</div>
-                </div>`;
-    }
 
     // --- Main Product Loading (Updated for primary_image) ---
     function loadProducts() {
-        const isCardView = $('#viewToggleSwitch').is(':checked');
-        const $tableBody = $('#productTableBody').empty();
-        const $cardContainer = $('#productCardView').empty();
+    const isCardView = $('#viewToggleSwitch').is(':checked');
+    const $tableBody = $('#productTableBody').empty();
+    const $cardContainer = $('#productCardView').empty();
 
-        $.get(productApi.list, function (data) {
-            const products = data.results || [];
-            products.forEach(product => {
-                // Use product.primary_image for the main product display
-                const imageUrl = product.primary_image || ''; 
-                const productButtons = `
-                    <button class="btn btn-sm btn-primary me-1 edit-product" data-id="${product.id}"><i class="bi bi-pencil-square"></i></button>
-                    <button class="btn btn-sm btn-outline-success me-1" onclick="openVariantModal(${product.id})"><i class="bi bi-plus-lg"></i></button>
-                    <button class="btn btn-sm btn-outline-dark me-1" data-bs-toggle="collapse" data-bs-target="#variant-section-${product.id}"><i class="bi bi-chevron-down"></i></button>
-                    <button class="btn btn-sm btn-danger delete-product" data-id="${product.id}"><i class="bi bi-trash"></i></button>
-                `;
-                const statusBtn = `
-                    <button class="btn btn-sm toggle-status-btn btn-${product.is_active ? 'success' : 'secondary'}"
-                            data-id="${product.id}"
-                            data-status="${product.is_active ? 'active' : 'inactive'}">
-                        ${product.is_active ? 'Active' : 'Inactive'}
-                    </button>`;
-                if (isCardView) {
-                    const cardHtml = `
-                        <div class="col-md-4 mb-4">
-                          <div class="card h-100 shadow-sm">
-                            ${imageUrl
-                              ? `<img src="${imageUrl}" class="card-img-top img-fluid object-fit-cover" style="height: 180px;" alt="${product.name}">`
-                              : `<div class="d-flex align-items-center justify-content-center bg-light text-muted" style="height: 180px;">No Image</div>`
-                            }
-                            <div class="card-body">
-                              <h5 class="card-title mb-1">${product.name}</h5>
-                              <p class="card-text small text-muted mb-2">
+    $.get(productApi.list, function (data) {
+        const products = data.results || [];
+
+        products.forEach(product => {
+
+            // ✅ IMAGE RESOLUTION (VERY IMPORTANT)
+            const resolvedImage =
+                product.primary_image ||
+                (product.images && product.images.length ? product.images[0].image : null) ||
+                null;
+
+            const productButtons = `
+                <button class="btn btn-sm btn-primary me-1 edit-product" data-id="${product.id}">
+                    <i class="bi bi-pencil-square"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success me-1" onclick="openVariantModal(${product.id})">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-dark me-1"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#variant-section-${product.id}">
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                
+            `;
+
+            const statusBtn = `
+                <button class="btn btn-sm toggle-status-btn btn-${product.is_active ? 'success' : 'secondary'}"
+                        data-id="${product.id}"
+                        data-status="${product.is_active ? 'active' : 'inactive'}">
+                    ${product.is_active ? 'Active' : 'Inactive'}
+                </button>
+            `;
+
+            if (isCardView) {
+
+                const cardHtml = `
+                <div class="col-md-4 mb-4 product-card" data-product-id="${product.id}">
+                    <div class="card h-100 shadow-sm">
+
+                        <!-- ✅ IMAGE SLOT ALWAYS EXISTS -->
+                        <img
+                            src="${resolvedImage}"
+                            class="card-img-top product-card-image object-fit-cover"
+                            style="height:180px;"
+                            alt="${product.name}"
+                        >
+
+                        <div class="card-body">
+                            <h5 class="card-title mb-1">${product.name}</h5>
+
+                            <p class="card-text small text-muted mb-2">
                                 <strong>SKU:</strong> ${product.sku || '—'}<br>
-                                <strong>Type:</strong> ${product.type?.name || '—'}<br>
-                                <strong>Model:</strong> ${product.model?.name || '—'}
-                              </p>
-                              <div class="mb-2">${statusBtn}</div>
-                              <div class="d-flex justify-content-between">${productButtons}</div>
-                              ${renderVariantSection(product, isCardView)}
+                                <strong>Type:</strong> ${product.product_type?.name || '—'}<br>
+                                <strong>Model:</strong> ${product.product_series?.name || '—'}
+                            </p>
+
+                            <div class="mb-2">${statusBtn}</div>
+
+                            <div class="d-flex justify-content-between mb-2">
+                                ${productButtons}
                             </div>
-                          </div>
-                        </div>`;
-                    $cardContainer.append(cardHtml);
-                } else {
-                    const rowHtml = `
-                        <tr>
-                          <td colspan="6">
-                            <div class="d-flex justify-content-between align-items-center">
-                              <div>
+
+                            ${renderVariantSection(product, isCardView)}
+                        </div>
+                    </div>
+                </div>
+                `;
+
+                $cardContainer.append(cardHtml);
+
+            } else {
+ 
+                const rowHtml = `
+                <tr>
+                    <td colspan="6">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
                                 <h6 class="mb-1">${product.name}</h6>
                                 <div class="small text-muted">
-                                  SKU: ${product.sku || '—'} | Type: ${product.type?.name || '—'} | Model: ${product.model?.name || '—'}
+                                    SKU: ${product.sku || '—'} |
+                                    Type: ${product.product_type?.name || '—'} |
+                                    Model: ${product.product_series?.name || '—'}
                                 </div>
                                 <div class="mt-2">${statusBtn}</div>
-                              </div>
-                              <div>${productButtons}</div>
                             </div>
-                            ${renderVariantSection(product, isCardView)}
-                          </td>
-                        </tr>`;
-                    $tableBody.append(rowHtml);
-                }
-            });
-        }).fail(err => {
-            console.error('Error loading products', err);
-            showToast('Failed to load products', 'danger');
+                            <div>${productButtons}</div>
+                        </div>
+
+                        ${renderVariantSection(product, isCardView)}
+                    </td>
+                </tr>
+                `;
+
+                $tableBody.append(rowHtml);
+            }
         });
-    }
 
-    // --- Product Modal Logic (UPDATED for Images) ---
+    }).fail(err => {
+        console.error('Error loading products', err);
+        showToast('Failed to load products', 'danger');
+    });
+}
 
-    // Global function for openProductModal to be callable from HTML
     window.openProductModal = function(productId = null) {
         const isEdit = productId !== null;
         $('#productForm')[0].reset();
@@ -285,8 +356,8 @@ $(function() {
         const id = $('#product-id').val();
         const payload = {
             name: $('#product-name').val(),
-            type_id: $('#product-type-id').val(),
-            model_id: $('#product-model-id').val(),
+            product_type_id: $('#product-type-id').val() || null,
+            product_series_id: $('#product-model-id').val() || null,
         };
         const method = id ? 'PUT' : 'POST';
         const url = id ? productApi.detail(id) : productApi.list; // Use productApi.detail or list
@@ -347,77 +418,76 @@ $(function() {
     // --- NEW PRODUCT IMAGE FUNCTIONS ---
 
     // Helper function to display an image in the preview area of the product modal
-    function displayProductImagePreview(imageUrl, imageId) {
-        // 'primary-mock' is a placeholder ID if your backend only sends primary_image URL,
-        // indicating it's not a deletable image record.
-        const isDeletable = imageId !== 'primary-mock';
-        $('#product-image-preview').append(`
-            <div class="product-image-wrapper d-inline-block position-relative me-2 mb-2">
-                <img src="${imageUrl}" class="img-thumbnail" style="height: 80px;">
-                ${isDeletable ? `
-                <button type="button" class="btn btn-sm btn-danger btn-delete-product-image position-absolute top-0 end-0"
-                        data-id="${imageId}" title="Delete image" style="font-size: 0.7em; padding: 0.1em 0.4em; line-height: 1; border-radius: 50%;">
-                    <i class="bi bi-x"></i>
-                </button>
-                ` : ''}
-            </div>
-        `);
-    }
+    function displayProductImagePreview(imageUrl, imageId, productId) {
+    $('#product-image-preview').append(`
+        <div class="product-image-wrapper d-inline-block position-relative me-2 mb-2">
+            <img src="${imageUrl}" class="img-thumbnail" style="height: 80px;">
+            <button type="button"
+                    class="btn btn-sm btn-danger btn-delete-product-image position-absolute top-0 end-0"
+                    data-id="${imageId}"
+                    data-product-id="${productId}"
+                    title="Delete image"
+                    style="font-size: 0.7em; padding: 0.1em 0.4em; line-height: 1; border-radius: 50%;">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    `);
+}
 
-    // Function to upload new product images
     function uploadProductImages(productId, files) {
-        const uploadPromises = [];
-        for (let file of files) {
-            const formData = new FormData();
-            formData.append("product", productId); // Link image to the product
-            formData.append('image', file);
-            formData.append('is_primary', false); // Default, needs specific UI/logic to set as primary
+    const uploadPromises = [];
 
-            const promise = $.ajax({
-                url: productImageApi.list, // API endpoint for product images creation
-                method: 'POST',
-                headers: { 'X-CSRFToken': csrftoken },
-                processData: false, // Important for FormData
-                contentType: false, // Important for FormData
-                data: formData,
-                success: (response) => {
-                    console.log('Product image uploaded:', file.name, response);
-                    // No need to display here, loadProducts() will refresh everything
-                },
-                error: (xhr) => {
-                    console.error('Product image upload failed for ' + file.name + ':', xhr.responseJSON || xhr.responseText);
-                    showToast(`Failed to upload image: ${file.name}`, 'danger');
-                }
-            });
-            uploadPromises.push(promise);
-        }
-        return Promise.all(uploadPromises); // Return a promise that resolves when all uploads are done
+    for (let file of files) {
+        const formData = new FormData();
+        formData.append('images', file); // ✅ MUST be "images"
+
+        const promise = $.ajax({
+            url: productImageApi.upload(productId),
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken },
+            processData: false,
+            contentType: false,
+            data: formData,
+        }).done(res => {
+            console.log('Product image uploaded:', file.name, res);
+        }).fail(xhr => {
+            console.error(
+                'Product image upload failed:',
+                file.name,
+                xhr.responseJSON || xhr.responseText
+            );
+            showToast(`Failed to upload image: ${file.name}`, 'danger');
+        });
+
+        uploadPromises.push(promise);
     }
 
-    // Event handler for deleting product images from the modal
-    $(document).on('click', '.btn-delete-product-image', function () {
-        const imageId = $(this).data('id');
-        const $wrapper = $(this).closest('.product-image-wrapper'); // Get the parent wrapper to remove it
+    return Promise.all(uploadPromises);
+}
+$(document).on('click', '.btn-delete-product-image', function () {
+    const imageId = $(this).data('id');
+    const productId = $(this).data('product-id');
+    const $wrapper = $(this).closest('.product-image-wrapper');
 
-        if (!confirm('Are you sure you want to delete this image?')) {
-            return;
-        }
+    if (!confirm('Are you sure you want to delete this image?')) return;
 
-        $.ajax({
-            url: productImageApi.detail(imageId), // Use productImageApi.detail
-            method: 'DELETE',
-            headers: { 'X-CSRFToken': csrftoken },
-            success: function () {
-                showToast('Product image deleted', 'success');
-                $wrapper.remove(); // Remove the image preview from the modal
-                loadProducts(); // Reload products to update the main view if primary image changes
-            },
-            error: function (xhr) {
-                console.error('Failed to delete product image', xhr.responseJSON || xhr.responseText);
-                showToast('Failed to delete image', 'danger');
-            }
-        });
+    $.ajax({
+        url: productImageApi.delete(productId, imageId),
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': csrftoken },
+    }).done(() => {
+        showToast('Product image deleted', 'success');
+        $wrapper.remove();
+        loadProducts();
+    }).fail(xhr => {
+        console.error(
+            'Failed to delete product image',
+            xhr.responseJSON || xhr.responseText
+        );
+        showToast('Failed to delete image', 'danger');
     });
+});
+
 
     // Clear product image input and preview when modal is hidden
     $('#productModal').on('hidden.bs.modal', function () {
@@ -443,10 +513,7 @@ $(function() {
         loadProducts();
     });
 
-    $('#productTableBody').on('click', '.delete-product', function() {
-        const productId = $(this).data('id');
-        deleteProduct(productId);
-    });
+     
 
     // This handles filtering models based on selected type
     $('#product-type-id').on('change', function () {
@@ -497,9 +564,3 @@ $(function() {
     loadProducts();
 });
 
-// IMPORTANT: Define openVariantModal and addAttributeRow if they are used elsewhere and not defined in products.js
-// If these are in separate files (e.g., variant.js), ensure they are loaded correctly.
-// For this example, I'm assuming openVariantModal exists globally.
-// If it's not defined, uncomment and move the full definition here or ensure its file is loaded.
-// window.openVariantModal = function(productId, variantId = null) { /* ... variant modal logic ... */ };
-// window.addAttributeRow = function() { /* ... attribute row logic ... */ };

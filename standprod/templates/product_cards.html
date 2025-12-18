@@ -1,0 +1,14 @@
+{% for product in products %}
+<div class="col-md-4">
+    <div class="card h-100">
+        <img src="{{ product.images.0.image.url }}" class="card-img-top" alt="{{ product.name }}">
+        <div class="card-body">
+            <h5 class="card-title">{{ product.name }}</h5>
+            <p class="card-text">SKU: {{ product.sku }}</p>
+            <p class="card-text">Variants: {{ product.variants.count }}</p>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#variantModal" data-product-id="{{ product.id }}">Manage Variants</button>
+        </div>
+    </div>
+</div>
+{% endfor %}

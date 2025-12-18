@@ -1,6 +1,8 @@
 from decimal import Decimal, ROUND_HALF_UP
 from asteval import Interpreter
-from material.models import WoodEn, EdgeBand
+from material.models.wood import WoodMaterial
+from material.models.edgeband import EdgeBand
+from material.models.hardware import Hardware
 
 MM2_TO_SQFT = Decimal('0.0000107639')
 
@@ -23,7 +25,7 @@ class QuoteCalculator:
         self.aeval.symtable.update(self.context)
         return self.aeval(expression)
 
-    def calculate_part(self, part_template, selected_material: WoodEn, edges: dict):
+    def calculate_part(self, part_template, selected_material: WoodMaterial, edges: dict):
         try:
             length = Decimal(self.evaluate(part_template.part_length_equation))
             width = Decimal(self.evaluate(part_template.part_width_equation))

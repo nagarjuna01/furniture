@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Part Evaluation Test</title>
+    <style>
+        table { border-collapse: collapse; width: 70%; margin: 20px auto; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    </style>
+</head>
+<body>
+<h2 style="text-align:center;">Part Evaluation Test</h2>
+
+<form method="GET" style="text-align:center;">
+    Product Length (mm): <input type="number" name="product_length" value="{{ product_length|default:1000 }}">
+    Width (mm): <input type="number" name="product_width" value="{{ product_width|default:500 }}">
+    Height (mm): <input type="number" name="product_height" value="{{ product_height|default:800 }}">
+    <button type="submit">Evaluate</button>
+</form>
+
+{% if parts %}
+<table>
+    <thead>
+        <tr>
+            <th>Part Name</th>
+            <th>Length (mm)</th>
+            <th>Width (mm)</th>
+            <th>Qty</th>
+            <th>Material</th>
+            <th>Edgebands</th>
+            <th>Area (sqft)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in parts %}
+        <tr>
+            <td>{{ p.part_name }}</td>
+            <td>{{ p.length }}</td>
+            <td>{{ p.width }}</td>
+            <td>{{ p.quantity }}</td>
+            <td>{{ p.material_obj.name if p.material_obj }}</td>
+            <td>
+                Top: {{ p.edgeband_objs.top.name if p.edgeband_objs.top }}<br>
+                Bottom: {{ p.edgeband_objs.bottom.name if p.edgeband_objs.bottom }}<br>
+                Left: {{ p.edgeband_objs.left.name if p.edgeband_objs.left }}<br>
+                Right: {{ p.edgeband_objs.right.name if p.edgeband_objs.right }}
+            </td>
+            <td>{{ (p.length * p.width * p.quantity * p.shape_wastage_multiplier * 0.0000107639)|floatformat:4 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+</body>
+</html>

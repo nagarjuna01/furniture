@@ -11,10 +11,11 @@ from products.models import (
 )
 
 # Import models from the 'material' app (where Category, WoodEn, etc. reside)
-from material.models import (
-    Brand, Category, CategoryTypes, CategoryModel,
-    WoodEn, EdgeBand, HardwareGroup, Hardware
-)
+from material.models.wood import WoodMaterial
+from material.models.edgeband import EdgeBand
+from material.models.hardware import Hardware,HardwareGroup
+from material.models.brand import Brand
+from material.models.category import Category,CategoryModel,CategoryTypes
 
 # Import mocks for external functions (assuming mock_dependencies.py is in products/tests/)
 from .mock_dependencies import (
@@ -45,7 +46,7 @@ class ModelSetupMixin:
         self.cat_model_bwr = CategoryModel.objects.create(model_category=self.cat_type_ply, name="BWR GRADE")
 
         # WoodEn Material 1 (standard)
-        self.wooden_material_1 = WoodEn.objects.create(
+        self.wooden_material_1 = WoodMaterial.objects.create(
             material_grp=self.cat_wood,
             material_type=self.cat_type_ply,
             material_model=self.cat_model_mr,
@@ -67,7 +68,7 @@ class ModelSetupMixin:
         self.wooden_material_1.save()
 
         # WoodEn Material 2 (per sqft pricing, different thickness)
-        self.wooden_material_2 = WoodEn.objects.create(
+        self.wooden_material_2 = WoodMaterial.objects.create(
             material_grp=self.cat_wood,
             material_type=self.cat_type_ply,
             material_model=self.cat_model_bwr,

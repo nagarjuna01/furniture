@@ -1,6 +1,8 @@
 from asteval import Interpreter
 from decimal import Decimal, ROUND_HALF_UP
-from material.models import WoodEn, EdgeBand
+from material.models.wood import WoodMaterial
+from material.models.edgeband import EdgeBand
+from material.models.hardware import Hardware
 
 MM2_TO_SQFT = Decimal('0.0000107639')
 

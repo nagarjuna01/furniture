@@ -2,7 +2,8 @@ from django.db import models
 from decimal import Decimal
 from .material_link import Part1
 from .modular import Modular1, HardwareRule
-from material.models import WoodEn, Hardware
+from material.models.wood import WoodMaterial
+from material.models.hardware import Hardware
 
 
 class QuoteRequest(models.Model):
@@ -31,7 +32,7 @@ class QuotePartDetail(models.Model):
     part_template = models.ForeignKey(Part1, on_delete=models.CASCADE)
     part_name = models.CharField(max_length=255)
 
-    selected_material = models.ForeignKey(WoodEn, on_delete=models.SET_NULL, null=True, blank=True)
+    selected_material = models.ForeignKey(WoodMaterial, on_delete=models.SET_NULL, null=True, blank=True)
     evaluated_dimensions = models.JSONField(default=dict)
     evaluated_qty = models.PositiveIntegerField()
     evaluated_area = models.DecimalField(max_digits=10, decimal_places=4)

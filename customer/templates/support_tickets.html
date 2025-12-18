@@ -1,0 +1,141 @@
+{% extends 'base_crm.html' %}
+{% block title %}Support Tickets{% endblock %}
+
+{% block content %}
+<h3>Support Tickets</h3>
+<button class="btn btn-primary my-2" data-bs-toggle="modal" data-bs-target="#ticketModal">Add Ticket</button>
+
+<table class="table table-bordered" id="tickets-table">
+    <thead>
+        <tr>
+            <th>ID</th><th>Customer</th><th>Subject</th><th>Description</th><th>Status</th><th>Priority</th><th>Assigned To</th><th>Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<!-- Modal for Create/Edit -->
+<div class="modal fade" id="ticketModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="ticket-form" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Support Ticket</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% csrf_token %}
+        <input type="hidden" id="ticket-id">
+        <div class="mb-3"><label>Customer ID</label><input type="number" id="customer" class="form-control" required></div>
+        <div class="mb-3"><label>Subject</label><input type="text" id="subject" class="form-control" required></div>
+        <div class="mb-3"><label>Description</label><textarea id="description" class="form-control" rows="3"></textarea></div>
+        <div class="mb-3">
+            <label>Status</label>
+            <select id="status" class="form-select">
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label>Priority</label>
+            <select id="priority" class="form-select">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+            </select>
+        </div>
+        <div class="mb-3"><label>Assigned To (User ID)</label><input type="number" id="assigned_to" class="form-control"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function fetchTickets() {
+    $.get('/customerCRM/api/supporttickets/', function(data){
+        let rows = '';
+        data.forEach(t => {
+            rows += `<tr>
+                <td>${t.id}</td>
+                <td>${t.customer || '-'}</td>
+                <td>${t.subject}</td>
+                <td>${t.description || '-'}</td>
+                <td>${t.status}</td>
+                <td>${t.priority}</td>
+                <td>${t.assigned_to || '-'}</td>
+                <td>
+                    <button class="btn btn-sm btn-warning edit-ticket" data-id="${t.id}">Edit</button>
+                    <button class="btn btn-sm btn-danger delete-ticket" data-id="${t.id}">Delete</button>
+                </td>
+            </tr>`;
+        });
+        $('#tickets-table tbody').html(rows);
+    });
+}
+
+$(document).ready(function(){
+    fetchTickets();
+
+    $('#ticket-form').submit(function(e){
+        e.preventDefault();
+        let id = $('#ticket-id').val();
+        let method = id ? 'PUT' : 'POST';
+        let url = id ? `/customerCRM/api/supporttickets/${id}/` : '/customerCRM/api/supporttickets/';
+        $.ajax({
+            type: method,
+            url: url,
+            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+            data: {
+                customer: $('#customer').val(),
+                subject: $('#subject').val(),
+                description: $('#description').val(),
+                status: $('#status').val(),
+                priority: $('#priority').val(),
+                assigned_to: $('#assigned_to').val()
+            },
+            success: function(){
+                toastr.success('Ticket saved successfully');
+                $('#ticketModal').modal('hide');
+                fetchTickets();
+                $('#ticket-form')[0].reset();
+                $('#ticket-id').val('');
+            },
+            error: function(xhr){ toastr.error(xhr.responseText); }
+        });
+    });
+
+    $(document).on('click', '.edit-ticket', function(){
+        let id = $(this).data('id');
+        $.get(`/customerCRM/api/supporttickets/${id}/`, function(t){
+            $('#ticket-id').val(t.id);
+            $('#customer').val(t.customer);
+            $('#subject').val(t.subject);
+            $('#description').val(t.description);
+            $('#status').val(t.status);
+            $('#priority').val(t.priority);
+            $('#assigned_to').val(t.assigned_to);
+            $('#ticketModal').modal('show');
+        });
+    });
+
+    $(document).on('click', '.delete-ticket', function(){
+        if(!confirm('Delete this ticket?')) return;
+        let id = $(this).data('id');
+        $.ajax({
+            type: 'DELETE',
+            url: `/customerCRM/api/supporttickets/${id}/`,
+            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+            success: function(){ toastr.success('Deleted'); fetchTickets(); },
+            error: function(xhr){ toastr.error(xhr.responseText); }
+        });
+    });
+});
+</script>
+{% endblock %}

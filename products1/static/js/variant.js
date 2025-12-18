@@ -1,12 +1,13 @@
 // ---------------- API MAP --------------------
 const variantApi = {
-    list: productId => `/products1/api/products/${productId}/variants/`,
+    list: productId => `/products1/api/variants/?product=${productId}`,
     detail: id => `/products1/api/variants/${id}/`,
     attributes: '/products1/api/attributes/',
 };
 
 console.debug('master_admin.js initialized');
 console.debug('showToast loaded:', typeof showToast);
+
 
 let attributeDefinitions = [];
 
@@ -49,6 +50,24 @@ function loadBillingUnits() {
             $select.append(`<option value="${u.id}">${u.name}</option>`);
         });
     });
+}
+function loadVariants(productId) {
+    console.debug('Loading variants for product:', productId);
+
+    $.get(`/products1/api/products/${productId}/`)
+        .done(product => {
+            console.debug('Product with variants loaded:', product);
+
+            const html = renderVariantSection(product);
+            $(`#variant-section-${productId}`).replaceWith(html);
+
+            // Auto-open the variants section
+            $(`#variant-section-${productId}`).collapse('show');
+        })
+        .fail(err => {
+            console.error('Failed to load variants', err);
+            showToast('Failed to reload variants', 'danger');
+        });
 }
 
 // ----------------- VALUE INPUT RENDER ----------------
@@ -217,20 +236,20 @@ $('#variantForm').on('submit', function (e) {
     e.preventDefault();
 
     const variantId = $(this).data('variant-id');
-    const productId = $('#variant-product-id').val(); // Get product ID from hidden field
+    const productId = $('#variant-product-id').val();
     const method = variantId ? 'PUT' : 'POST';
-    const url = variantId ? variantApi.detail(variantId) : variantApi.list(productId); // Correct URL for POST/PUT
+    const url = variantId ? variantApi.detail(variantId) : variantApi.list(productId);
     const csrftoken = $('[name="csrfmiddlewaretoken"]').val();
 
     const payload = {
-        product: productId, // Send product ID as 'product' for the serializer's FK
+        product_id: productId,
         length: parseFloat($('#variant-length').val()) || 0,
         width: parseFloat($('#variant-width').val()) || 0,
         height: parseFloat($('#variant-height').val()) || 0,
         purchase_price: parseFloat($('#variant-purchase-price').val()) || 0,
         selling_price: parseFloat($('#variant-selling-price').val()) || 0,
-        measurement_unit: parseInt($('#variant-measurement-unit').val()) || null, // Send ID as 'measurement_unit' for the FK
-        billing_unit: parseInt($('#variant-billing-unit').val()) || null,       // Send ID as 'billing_unit' for the FK
+        measurement_unit_id: $('#variant-measurement-unit').val() ? parseInt($('#variant-measurement-unit').val()) : null,
+        billing_unit_id: $('#variant-billing-unit').val() ? parseInt($('#variant-billing-unit').val()) : null,
         attributes: []
     };
 
@@ -238,27 +257,16 @@ $('#variantForm').on('submit', function (e) {
         const attrSelect = $(this).find('select[name="attribute_definition"]');
         const attrId = attrSelect.val();
         const valueEl = $(this).find('[name="attribute_value"]');
-        let value = valueEl.val();
+        let value = valueEl.attr('type') === 'checkbox' ? valueEl.prop('checked') : valueEl.val();
 
-        // Handle boolean values from checkbox
-        if (valueEl.attr('type') === 'checkbox') {
-            value = valueEl.prop('checked');
-        }
-
-        if (attrId) { // Only add if an attribute is selected
-            const attributeValue = {
-                attribute_id: parseInt(attrId), // Make sure it's an integer for the backend
-                value: value !== null ? String(value) : '' // Ensure value is a string or empty string
-            };
-
-            // If it's an existing attribute on the variant, include its ID for update/delete logic
-            const currentAttrIdOnRow = $(this).data('variant-attr-id'); // Assuming you store this when loading
-            if (currentAttrIdOnRow) {
-                attributeValue.id = currentAttrIdOnRow;
-            }
+        if (attrId) {
+            const attributeValue = { attribute_id: parseInt(attrId), value: String(value) };
+            const currentAttrIdOnRow = $(this).data('variant-attr-id');
+            if (currentAttrIdOnRow) attributeValue.id = currentAttrIdOnRow;
             payload.attributes.push(attributeValue);
         }
     });
+
     console.log("Submitting payload:", payload);
 
     $.ajax({
@@ -268,42 +276,37 @@ $('#variantForm').on('submit', function (e) {
         contentType: 'application/json',
         data: JSON.stringify(payload),
         success: function (variant) {
-            $('#variantModal').modal('hide');
-            showToast('Variant saved', 'success');
-
             const imageFiles = $('#variant-images')[0].files;
-            if (imageFiles.length > 0) {
-                uploadVariantImages(variant.id, imageFiles);
-            }
 
-            // Reload variants for the specific product after save
-            if (typeof loadVariants === 'function') {
-                loadVariants(productId); // Make sure this reloads for the current product
-            } else if (typeof loadProducts === 'function') {
-                loadProducts(); // Fallback to reloading all products
-            } else {
-                console.warn('No product or variant reload method available after save.');
-            }
+            const uploadPromise = imageFiles.length > 0
+                ? uploadVariantImages(variant.id, imageFiles)
+                : Promise.resolve();
+
+            uploadPromise
+                .then(() => {
+                    $('#variantModal').modal('hide');
+                    showToast('Variant saved successfully', 'success');
+                    if (typeof loadVariants === 'function') loadVariants(productId);
+                    else window.loadProducts?.();
+                })
+                .catch(() => {
+                    $('#variantModal').modal('hide');
+                    showToast('Variant saved, but some images failed to upload', 'warning');
+                    if (typeof loadVariants === 'function') loadVariants(productId);
+                    else window.loadProducts?.();
+                });
         },
         error: function (xhr) {
             console.error('Variant save failed:', xhr.responseJSON || xhr.responseText);
             let errorMessage = 'Failed to save variant';
             if (xhr.responseJSON) {
-                // Try to extract a more specific error message from DRF validation errors
                 try {
                     const errors = xhr.responseJSON;
-                    if (errors.non_field_errors) {
-                        errorMessage += `: ${errors.non_field_errors.join(', ')}`;
-                    } else if (errors.detail) {
-                        errorMessage += `: ${errors.detail}`;
-                    } else {
-                        // Iterate through field errors
-                        for (const field in errors) {
-                            errorMessage += `\n${field}: ${errors[field].join(', ')}`;
-                        }
-                    }
+                    if (errors.non_field_errors) errorMessage += `: ${errors.non_field_errors.join(', ')}`;
+                    else if (errors.detail) errorMessage += `: ${errors.detail}`;
+                    else Object.keys(errors).forEach(f => errorMessage += `\n${f}: ${errors[f].join(', ')}`);
                 } catch (e) {
-                    console.error("Error parsing error response:", e);
+                    console.error("Error parsing response:", e);
                 }
             }
             showToast(errorMessage, 'danger');
@@ -314,35 +317,49 @@ $('#variantForm').on('submit', function (e) {
 // ---------------- IMAGE UPLOAD ----------------------
 function uploadVariantImages(variantId, files) {
     const csrftoken = $('[name="csrfmiddlewaretoken"]').val();
-    // Use Promise.all to know when all uploads are done (optional, but good practice)
-    const uploadPromises = [];
-    for (let file of files) {
-        const formData = new FormData();
-        formData.append("variant", variantId);
-        formData.append('image', file);
+    const formData = new FormData();
 
-        const promise = $.ajax({
-            url: '/products1/api/variant-images/',
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrftoken },
-            processData: false, // Important for FormData
-            contentType: false, // Important for FormData
-            data: formData,
-            success: () => console.log('Image uploaded:', file.name),
-            error: err => console.error('Image upload failed for ' + file.name + ':', err)
-        });
-        uploadPromises.push(promise);
+    // IMPORTANT: append all images under the SAME key
+    for (let file of files) {
+        formData.append("images", file);
     }
-    // You might want to do something when all images are uploaded
-    Promise.all(uploadPromises)
-        .then(() => {
-            console.log("All images uploaded successfully for variant:", variantId);
-            // Optionally reload variant images in the modal or list if needed
-        })
-        .catch(err => {
-            console.error("One or more image uploads failed:", err);
-        });
+
+    return $.ajax({
+        url: `/products1/api/variants/${variantId}/upload-images/`,
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken },
+        processData: false,
+        contentType: false,
+        data: formData
+    })
+    .done(() => {
+        console.log("Images uploaded successfully for variant:", variantId);
+    })
+    .fail(xhr => {
+        console.error(
+            "Image upload failed:",
+            xhr.responseJSON || xhr.responseText
+        );
+        throw xhr;
+    });
 }
+function resolveImageUrl(url) {
+    if (!url) return '';
+
+    // Absolute URL → return as-is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+    }
+
+    // Media-relative path
+    if (url.startsWith('/media/')) {
+        return url;
+    }
+
+    // Fallback (relative media)
+    return `/media/${url}`;
+}
+
 
 // ---------------- DELETE VARIANT ----------------------
 $(document).on('click', '.btn-delete-variant', function () {
@@ -361,7 +378,7 @@ $(document).on('click', '.btn-delete-variant', function () {
             if (typeof loadVariants === 'function') {
                 loadVariants(productId);
             } else {
-                loadProducts(); // Fallback
+                window.loadProducts(); // Fallback
             }
         },
         error: function (xhr) {
@@ -371,18 +388,25 @@ $(document).on('click', '.btn-delete-variant', function () {
     });
 });
 
-// ----------------- EDIT ---------------------------
 $(document).on('click', '.btn-edit-variant', function () {
     const variantId = $(this).data('id');
-    const productId = $(this).data('product'); // Ensure this data attribute is correctly set on the button
+    const productId = $(this).data('product');
 
-    $.get(variantApi.detail(variantId), function (variant) {
-        openVariantModal(productId, variant);
-    }).fail(err => {
-        console.error('Failed to load variant for editing', err);
-        showToast('Could not load variant data', 'danger');
-    });
+    if (!variantId || !productId) {
+        console.warn('Missing variantId or productId on edit button');
+        return;
+    }
+
+    $.get(variantApi.detail(variantId))
+        .done(variant => {
+            openVariantModal(productId, variant);
+        })
+        .fail(err => {
+            console.error('Failed to load variant for editing', err);
+            showToast('Could not load variant data', 'danger');
+        });
 });
+
 
 // ------------- MODAL RESET -------------------------
 $('#variantModal').on('hidden.bs.modal', function () {
@@ -395,22 +419,28 @@ $('#variantModal').on('hidden.bs.modal', function () {
 
 $(document).on('click', '.btn-delete-image', function () {
     const imageId = $(this).data('id');
+    const variantId = $('#variantForm').data('variant-id');
     const csrftoken = $('[name="csrfmiddlewaretoken"]').val();
     const $wrapper = $(this).closest('.variant-image-wrapper');
+
+    if (!variantId) {
+        console.error('Variant ID missing while deleting image');
+        return;
+    }
 
     if (!confirm('Delete this image?')) return;
 
     $.ajax({
-        url: `/products1/api/variant-images/${imageId}/`,
+        url: `/products1/api/variants/${variantId}/delete-image/${imageId}/`,
         method: 'DELETE',
         headers: { 'X-CSRFToken': csrftoken },
-        success: function () {
-            showToast('Image deleted', 'success');
-            $wrapper.remove();
-        },
-        error: function (xhr) {
-            console.error('Failed to delete image', xhr.responseText);
-            showToast('Delete failed', 'danger');
-        }
+    })
+    .done(() => {
+        showToast('Image deleted', 'success');
+        $wrapper.remove();
+    })
+    .fail(xhr => {
+        console.error('Failed to delete image', xhr.responseText);
+        showToast('Delete failed', 'danger');
     });
 });

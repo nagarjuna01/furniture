@@ -9,7 +9,10 @@ from .models import (
     Constraint, ModularProductModule, ModularProductMaterialOverride,
     Coupon, Review, StandardProductImage
 )
-from material.models import WoodEn, EdgeBand, Hardware, Brand, HardwareGroup
+from material.models.wood import WoodMaterial
+from material.models.edgeband import EdgeBand
+from material.models.hardware import Hardware
+from material.models.brand import Brand
 from material.serializers import WoodEnSerializer,EdgeBandSerializer,HardwareGroupSerializer, HardwareSerializer, BrandSerializer
 
 # --- Basic Classification & Units Serializers (No changes) ---
@@ -98,7 +101,7 @@ class PartSerializer(serializers.ModelSerializer):
     # --- For Writing (Input) ---
     # These fields accept IDs and map them to the corresponding ForeignKey
     material_id = serializers.PrimaryKeyRelatedField(
-        queryset=WoodEn.objects.all(), source='material', write_only=True, required=False, allow_null=True # Allow null if material is not strictly required
+        queryset=WoodMaterial.objects.all(), source='material', write_only=True, required=False, allow_null=True # Allow null if material is not strictly required
     )
     top_edge_band_id = serializers.PrimaryKeyRelatedField(
         queryset=EdgeBand.objects.all(), source='top_edge_band', write_only=True, required=False, allow_null=True
@@ -576,7 +579,7 @@ class WritableModularProductModuleSerializer(serializers.ModelSerializer):
 
 # Writable ModularProductMaterialOverride Serializer
 class WritableModularProductMaterialOverrideSerializer(serializers.ModelSerializer):
-    wooden_material = serializers.PrimaryKeyRelatedField(queryset=WoodEn.objects.all()) # Writable by ID
+    wooden_material = serializers.PrimaryKeyRelatedField(queryset=WoodMaterial.objects.all()) # Writable by ID
     class Meta:
         model = ModularProductMaterialOverride
         fields = ['id', 'wooden_material', 'is_default']

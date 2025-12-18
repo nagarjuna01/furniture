@@ -1,281 +1,425 @@
 {% extends "base_b.html" %}
+{% block title %}EdgeBand Management{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h1 class="mb-4">EdgeBand Management</h1>
+<div class="row g-3">
+    <h1 class="mb-4">EdgeBand Management</h1> 
 
-    <!-- Tabs -->
-<ul class="nav nav-tabs" id="edgebandTabs" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="eb-tab" data-bs-toggle="tab" data-bs-target="#edgebandsTab">EdgeBands</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="ebn-tab" data-bs-toggle="tab" data-bs-target="#edgebandNamesTab">EdgeBand Names</button>
-  </li>
-</ul>
+    <!-- LEFT 30%: EdgeBand Names collapsible -->
+    <div id="edgebandNamesCol" class="col-md-4">
+        <div class="border rounded p-3 bg-light shadow-sm">
+            <!-- Heading clickable for collapse -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="fw-bold mb-0" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#edgebandNamesPanel" aria-expanded="false" aria-controls="edgebandNamesPanel" id="edgebandHeading">
+                    EdgeBand Names
+                </h5>
+                <span id="edgebandArrow" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#edgebandNamesPanel" aria-expanded="false">▼</span>
+            </div>
 
-<div class="tab-content mt-3">
+            <!-- Collapsible panel -->
+            <div class="collapse" id="edgebandNamesPanel">
+                <!-- Right-aligned Add button -->
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edgebandNameModal" title="Add EdgeBand Name">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </div>
 
-  <!-- EdgeBands Tab -->
-  <div class="tab-pane fade show active" id="edgebandsTab">
-    <button class="btn btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#edgebandModal">Add EdgeBand</button>
-    <div class="table-responsive">
-      <table class="table table-bordered" id="edgebandsTable">
-        <thead>
-          <tr>
-            <th>Display Name</th>
-            <th>Thickness</th>
-            <th>Brand</th>
-            <th>Purchase</th>
-            <th>Sale</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover" id="edgebandNamesTable">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Name</th>
+                                <th>Depth (mm)</th>
+                                <th style="width:60px">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="d-flex justify-content-between mt-2">
+                    <button id="edgebandNames-prev" class="btn btn-outline-primary btn-sm">Prev</button>
+                    <button id="edgebandNames-next" class="btn btn-outline-primary btn-sm">Next</button>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- EdgeBand Names Tab -->
-  <div class="tab-pane fade" id="edgebandNamesTab">
-    <button class="btn btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#edgebandNameModal">Add Name</button>
-    <div class="table-responsive">
-      <table class="table table-bordered" id="edgebandNamesTable">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Depth (mm)</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <!-- RIGHT 70% / Full width: EdgeBands Table -->
+    <div id="edgebandsCol" class="col-md-8">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h4>EdgeBands</h4>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#edgebandModal">
+                <i class="bi bi-plus"></i> Add EdgeBand
+            </button>
+        </div>
+        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+            <table class="table table-bordered table-hover" id="edgebandsTable">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th>Display Name</th>
+                        <th>Thickness</th>
+                        <th>Brand</th>
+                        <th>Purchase</th>
+                        <th>Sale</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="d-flex justify-content-between mt-2">
+            <button id="edgebands-prev" class="btn btn-outline-primary btn-sm">Prev</button>
+            <button id="edgebands-next" class="btn btn-outline-primary btn-sm">Next</button>
+        </div>
     </div>
-  </div>
 </div>
 
 <!-- EdgeBand Modal -->
 <div class="modal fade" id="edgebandModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form id="edgebandForm">
-        <div class="modal-header">
-          <h5 class="modal-title" id="edgebandModalTitle">Add EdgeBand</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-sm">
+            <form id="edgebandForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="edgebandModalTitle">Add EdgeBand</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edgebandId">
+                    <div class="mb-3">
+                        <label for="edgeband_name_id" class="form-label">EdgeBand Name</label>
+                        <select id="edgeband_name_id" class="form-select" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="e_thickness" class="form-label">Thickness</label>
+                        <input type="number" id="e_thickness" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="brand_id" class="form-label">Brand</label>
+                        <select id="brand_id" class="form-select"></select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="p_price" class="form-label">Purchase Price</label>
+                        <input type="number" id="p_price" class="form-control" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label for="s_price" class="form-label">Sale Price</label>
+                        <input type="number" id="s_price" class="form-control" step="0.01">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" type="submit">Save</button>
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
         </div>
-        <div class="modal-body">
-          <input type="hidden" id="edgebandId">
-          <div class="mb-3">
-            <label for="edgeband_name_id" class="form-label">EdgeBand Name</label>
-            <select id="edgeband_name_id" class="form-select" required></select>
-          </div>
-          <div class="mb-3">
-            <label for="e_thickness" class="form-label">Thickness</label>
-            <input type="number" id="e_thickness" class="form-control" step="0.01" required>
-          </div>
-          <div class="mb-3">
-            <label for="brand_id" class="form-label">Brand</label>
-            <select id="brand_id" class="form-select"></select>
-          </div>
-          <div class="mb-3">
-            <label for="p_price" class="form-label">Purchase Price</label>
-            <input type="number" id="p_price" class="form-control" step="0.01">
-          </div>
-          <div class="mb-3">
-            <label for="s_price" class="form-label">Sale Price</label>
-            <input type="number" id="s_price" class="form-control" step="0.01">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-success" type="submit">Save</button>
-        </div>
-      </form>
     </div>
-  </div>
 </div>
 
 <!-- EdgeBandName Modal -->
 <div class="modal fade" id="edgebandNameModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form id="edgebandNameForm">
-        <div class="modal-header">
-          <h5 class="modal-title" id="edgebandNameModalTitle">Add EdgeBand Name</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-sm">
+            <form id="edgebandNameForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="edgebandNameModalTitle">Add EdgeBand Name</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edgebandNameId">
+                    <div class="mb-3">
+                        <label for="depth" class="form-label">Depth (mm)</label>
+                        <input type="number" id="depth" class="form-control" step="0.01" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" type="submit">Save</button>
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
         </div>
-        <div class="modal-body">
-          <input type="hidden" id="edgebandNameId">
-          <div class="mb-3">
-            <label for="depth" class="form-label">Depth (mm)</label>
-            <input type="number" id="depth" class="form-control" step="0.01" required>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-success" type="submit">Save</button>
-        </div>
-      </form>
     </div>
-  </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-$(function(){
-  const API = {
-    edgebands: '/material/v1/edgebands/',
-    edgebandNames: '/material/v1/edgeband-names/',
-    brands: '/material/v1/brands/'
-  };
+$(document).ready(function(){
 
-  const csrf = $('meta[name="csrf-token"]').attr('content');
-
-  // --- Load Selects ---
-  function loadBrands() {
-    return $.get(API.brands).done(data => {
-      const sel = $("#brand_id").empty().append('<option value="">Select Brand</option>');
-      (data.results || data).forEach(b=> sel.append(`<option value="${b.id}">${b.name}</option>`));
-    });
-  }
-
-  function loadEdgebandNames() {
-    return $.get(API.edgebandNames).done(data => {
-      const sel = $("#edgeband_name_id").empty().append('<option value="">Select Name</option>');
-      (data.results || data).forEach(n=> sel.append(`<option value="${n.id}">${n.name}</option>`));
-      const tbody = $("#edgebandNamesTable tbody").empty();
-      (data.results || data).forEach(n=>{
-        tbody.append(`<tr data-id="${n.id}">
-          <td>${n.name}</td>
-          <td>${n.depth}</td>
-          <td>
-            <button class="btn btn-sm btn-warning edit-ebn">Edit</button>
-            <button class="btn btn-sm btn-danger del-ebn">Delete</button>
-          </td>
-        </tr>`);
-      });
-    });
-  }
-
-  // --- Load EdgeBands Table ---
-  function loadEdgeBands() {
-    $.get(API.edgebands).done(res=>{
-      const tbody = $("#edgebandsTable tbody").empty();
-      (res.results || res).forEach(e=>{
-        tbody.append(`<tr data-id="${e.id}">
-          <td>${e.display_name}</td>
-          <td>${e.e_thickness}</td>
-          <td>${e.brand ? e.brand.name : "-"}</td>
-          <td>${e.p_price}</td>
-          <td>${e.s_price}</td>
-          <td>
-            <button class="btn btn-sm btn-warning edit-eb">Edit</button>
-            <button class="btn btn-sm btn-danger del-eb">Delete</button>
-          </td>
-        </tr>`);
-      });
-    });
-  }
-
-  // --- Create / Update EdgeBand ---
-  $("#edgebandForm").submit(function(e){
-    e.preventDefault();
-    const id = $("#edgebandId").val();
-    const payload = {
-      edgeband_name_id: Number($("#edgeband_name_id").val()),
-      e_thickness: $("#e_thickness").val(),
-      brand_id: $("#brand_id").val() ? Number($("#brand_id").val()) : null,
-      p_price: $("#p_price").val() || 0,
-      s_price: $("#s_price").val() || 0
+    const API = {
+        edgebands: '/material/v1/edgebands/',
+        edgebandNames: '/material/v1/edgeband-names/',
+        brands: '/material/v1/brands/'
     };
-    $.ajax({
-      url: id ? API.edgebands + id + "/" : API.edgebands,
-      type: id ? "PUT" : "POST",
-      headers: {'X-CSRFToken': csrf},
-      contentType: "application/json",
-      data: JSON.stringify(payload)
-    }).done(()=>{
-      $("#edgebandModal").modal("hide");
-      loadEdgeBands();
-    }).fail(xhr=> alert(xhr.responseText));
-  });
 
-  // --- Edit EdgeBand ---
-  $("#edgebandsTable").on("click", ".edit-eb", function(){
-    const tr = $(this).closest("tr");
-    const id = tr.data("id");
-    $.get(API.edgebands + id + "/").done(e=>{
-      $("#edgebandId").val(e.id);
-      $("#e_thickness").val(e.e_thickness);
-      $("#p_price").val(e.p_price);
-      $("#s_price").val(e.s_price);
-      loadBrands();
-      loadEdgebandNames().then(()=> $("#brand_id").val(e.brand ? e.brand.id : ""), $("#edgeband_name_id").val(e.edgeband_name.id));
-      $("#edgebandModal").modal("show");
-    });
-  });
+    // Dynamic collapse width
+    const edgebandPanel = document.getElementById('edgebandNamesPanel');
+    const edgebandArrow = document.getElementById('edgebandArrow');
+    const edgebandsCol = document.getElementById('edgebandsCol');
 
-  // --- Delete EdgeBand ---
-  $("#edgebandsTable").on("click", ".del-eb", function(){
-    const id = $(this).closest("tr").data("id");
-    if(confirm("Delete this EdgeBand?")){
-      $.ajax({
-        url: API.edgebands + id + "/",
-        type: "DELETE",
-        headers: {'X-CSRFToken': csrf}
-      }).done(()=> loadEdgeBands());
+    function adjustRightCol() {
+        if(edgebandPanel.classList.contains('show')){
+            edgebandsCol.classList.replace('col-12','col-md-8');
+            edgebandArrow.textContent='▲';
+        } else {
+            edgebandsCol.classList.replace('col-md-8','col-12');
+            edgebandArrow.textContent='▼';
+        }
     }
-  });
+    edgebandPanel.addEventListener('show.bs.collapse', adjustRightCol);
+    edgebandPanel.addEventListener('hide.bs.collapse', adjustRightCol);
+    adjustRightCol();
 
-  // --- Create / Update EdgeBandName ---
-  $("#edgebandNameForm").submit(function(e){
-    e.preventDefault();
-    const id = $("#edgebandNameId").val();
-    const payload = {depth: $("#depth").val()};
-    $.ajax({
-      url: id ? API.edgebandNames + id + "/" : API.edgebandNames,
-      type: id ? "PUT" : "POST",
-      headers: {'X-CSRFToken': csrf},
-      contentType: "application/json",
-      data: JSON.stringify(payload)
-    }).done(()=>{
-      $("#edgebandNameModal").modal("hide");
-      $("#edgebandNameForm")[0].reset();
-      loadEdgebandNames();
-      loadEdgebandNames(); // refresh options in EdgeBand modal
-    });
-  });
+    // Pagination states
+    let edgebandNamesPage = 1, edgebandNamesNext = null, edgebandNamesPrev = null;
+    let edgebandsPage = 1, edgebandsNext = null, edgebandsPrev = null;
 
-  // --- Edit EdgeBandName ---
-  $("#edgebandNamesTable").on("click", ".edit-ebn", function(){
-    const tr = $(this).closest("tr");
-    const id = tr.data("id");
-    $.get(API.edgebandNames + id + "/").done(n=>{
-      $("#edgebandNameId").val(n.id);
-      $("#depth").val(n.depth);
-      $("#edgebandNameModal").modal("show");
-    });
-  });
+    // Track edit state
+    let currentEdgebandId = null;
+    let currentEdgebandNameId = null;
 
-  // --- Delete EdgeBandName ---
-  $("#edgebandNamesTable").on("click", ".del-ebn", function(){
-    const id = $(this).closest("tr").data("id");
-    if(confirm("Delete this EdgeBand Name?")){
-      $.ajax({
-        url: API.edgebandNames + id + "/",
-        type: "DELETE",
-        headers: {'X-CSRFToken': csrf}
-      }).done(()=>{
-        loadEdgebandNames();
-      });
+    // ============================
+    // Load Brands (GLOBAL)
+    // ============================
+    function loadBrands(selector = "#brand_id"){
+        return $.get(API.brands)
+            .done(data => {
+                const sel = $(selector).empty().append('<option value="">Select Brand</option>');
+                (data.results || []).forEach(b => sel.append(`<option value="${b.id}">${b.name}</option>`));
+            })
+            .fail(err => {
+                console.error("Failed to load brands", err);
+                showToast("Failed to load brands", "error");
+            });
     }
-  });
 
-  // --- Initial load ---
-  loadBrands();
-  loadEdgebandNames();
-  loadEdgeBands();
+    // ============================
+    // Load EdgeBand Names
+    // ============================
+    function loadEdgebandNames(page = 1){
+        return $.get(API.edgebandNames + `?page=${page}`)
+            .done(data => {
+                const sel = $("#edgeband_name_id").empty().append('<option value="">Select Name</option>');
+                (data.results || []).forEach(n => sel.append(`<option value="${n.id}">${n.name}</option>`));
+
+                const tbody = $("#edgebandNamesTable tbody").empty();
+                (data.results || []).forEach(n => {
+                    tbody.append(`
+                        <tr data-id="${n.id}">
+                            <td>${n.name}</td>
+                            <td>${n.depth}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-warning me-1 edit-ebn"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-danger del-ebn"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    `);
+                });
+
+                edgebandNamesNext = data.next;
+                edgebandNamesPrev = data.previous;
+                $("#edgebandNames-prev").prop('disabled', !edgebandNamesPrev);
+                $("#edgebandNames-next").prop('disabled', !edgebandNamesNext);
+                edgebandNamesPage = page;
+            })
+            .fail(err => {
+                console.error("Failed to load EdgeBand names", err);
+                showToast("Failed to load EdgeBand names", "error");
+            });
+    }
+
+    // ============================
+    // Load EdgeBands
+    // ============================
+    function loadEdgeBands(page = 1){
+        return $.get(API.edgebands + `?page=${page}`)
+            .done(res => {
+                const tbody = $("#edgebandsTable tbody").empty();
+                (res.results || []).forEach(e => {
+                    tbody.append(`
+                        <tr data-id="${e.id}">
+                            <td>${e.display_name}</td>
+                            <td>${e.e_thickness}</td>
+                            <td>${e.brand ? e.brand.name : "-"}</td>
+                            <td>${e.p_price}</td>
+                            <td>${e.s_price}</td>
+                            <td>
+                                <button class="btn btn-sm btn-warning edit-eb">Edit</button>
+                                <button class="btn btn-sm btn-danger del-eb">Delete</button>
+                            </td>
+                        </tr>
+                    `);
+                });
+
+                edgebandsNext = res.next;
+                edgebandsPrev = res.previous;
+                $("#edgebands-prev").prop('disabled', !edgebandsPrev);
+                $("#edgebands-next").prop('disabled', !edgebandsNext);
+                edgebandsPage = page;
+            })
+            .fail(err => {
+                console.error("Failed to load EdgeBands", err);
+                showToast("Failed to load EdgeBands", "error");
+            });
+    }
+
+    // ============================
+    // Pagination buttons
+    // ============================
+    $("#edgebandNames-prev").click(()=>{ if(edgebandNamesPrev) loadEdgebandNames(edgebandNamesPage-1); });
+    $("#edgebandNames-next").click(()=>{ if(edgebandNamesNext) loadEdgebandNames(edgebandNamesPage+1); });
+    $("#edgebands-prev").click(()=>{ if(edgebandsPrev) loadEdgeBands(edgebandsPage-1); });
+    $("#edgebands-next").click(()=>{ if(edgebandsNext) loadEdgeBands(edgebandsPage+1); });
+
+    // ============================
+    // CRUD: EdgeBand Name
+    // ============================
+    $("#edgebandNameForm").submit(function(e){
+        e.preventDefault();
+        const id = currentEdgebandNameId;
+        const payload = { depth: $("#depth").val() };
+
+        $.ajax({
+            url: id ? API.edgebandNames + id + "/" : API.edgebandNames,
+            type: id ? "PUT" : "POST",
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+            contentType: "application/json",
+            data: JSON.stringify(payload)
+        })
+        .done(() => {
+            $("#edgebandNameModal").modal("hide");
+            showToast(id ? "EdgeBand Name updated" : "EdgeBand Name created", "success");
+            currentEdgebandNameId = null;
+            $("#edgebandNameForm")[0].reset();
+            loadEdgebandNames(edgebandNamesPage);
+        })
+        .fail(err => {
+            console.error(err);
+            showToast("Failed to save EdgeBand Name", "error");
+        });
+    });
+
+    $("#edgebandNamesTable").on("click", ".edit-ebn", function(){
+        const tr = $(this).closest("tr");
+        const id = tr.data("id");
+        currentEdgebandNameId = id;
+
+        $.get(API.edgebandNames + id + "/")
+            .done(n => {
+                $("#depth").val(n.depth);
+                $("#edgebandNameModal").modal("show");
+            })
+            .fail(err => showToast("Failed to fetch EdgeBand Name", "error"));
+    });
+
+    $("#edgebandNamesTable").on("click", ".del-ebn", function(){
+        const id = $(this).closest("tr").data("id");
+        if(!confirm("Delete this EdgeBand Name?")) return;
+
+        $.ajax({
+            url: API.edgebandNames + id + "/",
+            type: "DELETE",
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        })
+        .done(() => {
+            showToast("EdgeBand Name deleted", "warning");
+            loadEdgebandNames(edgebandNamesPage);
+        })
+        .fail(err => showToast("Failed to delete EdgeBand Name", "error"));
+    });
+
+    // ============================
+    // CRUD: EdgeBand
+    // ============================
+    $("#edgebandForm").submit(function(e){
+        e.preventDefault();
+
+        const payload = {
+            edgeband_name_id: Number($("#edgeband_name_id").val()),
+            e_thickness: $("#e_thickness").val(),
+            brand_id: $("#brand_id").val() ? Number($("#brand_id").val()) : null,
+            p_price: $("#p_price").val() || 0,
+            s_price: $("#s_price").val() || 0
+        };
+
+        $.ajax({
+            url: currentEdgebandId ? API.edgebands + currentEdgebandId + "/" : API.edgebands,
+            type: currentEdgebandId ? "PUT" : "POST",
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+            contentType: "application/json",
+            data: JSON.stringify(payload)
+        })
+        .done(() => {
+            $("#edgebandModal").modal("hide");
+            showToast(currentEdgebandId ? "EdgeBand updated" : "EdgeBand created", "success");
+            currentEdgebandId = null;
+            $("#edgebandForm")[0].reset();
+            loadEdgeBands(edgebandsPage);
+        })
+        .fail(err => {
+            console.error(err);
+            showToast("Failed to save EdgeBand", "error");
+        });
+    });
+
+    $("#edgebandsTable").on("click", ".edit-eb", function(){
+        const tr = $(this).closest("tr");
+        const id = tr.data("id");
+        currentEdgebandId = id;
+
+        $.get(API.edgebands + id + "/")
+            .done(e => {
+                $("#edgebandId").val(e.id);
+                $("#e_thickness").val(e.e_thickness);
+                $("#p_price").val(e.p_price);
+                $("#s_price").val(e.s_price);
+
+                // Load dropdowns then set values
+                $.when(loadBrands(), loadEdgebandNames()).then(() => {
+                    $("#brand_id").val(e.brand ? e.brand.id : "");
+                    $("#edgeband_name_id").val(e.edgeband_name.id);
+                    $("#edgebandModal").modal("show");
+                });
+            })
+            .fail(err => showToast("Failed to fetch EdgeBand", "error"));
+    });
+
+    $("#edgebandsTable").on("click", ".del-eb", function(){
+        const id = $(this).closest("tr").data("id");
+        if(!confirm("Delete this EdgeBand?")) return;
+
+        $.ajax({
+            url: API.edgebands + id + "/",
+            type: "DELETE",
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        })
+        .done(() => {
+            showToast("EdgeBand deleted", "warning");
+            loadEdgeBands(edgebandsPage);
+        })
+        .fail(err => {
+            console.error(err);
+            showToast("Failed to delete EdgeBand", "error");
+        });
+    });
+
+    // ============================
+    // Initial Load
+    // ============================
+    loadBrands();
+    loadEdgebandNames();
+    loadEdgeBands();
+
 });
-
 </script>
+
+
+<style>
+#edgebandsCol { transition: all 0.3s ease; }
+.table-hover tbody tr:hover { background-color: #f8f9fa; }
+</style>
 {% endblock %}

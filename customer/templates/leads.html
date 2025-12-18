@@ -1,0 +1,143 @@
+{% extends 'base_crm.html' %}
+{% block title %}Leads{% endblock %}
+
+{% block content %}
+<h3>Leads</h3>
+<button class="btn btn-primary my-2" data-bs-toggle="modal" data-bs-target="#leadModal">Add Lead</button>
+
+<table class="table table-bordered" id="leads-table">
+    <thead>
+        <tr>
+            <th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Source</th><th>Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<!-- Modal for Create/Edit -->
+<div class="modal fade" id="leadModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="lead-form" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Lead</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% csrf_token %}
+        <input type="hidden" id="lead-id">
+        <div class="mb-3"><label>Name</label><input type="text" id="name" class="form-control" required></div>
+        <div class="mb-3"><label>Email</label><input type="email" id="email" class="form-control"></div>
+        <div class="mb-3"><label>Phone</label><input type="text" id="phone_number" class="form-control"></div>
+        <div class="mb-3">
+            <label>Status</label>
+            <select id="status" class="form-select">
+                <option value="new">New</option>
+                <option value="qualified">Qualified</option>
+                <option value="contacted">Contacted</option>
+                <option value="unqualified">Unqualified</option>
+                <option value="converted">Converted</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label>Source</label>
+            <select id="source" class="form-select">
+                <option value="website">Website</option>
+                <option value="mobile_app">Mobile App</option>
+                <option value="referral">Referral</option>
+                <option value="social_media">Social Media</option>
+                <option value="admin_created">Admin Created</option>
+            </select>
+        </div>
+        <div class="mb-3"><label>Notes</label><textarea id="notes" class="form-control"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function fetchLeads() {
+    $.get('/customerCRM/api/leads/', function(data){
+        let rows = '';
+        data.forEach(l => {
+            rows += `<tr>
+                <td>${l.id}</td>
+                <td>${l.name}</td>
+                <td>${l.email || '-'}</td>
+                <td>${l.phone_number || '-'}</td>
+                <td>${l.status}</td>
+                <td>${l.source}</td>
+                <td>
+                    <button class="btn btn-sm btn-warning edit-lead" data-id="${l.id}">Edit</button>
+                    <button class="btn btn-sm btn-danger delete-lead" data-id="${l.id}">Delete</button>
+                </td>
+            </tr>`;
+        });
+        $('#leads-table tbody').html(rows);
+    });
+}
+
+$(document).ready(function(){
+    fetchLeads();
+
+    $('#lead-form').submit(function(e){
+        e.preventDefault();
+        let leadId = $('#lead-id').val();
+        let method = leadId ? 'PUT' : 'POST';
+        let url = leadId ? `/customerCRM/api/leads/${leadId}/` : '/customerCRM/api/leads/';
+        $.ajax({
+            type: method,
+            url: url,
+            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+            data: {
+                name: $('#name').val(),
+                email: $('#email').val(),
+                phone_number: $('#phone_number').val(),
+                status: $('#status').val(),
+                source: $('#source').val(),
+                notes: $('#notes').val()
+            },
+            success: function(){
+                toastr.success('Saved successfully');
+                $('#leadModal').modal('hide');
+                fetchLeads();
+                $('#lead-form')[0].reset();
+                $('#lead-id').val('');
+            },
+            error: function(xhr){ toastr.error(xhr.responseText); }
+        });
+    });
+
+    $(document).on('click', '.edit-lead', function(){
+        let id = $(this).data('id');
+        $.get(`/customerCRM/api/leads/${id}/`, function(l){
+            $('#lead-id').val(l.id);
+            $('#name').val(l.name);
+            $('#email').val(l.email);
+            $('#phone_number').val(l.phone_number);
+            $('#status').val(l.status);
+            $('#source').val(l.source);
+            $('#notes').val(l.notes);
+            $('#leadModal').modal('show');
+        });
+    });
+
+    $(document).on('click', '.delete-lead', function(){
+        if(!confirm('Delete this lead?')) return;
+        let id = $(this).data('id');
+        $.ajax({
+            type: 'DELETE',
+            url: `/customerCRM/api/leads/${id}/`,
+            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+            success: function(){ toastr.success('Deleted'); fetchLeads(); },
+            error: function(xhr){ toastr.error(xhr.responseText); }
+        });
+    });
+});
+</script>
+{% endblock %}

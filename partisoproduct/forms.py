@@ -1,7 +1,9 @@
 from django import forms
 from django.forms import formset_factory, modelformset_factory,BaseModelFormSet
 from .models import Part1
-from material.models import EdgeBand,WoodEn
+from material.models.wood import WoodMaterial
+from material.models.edgeband import EdgeBand
+from material.models.hardware import Hardware
 import logging
 logger = logging.getLogger(__name__)
 
@@ -61,9 +63,9 @@ class BasePartFormSet(BaseModelFormSet):
             compatible_edgebands = EdgeBand.objects.none()
             if material_id:
                 try:
-                    material = WoodEn.objects.get(pk=material_id)
+                    material = WoodMaterial.objects.get(pk=material_id)
                     compatible_edgebands = material.compatible_edgebands.all()
-                except WoodEn.DoesNotExist:
+                except WoodMaterial.DoesNotExist:
                     pass
                 print(f"Material ID: {material_id} - Compatible edges: {compatible_edgebands.count()}")
 

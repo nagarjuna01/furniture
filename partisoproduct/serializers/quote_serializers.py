@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from partisoproduct.models import QuoteRequest, QuotePartDetail, QuoteProduct, Part1
-from material.models import WoodEn, EdgeBand
+from material.models.wood import WoodMaterial
+from material.models.edgeband import EdgeBand
+from material.models.hardware import Hardware
 
 # -- Nested Serializers for Detailed Output (Read) --
 

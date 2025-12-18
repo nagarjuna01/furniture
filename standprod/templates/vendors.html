@@ -1,0 +1,14 @@
+{% extends "base_material.html" %}
+
+{% block title %}Vendors{% endblock %}
+
+{% block content %}
+<h1 class="mb-3">Vendor Management</h1>
+<div id="vendor-list" class="row g-3">
+    <!-- AJAX rendered vendor cards/table -->
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/vendor.js' %}"></script>
+{% endblock %}

@@ -1,240 +1,359 @@
-# material/serializers.py
-
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
-from decimal import Decimal, InvalidOperation # Keep Decimal and InvalidOperation for validation
-from .models import ( # Import all necessary models from your material app
-    Brand, EdgeBand, Category, CategoryTypes, CategoryModel,
-    WoodEn, HardwareGroup, Hardware, EdgebandName
-)
+from decimal import Decimal
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from .models.wood import WoodMaterial
+from .models.edgeband import EdgeBand, EdgebandName
+from .models.hardware import Hardware, HardwareGroup
+from .models.brand import Brand
+from .models.category import Category, CategoryTypes, CategoryModel
+from .models.units import MeasurementUnit, BillingUnit
 
-# --------------------- BRAND ---------------------
+
+# -------------------------------
+# Brand Serializer with duplicate check
+# -------------------------------
 class BrandSerializer(serializers.ModelSerializer):
-    """
-    Unified serializer for the Brand model.
-    Handles both reading and writing Brand instances.
-    """
     class Meta:
         model = Brand
-        fields = ['id', 'name', 'description', 'created_at']
-        read_only_fields = ['created_at'] # Typically, creation timestamp is read-only
+        fields = ["id", "tenant", "name", "is_active"]
 
-# --------------------- CATEGORY STRUCTURE ---------------------
+    def validate_name(self, value):
+        tenant = self.initial_data.get("tenant")
+        qs = Brand.objects.filter(name__iexact=value)
+        if tenant:
+            qs = qs.filter(tenant=tenant)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(f"Brand with name '{value}' already exists.")
+        return value
+
+
+# -------------------------------
+# MeasurementUnit Serializer
+# -------------------------------
+class MeasurementUnitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MeasurementUnit
+        fields = ["id", "tenant", "name", "code", "symbol", "system", "factor"]
+
+    def validate_name(self, value):
+        tenant = self.initial_data.get("tenant")
+        qs = MeasurementUnit.objects.filter(name__iexact=value)
+        if tenant:
+            qs = qs.filter(tenant=tenant)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(f"MeasurementUnit with name '{value}' already exists.")
+        return value
+
+    def validate_code(self, value):
+        tenant = self.initial_data.get("tenant")
+        qs = MeasurementUnit.objects.filter(code__iexact=value)
+        if tenant:
+            qs = qs.filter(tenant=tenant)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(f"MeasurementUnit with code '{value}' already exists.")
+        return value
+
+
+# -------------------------------
+# BillingUnit Serializer
+# -------------------------------
+class BillingUnitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BillingUnit
+        fields = ["id", "tenant", "name", "code", "factor"]
+
+    def validate_name(self, value):
+        tenant = self.initial_data.get("tenant")
+        qs = BillingUnit.objects.filter(name__iexact=value)
+        if tenant:
+            qs = qs.filter(tenant=tenant)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(f"BillingUnit with name '{value}' already exists.")
+        return value
+
+    def validate_code(self, value):
+        tenant = self.initial_data.get("tenant")
+        qs = BillingUnit.objects.filter(code__iexact=value)
+        if tenant:
+            qs = qs.filter(tenant=tenant)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(f"BillingUnit with code '{value}' already exists.")
+        return value
+
+
+# -------------------------------
+# Category Serializer
+# -------------------------------
 class CategorySerializer(serializers.ModelSerializer):
-    name = serializers.CharField(
-        max_length=100,
-        validators=[UniqueValidator(queryset=Category.objects.all(), message="This category already exists.")]
-    )
-
     class Meta:
         model = Category
-        fields = ['id', 'name']
+        fields = ["id", "tenant", "name"]
 
+    def validate_name(self, value):
+        tenant = self.initial_data.get("tenant")
+        qs = Category.objects.filter(name__iexact=value)
+        if tenant:
+            qs = qs.filter(tenant=tenant)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(f"Category with name '{value}' already exists.")
+        return value
+
+
+# -------------------------------
+# CategoryTypes Serializer
+# -------------------------------
 class CategoryTypesSerializer(serializers.ModelSerializer):
-    """
-    Unified serializer for CategoryTypes.
-    Allows setting 'category' by ID during writes, and nesting 'Category' for reads.
-    """
-    category = CategorySerializer(read_only=True) # Nested for read operations (GET)
-    category_id = serializers.PrimaryKeyRelatedField( # For write operations (POST/PUT/PATCH)
-        queryset=Category.objects.all(), 
-        source='category', # Maps to the 'category' ForeignKey field
-        write_only=True,   # Only used for writing
-        required=True      # Category is likely required for CategoryTypes
-    )
-
     class Meta:
         model = CategoryTypes
-        fields = ['id', 'name', 'category', 'category_id'] # Include both
-        # 'category' is implicitly read-only because it's a nested serializer
-        # 'category_id' is explicitly write-only
+        fields = ["id", "tenant", "category", "name"]
 
+    def validate(self, attrs):
+        category = attrs.get("category") or self.instance.category
+        name = attrs.get("name") or self.instance.name
+        qs = CategoryTypes.objects.filter(category=category, name__iexact=name)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(f"CategoryType '{name}' already exists for this category.")
+        return attrs
+
+
+# -------------------------------
+# CategoryModel Serializer
+# -------------------------------
 class CategoryModelSerializer(serializers.ModelSerializer):
-    """
-    Unified serializer for CategoryModel.
-    Allows setting 'model_category' by ID during writes, and nesting 'CategoryTypes' for reads.
-    """
-    model_category = CategoryTypesSerializer(read_only=True) # Nested for read operations (GET)
-    model_category_id = serializers.PrimaryKeyRelatedField( # For write operations (POST/PUT/PATCH)
-        queryset=CategoryTypes.objects.all(), 
-        source='model_category', # Maps to the 'model_category' ForeignKey field
-        write_only=True,
-        required=True # Model Category is likely required
-    )
-
     class Meta:
         model = CategoryModel
-        fields = ['id', 'name', 'model_category', 'model_category_id'] # Include both
+        fields = ["id", "tenant", "model_category", "name"]
+
+    def validate(self, attrs):
+        model_category = attrs.get("model_category") or self.instance.model_category
+        name = attrs.get("name") or self.instance.name
+        qs = CategoryModel.objects.filter(model_category=model_category, name__iexact=name)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(f"CategoryModel '{name}' already exists for this category type.")
+        return attrs
+
+# -------------------------------
+# WoodMaterial Serializer
+# -------------------------------
+class WoodMaterialSerializer(serializers.ModelSerializer):
+    material_grp = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    material_type = serializers.PrimaryKeyRelatedField(queryset=CategoryTypes.objects.all(), allow_null=True, required=False)
+    material_model = serializers.PrimaryKeyRelatedField(queryset=CategoryModel.objects.all(), allow_null=True, required=False)
+    brand = serializers.PrimaryKeyRelatedField(queryset=Brand.objects.all(), allow_null=True, required=False)
+
+    length_unit = serializers.PrimaryKeyRelatedField(queryset=MeasurementUnit.objects.all())
+    width_unit = serializers.PrimaryKeyRelatedField(queryset=MeasurementUnit.objects.all())
+    thickness_unit = serializers.PrimaryKeyRelatedField(queryset=MeasurementUnit.objects.all())
+
+    cost_unit = serializers.PrimaryKeyRelatedField(queryset=BillingUnit.objects.all())
+    sell_unit = serializers.PrimaryKeyRelatedField(queryset=BillingUnit.objects.all())
+
+    class Meta:
+        model = WoodMaterial
+        fields = [
+            "id", "tenant", "material_grp", "material_type", "material_model",
+            "name", "brand",
+            "length_value", "length_unit",
+            "width_value", "width_unit",
+            "thickness_value", "thickness_unit",
+            "cost_price", "cost_unit",
+            "sell_price", "sell_unit",
+            "is_sheet",
+        ]
+
+    def validate_name(self, value):
+        tenant = self.initial_data.get("tenant")
+        if WoodMaterial.objects.filter(tenant=tenant, name__iexact=value).exists():
+            raise serializers.ValidationError(f"WoodMaterial with name '{value}' already exists for this tenant.")
+        return value
+
+    def _convert_to_mm(self, value, unit):
+        """Convert length/width/thickness to mm using factor."""
+        factor = getattr(unit, "factor", None)
+        if factor is None:
+            raise ValidationError(f"Unit {unit} has no conversion factor.")
+        return Decimal(value) * Decimal(factor)
+
+    def _calculate_prices(self, instance):
+        """
+        Store derived prices in panel and sqft equivalents.
+        Example:
+            - cost_price: panel
+            - cost_price_sft: calculated from dimensions
+        """
+        length_mm = instance.length_value
+        width_mm = instance.width_value
+
+        # Area in square feet
+        area_sft = (length_mm / Decimal("304.8")) * (width_mm / Decimal("304.8"))
+
+        # Panel vs SFT cost
+        instance.cost_price_sft = (instance.cost_price / area_sft).quantize(Decimal("0.01")) if area_sft else instance.cost_price
+        instance.sell_price_sft = (instance.sell_price / area_sft).quantize(Decimal("0.01")) if area_sft else instance.sell_price
+
+    @transaction.atomic
+    def create(self, validated_data):
+        # Convert units to mm for storage
+        validated_data["length_value"] = self._convert_to_mm(validated_data["length_value"], validated_data["length_unit"])
+        validated_data["width_value"] = self._convert_to_mm(validated_data["width_value"], validated_data["width_unit"])
+        validated_data["thickness_value"] = self._convert_to_mm(validated_data["thickness_value"], validated_data["thickness_unit"])
+
+        instance = super().create(validated_data)
+        self._calculate_prices(instance)
+        instance.save()
+        return instance
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        # Convert units to mm for storage
+        if "length_value" in validated_data:
+            instance.length_value = self._convert_to_mm(validated_data.pop("length_value"), validated_data.pop("length_unit"))
+        if "width_value" in validated_data:
+            instance.width_value = self._convert_to_mm(validated_data.pop("width_value"), validated_data.pop("width_unit"))
+        if "thickness_value" in validated_data:
+            instance.thickness_value = self._convert_to_mm(validated_data.pop("thickness_value"), validated_data.pop("thickness_unit"))
+
+        # Update remaining fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        # Recalculate derived prices
+        self._calculate_prices(instance)
+        instance.save()
+        return instance
 
 
-# --------------------- EDGEBAND ---------------------
+# -------------------------------
+# EdgeBand Serializer
+# -------------------------------
 
 class EdgebandNameSerializer(serializers.ModelSerializer):
     class Meta:
         model = EdgebandName
-        fields = ['id', 'depth', 'name']  # depth + auto-generated name
+        fields = [
+            "id",
+            "tenant",
+            "depth",
+            "name",
+            "is_active",
+        ]
+        read_only_fields = ("name", "tenant")
+
+    def validate(self, attrs):
+        tenant = self.context["request"].user.tenant
+        depth = attrs.get("depth")
+
+        if EdgebandName.objects.filter(
+            tenant=tenant, depth=depth
+        ).exists():
+            raise serializers.ValidationError(
+                {"depth": "Edgeband with this depth already exists"}
+            )
+        return attrs
+
+    def create(self, validated_data):
+        validated_data["tenant"] = self.context["request"].user.tenant
+        return super().create(validated_data)
+    
+
 class EdgeBandSerializer(serializers.ModelSerializer):
-    # Read-only nested representations
-    edgeband_name = EdgebandNameSerializer(read_only=True)
-    brand = BrandSerializer(read_only=True)
-
-    # Writable foreign keys
-    edgeband_name_id = serializers.PrimaryKeyRelatedField(
-        queryset=EdgebandName.objects.all(), source='edgeband_name', write_only=True
-    )
-    brand_id = serializers.PrimaryKeyRelatedField(
-        queryset=Brand.objects.all(), source='brand', write_only=True, required=False, allow_null=True
-    )
-
-    sl_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    display_name = serializers.SerializerMethodField()
+    edgeband_name = serializers.PrimaryKeyRelatedField(queryset=EdgebandName.objects.all())
+    brand = serializers.PrimaryKeyRelatedField(queryset=Brand.objects.all(), allow_null=True)
 
     class Meta:
         model = EdgeBand
         fields = [
-            'id',
-            'edgeband_name', 'edgeband_name_id',
-            'e_thickness',
-            'brand', 'brand_id',
-            'p_price', 's_price',
-            'sl_price', 'display_name'
+            "id", "tenant", "edgeband_name", "brand", "thickness",
+            "cost_price", "sell_price", "wastage_pct", "is_active"
         ]
 
-    def get_display_name(self, obj):
-        # e.g. "EDGEBAND 2MM (Thickness 1.5mm / Brand XYZ)"
-        brand_name = obj.brand.name if obj.brand else "N/A"
-        return f"({obj.edgeband_name.name} X {obj.e_thickness}) / {brand_name}"
+    def validate(self, attrs):
+        if attrs.get("cost_price", 0) < 0:
+            raise serializers.ValidationError("Cost price cannot be negative.")
+        if attrs.get("sell_price", 0) < 0:
+            raise serializers.ValidationError("Sell price cannot be negative.")
+        return attrs
 
-# --------------------- WOODEN ---------------------
-class WoodEnSerializer(serializers.ModelSerializer):
-    """
-    Unified serializer for WoodEn.
-    Handles complex nested relationships for read, and ID-based setting for write.
-    """
-    # Nested serializers for read-only display
-    material_grp = CategorySerializer(read_only=True)
-    material_type = CategoryTypesSerializer(read_only=True)
-    material_model = CategoryModelSerializer(read_only=True)
-    brand = BrandSerializer(read_only=True)
-    
-    
+    @transaction.atomic
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        # Calculate margin price automatically
+        instance.sell_price = instance.cost_price * Decimal("1.2")
+        instance.save()
+        return instance
 
-    # Writable fields for setting relationships by ID
-    material_grp_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(), source='material_grp', write_only=True, required=False, allow_null=True
-    )
-    material_type_id = serializers.PrimaryKeyRelatedField(
-        queryset=CategoryTypes.objects.all(), source='material_type', write_only=True, required=False, allow_null=True
-    )
-    material_model_id = serializers.PrimaryKeyRelatedField(
-        queryset=CategoryModel.objects.all(), source='material_model', write_only=True, required=False, allow_null=True
-    )
-    brand_id = serializers.PrimaryKeyRelatedField(
-        queryset=Brand.objects.all(), source='brand', write_only=True, required=False, allow_null=True
-    )
-    
-
-    # Assuming these fields are direct model fields that are computed/stored
-    # And p_price, p_price_sft, s_price, s_price_sft are properties/methods
-    p_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    p_price_sft = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    s_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    s_price_sft = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        instance.sell_price = instance.cost_price * Decimal("1.2")
+        instance.save()
+        return instance
 
 
-    class Meta:
-        model = WoodEn
-        fields = [
-            'id', 'name', 'grain','color',# Assuming 'name' is a field on WoodEn
-            'length', 'width', 'thickness', 'cost_price', 'sell_price','length_unit', 'width_unit', 'thickness_unit',
-            'costprice_type', 'sellprice_type',
-            # Read-only nested fields
-            'material_grp', 'material_type', 'material_model', 'brand', 
-            # Writable ID fields for relationships
-            'material_grp_id', 'material_type_id', 'material_model_id', 'brand_id', 
-            # Read-only calculated price fields
-            'p_price', 'p_price_sft', 's_price', 's_price_sft'
-        ]
-
-    # Keep validation from your original WoodEnInputSerializer
-    def validate(self, data):
-        for field in ['length', 'width', 'thickness', 'cost_price', 'sell_price']:
-            if field in data and isinstance(data[field], str): # Check if field is present and is a string
-                try:
-                    data[field] = Decimal(data[field])
-                except InvalidOperation:
-                    raise serializers.ValidationError({field: "Invalid number format. Must be a valid decimal."})
-        
-        # Add any other WoodEn specific validation logic here if needed
-        # Example: Ensure length, width, thickness are positive
-        if 'length' in data and data['length'] <= 0:
-            raise serializers.ValidationError({"length": "Length must be positive."})
-        if 'width' in data and data['width'] <= 0:
-            raise serializers.ValidationError({"width": "Width must be positive."})
-        if 'thickness' in data and data['thickness'] <= 0:
-            raise serializers.ValidationError({"thickness": "Thickness must be positive."})
-        
-        return data
-
-
-# --------------------- HARDWARE ---------------------
+# -------------------------------
+# Hardware Serializer
+# -------------------------------
 class HardwareGroupSerializer(serializers.ModelSerializer):
-    """
-    Unified serializer for HardwareGroup.
-    """
     class Meta:
         model = HardwareGroup
-        fields = ['id', 'name']
+        fields = ["id", "tenant", "name", "is_active"]
+        read_only_fields = ("tenant",)
+
+    def validate_name(self, value):
+        tenant = self.context["request"].user.tenant
+        if HardwareGroup.objects.filter(
+            tenant=tenant, name__iexact=value
+        ).exists():
+            raise serializers.ValidationError("Hardware group already exists")
+        return value
+
+    def create(self, validated_data):
+        validated_data["tenant"] = self.context["request"].user.tenant
+        return super().create(validated_data)
 
 class HardwareSerializer(serializers.ModelSerializer):
-    """
-    Unified serializer for Hardware.
-    Handles both input (h_group_id, brand_id) and output (nested h_group, brand, sl_price).
-    """
-    h_group = HardwareGroupSerializer(read_only=True) # Nested for read
-    brand = BrandSerializer(read_only=True) # Nested for read
-    sl_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True) # Assuming sl_price is a model property/calculated field
-
-    h_group_id = serializers.PrimaryKeyRelatedField( # Writable field for h_group's ID
-        queryset=HardwareGroup.objects.all(), 
-        source='h_group', 
-        write_only=True, 
-        required=False, 
-        allow_null=True
-    )
-    brand_id = serializers.PrimaryKeyRelatedField( # Writable field for brand's ID
-        queryset=Brand.objects.all(), 
-        source='brand', 
-        write_only=True, 
-        required=False, 
-        allow_null=True
-    )
+    h_group = serializers.PrimaryKeyRelatedField(queryset=HardwareGroup.objects.all())
+    brand = serializers.PrimaryKeyRelatedField(queryset=Brand.objects.all(), allow_null=True)
 
     class Meta:
         model = Hardware
         fields = [
-            'id', 'h_name', 'unit', 'p_price', 's_price', 'sl_price',
-            'h_group', 'h_group_id', # Include both read-only and write-only versions
-            'brand', 'brand_id'      # Include both read-only and write-only versions
+            "id", "tenant", "h_group", "h_name", "brand",
+            "unit", "p_price", "s_price"
         ]
-        # Make sure 'h_name' is included if it's the primary display field
-        # e.g., fields = ['id', 'h_name', 'h_group', 'h_group_id', ...]
 
-    # Keep validation from your original HardwareInputSerializer
-    def validate(self, data):
-        # Ensure prices are converted to Decimal before comparison
-        p_price = data.get('p_price')
-        s_price = data.get('s_price')
+    def validate(self, attrs):
+        if attrs.get("p_price", 0) < 0 or attrs.get("s_price", 0) < 0:
+            raise serializers.ValidationError("Hardware prices cannot be negative.")
+        return attrs
 
-        if p_price is not None and s_price is not None:
-            if not isinstance(p_price, Decimal):
-                try: p_price = Decimal(str(p_price))
-                except InvalidOperation: raise serializers.ValidationError({"p_price": "Invalid number format."})
-            if not isinstance(s_price, Decimal):
-                try: s_price = Decimal(str(s_price))
-                except InvalidOperation: raise serializers.ValidationError({"s_price": "Invalid number format."})
+    @transaction.atomic
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        instance.s_price = instance.p_price * Decimal("1.2")  # margin
+        instance.save()
+        return instance
 
-            if s_price < p_price:
-                raise serializers.ValidationError("Sell price must be greater than or equal to purchase price.")
-        return data
-
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        instance.s_price = instance.p_price * Decimal("1.2")  # margin
+        instance.save()
+        return instance

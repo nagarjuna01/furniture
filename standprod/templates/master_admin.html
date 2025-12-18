@@ -1,0 +1,175 @@
+{% extends "base_material.html" %}
+{% load static %}
+
+{% block title %}Master Admin - Products{% endblock %}
+
+{% block content %}
+{% if request.user.is_authenticated %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-auto px-0" id="admin-sidebar">
+            <div class="list-group list-group-flush">
+                {% comment %} Tabs navigation {% endcomment %}
+                {% for item in tabs %}
+                    <a class="list-group-item list-group-item-action {% if forloop.first %}active{% endif %}" 
+                       data-bs-toggle="tab" href="#tab-{{ item.tab }}">{{ item.label }}</a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col tab-content p-3">
+            {% comment %} Tabs content {% endcomment %}
+            {% for item in tabs %}
+                <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="tab-{{ item.tab }}">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h4>{{ item.label }}</h4>
+                        {% if item.tab not in tabs_without_add %}
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#{{ item.tab }}Modal">
+                                + Add {{ item.label|slice:":-1" }}
+                            </button>
+                        {% endif %}
+                    </div>
+                    <div id="{{ item.tab }}-list">
+                        {% comment %} Content loaded via AJAX/product.js/variants.js {% endcomment %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ========================== MODALS ========================== -->
+<!-- Product Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add / Edit Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="productForm">
+            <div class="mb-3">
+                <label class="form-label">Name</label>
+                <input type="text" class="form-control" name="name" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Type</label>
+                <select class="form-select" name="type_id"></select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Model</label>
+                <select class="form-select" name="model_id"></select>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" name="is_active" checked>
+                <label class="form-check-label">Active</label>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" id="saveProductBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Variant Modal -->
+<div class="modal fade" id="variantModal" tabindex="-1" aria-labelledby="variantModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add / Edit Variant</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="variantForm">
+            <input type="hidden" name="product_id">
+            <div class="row g-3">
+                <div class="col-md-3"><label>Length</label><input type="number" step="0.01" class="form-control" name="length"></div>
+                <div class="col-md-3"><label>Width</label><input type="number" step="0.01" class="form-control" name="width"></div>
+                <div class="col-md-3"><label>Height</label><input type="number" step="0.01" class="form-control" name="height"></div>
+                <div class="col-md-3"><label>Weight</label><input type="number" step="0.01" class="form-control" name="weight"></div>
+            </div>
+            <div class="row g-3 mt-2">
+                <div class="col-md-3"><label>Measurement Unit</label><select class="form-select" name="measurement_unit_id"></select></div>
+                <div class="col-md-3"><label>Billing Unit</label><select class="form-select" name="billing_unit_id"></select></div>
+                <div class="col-md-3"><label>Purchase Price</label><input type="number" step="0.01" class="form-control" name="purchase_price"></div>
+                <div class="col-md-3"><label>Selling Price</label><input type="number" step="0.01" class="form-control" name="selling_price"></div>
+            </div>
+            <div id="variant-attributes-container" class="mt-3"></div>
+            <div id="variant-images-container" class="mt-3"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" id="saveVariantBtn">Save Variant</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+{% include 'login_modal.html' %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById('loginForm');
+    const errorDiv = document.getElementById('login-error');
+    const loginModalEl = document.getElementById('loginModal');
+    const loginModal = new bootstrap.Modal(loginModalEl);
+    const loginBtn = form.querySelector('button[type="submit"]');
+
+    loginModalEl.addEventListener('shown.bs.modal', () => form.querySelector('input[name="username"]').focus());
+
+    form.addEventListener('submit', function(e){
+        e.preventDefault();
+        errorDiv.classList.add('d-none');
+        loginBtn.disabled = true; loginBtn.innerHTML = 'Logging in...';
+        const formData = new FormData(form);
+
+        fetch("{% url 'material-login' %}", {
+            method: "POST", body: formData,
+            headers: {'X-CSRFToken': formData.get('csrfmiddlewaretoken')}
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            loginBtn.disabled = false; loginBtn.innerHTML = 'Login';
+            if(data.success) location.reload();
+            else {
+                errorDiv.textContent = data.error || 'Invalid credentials';
+                errorDiv.classList.remove('d-none');
+                form.querySelector('input[name="password"]').value = '';
+                loginModalEl.classList.remove('shake'); void loginModalEl.offsetWidth; loginModalEl.classList.add('shake');
+            }
+        })
+        .catch(err => {
+            console.error(err); loginBtn.disabled = false; loginBtn.innerHTML = 'Login';
+            errorDiv.textContent = 'Server error'; errorDiv.classList.remove('d-none');
+            loginModalEl.classList.remove('shake'); void loginModalEl.offsetWidth; loginModalEl.classList.add('shake');
+        });
+    });
+
+    const isAuthenticated = "{{ request.user.is_authenticated|yesno:'true,false' }}" === "true";
+    if (!isAuthenticated) loginModal.show();
+});
+</script>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/product.js' %}"></script>
+<script src="{% static 'js/variants.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tabEl = document.querySelectorAll('#admin-sidebar a[data-bs-toggle="tab"]');
+    tabEl.forEach(t => t.addEventListener('click', e => { 
+        e.preventDefault(); 
+        new bootstrap.Tab(e.target).show(); 
+    }));
+});
+</script>
+{% endblock %}

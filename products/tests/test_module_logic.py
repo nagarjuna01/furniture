@@ -14,11 +14,11 @@ from products.models import (
 )
 
 # Import models from the 'material' app
-from material.models import (
-    Brand, Category, CategoryTypes, CategoryModel,
-    WoodEn, EdgeBand, HardwareGroup, Hardware
-)
-
+from material.models.wood import WoodMaterial
+from material.models.edgeband import EdgeBand
+from material.models.hardware import Hardware, HardwareGroup
+from material.models.brand import Brand
+from material.models.category import Category,CategoryTypes,CategoryModel
 # Import mocks for external functions
 from .mock_dependencies import (
     MockAstevalInterpreter,
@@ -66,7 +66,7 @@ class ModuleLogicTest(TestCase):
         self.product_type = Type.objects.create(category=self.product_category, name='TEST PRODUCT TYPE')
         self.product_model = Model.objects.create(type=self.product_type, name='TEST PRODUCT MODEL')
 
-        self.plywood_logic_test = WoodEn.objects.create(
+        self.plywood_logic_test = WoodMaterial.objects.create(
             material_grp=self.cat_wood,
             material_type=self.cat_type_ply,
             material_model=self.cat_model_mr,
@@ -87,7 +87,7 @@ class ModuleLogicTest(TestCase):
         )
         self.plywood_logic_test.save()
 
-        self.plywood_logic_test_12mm = WoodEn.objects.create(
+        self.plywood_logic_test_12mm = WoodMaterial.objects.create(
             material_grp=self.cat_wood,
             material_type=self.cat_type_ply,
             material_model=self.cat_model_mr,
@@ -108,7 +108,7 @@ class ModuleLogicTest(TestCase):
         self.plywood_logic_test_12mm.save()
 
         # Patch the `to_sft` method on the `WoodEn` class.
-        self.patcher_to_sft = patch.object(WoodEn, 'to_sft')
+        self.patcher_to_sft = patch.object(WoodMaterial, 'to_sft')
         self.mock_to_sft = self.patcher_to_sft.start()
         # Ensure this mock returns the exact same value for consistency
         self.mock_to_sft.return_value = Decimal('32.04201057915008283372350116')

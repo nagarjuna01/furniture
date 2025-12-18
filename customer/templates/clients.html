@@ -1,0 +1,109 @@
+{% extends 'base_crm.html' %}
+{% block title %}Clients{% endblock %}
+
+{% block content %}
+<h3>Clients</h3>
+<button class="btn btn-primary my-2" data-bs-toggle="modal" data-bs-target="#clientModal">Add Client</button>
+
+<table class="table table-bordered" id="clients-table">
+    <thead>
+        <tr>
+            <th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<!-- Modal for Create/Edit -->
+<div class="modal fade" id="clientModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="client-form" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Client</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% csrf_token %}
+        <input type="hidden" id="client-id">
+        <div class="mb-3"><label>Name</label><input type="text" id="name" class="form-control" required></div>
+        <div class="mb-3"><label>Email</label><input type="email" id="email" class="form-control"></div>
+        <div class="mb-3"><label>Phone</label><input type="text" id="phone_number" class="form-control"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function fetchClients() {
+    $.get('/customerCRM/api/clients/', function(data){
+        let rows = '';
+        data.forEach(c => {
+            rows += `<tr>
+                <td>${c.id}</td><td>${c.name}</td><td>${c.email}</td><td>${c.phone_number}</td>
+                <td>
+                    <button class="btn btn-sm btn-warning edit-client" data-id="${c.id}">Edit</button>
+                    <button class="btn btn-sm btn-danger delete-client" data-id="${c.id}">Delete</button>
+                </td>
+            </tr>`;
+        });
+        $('#clients-table tbody').html(rows);
+    });
+}
+
+$(document).ready(function(){
+    fetchClients();
+
+    $('#client-form').submit(function(e){
+        e.preventDefault();
+        let clientId = $('#client-id').val();
+        let method = clientId ? 'PUT' : 'POST';
+        let url = clientId ? `/customerCRM/api/clients/${clientId}/` : '/customerCRM/api/clients/';
+        $.ajax({
+            type: method,
+            url: url,
+            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+            data: {
+                name: $('#name').val(),
+                email: $('#email').val(),
+                phone_number: $('#phone_number').val()
+            },
+            success: function(){
+                toastr.success('Saved successfully');
+                $('#clientModal').modal('hide');
+                fetchClients();
+            },
+            error: function(xhr){ toastr.error(xhr.responseText); }
+        });
+    });
+
+    $(document).on('click', '.edit-client', function(){
+        let id = $(this).data('id');
+        $.get(`/customerCRM/api/clients/${id}/`, function(c){
+            $('#client-id').val(c.id);
+            $('#name').val(c.name);
+            $('#email').val(c.email);
+            $('#phone_number').val(c.phone_number);
+            $('#clientModal').modal('show');
+        });
+    });
+
+    $(document).on('click', '.delete-client', function(){
+        if(!confirm('Delete this client?')) return;
+        let id = $(this).data('id');
+        $.ajax({
+            type: 'DELETE',
+            url: `/customerCRM/api/clients/${id}/`,
+            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+            success: function(){ toastr.success('Deleted'); fetchClients(); },
+            error: function(xhr){ toastr.error(xhr.responseText); }
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1084 @@
+{% extends "base_b.html" %}
+{% load static %}
+{% block content %}
+<style>
+    .pointer { cursor: pointer; }
+    .max-h-60 { max-height: 15rem; overflow-y: auto; }
+</style>
+
+<div class="container p-4">
+
+    <!-- NEW PRODUCT BUTTON -->
+    <div class="d-flex justify-content-end mb-3">
+        <button id="new-btn" class="btn btn-secondary">➕ New Product</button>
+    </div>
+
+    <h1>Product Editor</h1>
+
+    <div id="status-message" class="mb-3"></div>
+
+    <!-- PRODUCT BASIC DETAILS -->
+    <div class="mb-3">
+
+        <input id="product-name" class="form-control mb-2" placeholder="Product name">
+
+        <textarea id="validation-expr" class="form-control mb-3"
+                  placeholder="Validation expression"></textarea>
+
+        <div class="mb-3">
+            <label class="form-label">2D Template SVG Code (Optional)</label>
+            <textarea id="two-d-svg-input" class="form-control" rows="5"
+                      placeholder="Paste raw SVG code here"></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">3D Asset Path/URL (Optional)</label>
+            <input id="three-d-asset-input" class="form-control"
+                   placeholder="e.g., /static/models/cabinet.glb">
+        </div>
+    </div>
+
+    <!-- PARAMETERS -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Product Parameters</h5>
+        <button id="add-param-btn" class="btn btn-info btn-sm">➕ Add Parameter</button>
+    </div>
+    <div id="parameters-container" class="mb-4"></div>
+
+    <!-- HARDWARE RULES -->
+    <div class="mb-4">
+        <h5 class="mb-2">Product Hardware Rules</h5>
+        <button id="manage-hardware-rules-btn" class="btn btn-outline-primary btn-sm">
+            ⚙️ Manage Hardware Rules
+        </button>
+    </div>
+
+    <!-- PART TEMPLATES -->
+    <h5 class="mt-4 mb-2">Part Templates</h5>
+    <div id="part-templates-container"></div>
+
+    <button id="add-part-btn" class="btn btn-primary me-2">Add Part Template</button>
+    <button id="save-btn" class="btn btn-success">💾 Save Product</button>
+
+</div> <!-- END container -->
+
+
+<!-- SELECT ITEMS MODAL -->
+<div class="modal fade" id="selectionModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 id="modal-title" class="modal-title">Select Items</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input id="search-input" class="form-control mb-3" placeholder="Search...">
+                <div id="filter-section" class="mb-3"></div>
+                <div id="selection-list-container" class="list-group"
+                     style="max-height:400px; overflow:auto;"></div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveSelection()">
+                    Save Selection
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- PRODUCT HARDWARE RULES MODAL -->
+<div class="modal fade" id="productHardwareModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Product Hardware Rules</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <button id="add-product-hw-btn" class="btn btn-sm btn-outline-success mb-3">
+                    + Add Rule
+                </button>
+
+                <table class="table table-sm table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Hardware</th>
+                            <th>Quantity (Int)</th>
+                            <th>Condition</th>
+                            <th style="width:60px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-hardware-table-body"></tbody>
+                </table>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Close</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- GEOMETRY MODAL -->
+<div class="modal fade" id="geometryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 id="geometry-modal-title" class="modal-title">
+                    Edit Part Geometry Equations
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <label class="form-label">Part Name:</label>
+                <input id="geom-part-name" class="form-control mb-3" readonly>
+
+                <h6>Equations</h6>
+
+                <div class="mb-2">
+                    <label class="form-label">Length Equation:</label>
+                    <input id="geom-length-eq" class="form-control">
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Width Equation:</label>
+                    <input id="geom-width-eq" class="form-control">
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Quantity Equation:</label>
+                    <input id="geom-qty-eq" class="form-control">
+                </div>
+
+                <h6 class="mt-3">Other Properties</h6>
+
+                <div class="mb-2">
+                    <label class="form-label">Thickness (mm):</label>
+                    <input id="geom-thickness" type="number" step="0.01" class="form-control">
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Wastage Multiplier:</label>
+                    <input id="geom-wastage" type="number" step="0.01" class="form-control">
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary" id="save-geometry-btn">Save Equations</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+
+
+{% block extra_js %}
+
+<script>
+(() => {
+  document.getElementById('three-d-asset-input').addEventListener('input', e => {
+    // This updates the value in your local productData state
+    productData.three_d_asset = e.target.value; 
+});
+document.getElementById('two-d-svg-input').addEventListener('input', e => {
+    productData.two_d_template_svg = e.target.value; 
+});
+  // ===== STATE & INIT =====
+  let productData = {
+    id: null,
+    name: '',
+    validation_expression: '',
+    parameters: [],
+    part_templates: [],
+    three_d_asset: null, 
+    two_d_template_svg: ''
+  };
+  let productHardwareRules = []; 
+  let currentPartIndex = null;
+  let currentSelectionType = null;
+  let currentSelectionMode = 'whitelist'; 
+  let currentEdgebandSide = null;
+
+  let allMaterials = [], allEdgebands = [], allHardware = [];
+  const selectionModalElement = document.getElementById('selectionModal');
+  const productHardwareModalElement = document.getElementById('productHardwareModal');
+  const geometryModalElement = document.getElementById('geometryModal'); // NEW MODAL CHECK!
+
+  const selectionModal = selectionModalElement ? new bootstrap.Modal(selectionModalElement) : null;
+  const productHardwareModal = productHardwareModalElement ? new bootstrap.Modal(productHardwareModalElement) : null;
+  const geometryModal = geometryModalElement ? new bootstrap.Modal(geometryModalElement) : null; 
+
+  const statusEl = document.getElementById('status-message');
+
+  // Make core functions available globally for HTML event handlers
+  window.productData = productData;
+  window.removeItem = removeItem;
+  window.saveSelection = saveSelection;
+  window.removeProductHardwareRule = removeProductHardwareRule;
+  window.showSelectionModal = showSelectionModal;
+  window.showGeometryModal = showGeometryModal; 
+  window.selectEdgebandSide = selectEdgebandSide;
+  window.renderParts = renderParts; 
+
+
+  // ===== STATUS =====
+  function showStatus(msg, type='info') {
+    console.log(`[STATUS] ${msg}`);
+    statusEl.textContent = msg;
+    statusEl.className = `mb-3 text-${type}`;
+    setTimeout(() => statusEl.textContent = '', 4000);
+  }
+
+  // ===== API FETCHING (REAL ENDPOINT LOGIC) =====
+  async function fetchAllPages(url) {
+    let results = [];
+    let nextUrl = url;
+
+    while (nextUrl) {
+      try {
+        showStatus(`Fetching data from: ${nextUrl}...`);
+        
+        // *** Use fetch for real API call ***
+        const res = await fetch(nextUrl);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        
+        // Assumes API structure { results: [...], next: "next_url" }
+        if (data.results) results.push(...data.results);
+        
+        // Update nextUrl for pagination
+        nextUrl = data.next;
+      } catch (err) {
+        console.error(`Error fetching ${nextUrl}`, err);
+        showStatus(`Error loading data from ${nextUrl}. Check console/network tab.`, 'danger');
+        nextUrl = null; // Stop further fetching on error
+        break;
+      }
+    }
+    return results;
+  }
+
+  async function preloadAllData() {
+    try {
+      showStatus('Loading materials, edgebands, and hardware...');
+      [allMaterials, allEdgebands, allHardware] = await Promise.all([
+        fetchAllPages('/material/v1/woodens/'),
+        fetchAllPages('/material/v1/edgebands/'),
+        fetchAllPages('/material/v1/hardware/')
+      ]);
+      console.log('Reference data loaded.');
+      showStatus('Reference data loaded successfully.', 'success');
+    } catch (err) {
+      console.error(err);
+      showStatus('Failed to preload reference data', 'danger');
+    }
+  }
+
+  // ===== GEOMETRY MODAL LOGIC (NEW) =====
+  function showGeometryModal(partIndex) {
+    currentPartIndex = partIndex;
+    const p = productData.part_templates[partIndex];
+
+    document.getElementById('geom-part-name').value = p.name;
+    document.getElementById('geom-length-eq').value = p.part_length_equation;
+    document.getElementById('geom-width-eq').value = p.part_width_equation;
+    document.getElementById('geom-qty-eq').value = p.part_qty_equation;
+    document.getElementById('geom-thickness').value = p.part_thickness_mm;
+    document.getElementById('geom-wastage').value = p.shape_wastage_multiplier;
+    
+    geometryModal.show();
+  }
+
+  function saveGeometry() {
+    if (currentPartIndex === null) return;
+    const p = productData.part_templates[currentPartIndex];
+
+    p.part_length_equation = document.getElementById('geom-length-eq').value;
+    p.part_width_equation = document.getElementById('geom-width-eq').value;
+    p.part_qty_equation = document.getElementById('geom-qty-eq').value;
+    p.part_thickness_mm = parseFloat(document.getElementById('geom-thickness').value) || 0;
+    p.shape_wastage_multiplier = parseFloat(document.getElementById('geom-wastage').value) || 1.0;
+
+    geometryModal.hide();
+    renderParts(); // Refresh the main display
+    showStatus(`Geometry for ${p.name} updated.`, 'info');
+  }
+
+  document.getElementById('save-geometry-btn').onclick = saveGeometry;
+  // ===== PRODUCT PAYLOAD ASSEMBLY & SUBMISSION (REFINED) =====
+
+  /**
+   * Assembles all current state data into the final API payload structure
+   * based on the provided Django models.
+   */
+  function selectEdgebandSide(partIndex, side) {
+    currentPartIndex = partIndex;
+    currentSelectionType = 'edgeband_whitelist';
+    currentEdgebandSide = side; // e.g., 'top', 'bottom', 'left', 'right'
+    
+    document.getElementById('modal-title').textContent = 
+        `Select Edgeband for ${side.toUpperCase()} Side`;
+
+    // Render edgeband filters and list
+    renderEdgebandFilters();
+    renderSelectionList(getSourceItems());
+    
+    // Disable the 'default' radio button as we are setting a side FK
+    document.getElementById('selection-list-container').classList.add('edgeband-side-selection');
+    
+    selectionModal.show();
+  }
+
+  // Helper to get the currently selected edgeband ID for the specific side
+  function getCurrentEdgebandId(part, side) {
+      return part[`edgeband_${side}_id`];
+  }
+
+  // Overriding saveSelection to handle side-specific edgeband selection
+  const originalSaveSelection = window.saveSelection; // Store the original function if you want to reuse it fully
+  function collectProductPayload() {
+      // 1. Update basic fields from UI before collecting
+      productData.name = document.getElementById('product-name').value;
+      if (!productData.name) {
+        showStatus('Product Name cannot be empty. Please provide a name.', 'danger');
+        return null; // Return null to signal failure
+    }
+      productData.validation_expression = document.getElementById('validation-expr').value;
+
+      // 2. Map Product Parameters
+      // We rely on the renderParameters function to keep productData.parameters up to date.
+      const parametersPayload = productData.parameters.map(p => ({
+          name: p.name,
+          abbreviation: p.abbreviation,
+          // Convert to string for consistent API payload
+          default_value: p.default_value !== null ? String(p.default_value) : null,
+          description: p.description
+      }));
+
+      // 3. Map Part Template data to the submission structure
+      const partTemplatesPayload = productData.part_templates.map(p => {
+          // Find default material/edgeband IDs for the ForeignKey fields
+          const defaultMaterialId = p.default_material?.id || null;
+          const defaultEdgebandId = p.default_edgeband?.id || null;
+
+          // Process Material Whitelist
+          const materialWhitelistIds = p.material_whitelist
+              .filter(m => m.id !== defaultMaterialId) 
+              .map(m => m.id); 
+          const materialWhitelist = materialWhitelistIds.map(mat_id => ({ 
+              material: mat_id, 
+              is_default: false 
+          })).concat(defaultMaterialId ? [{ material: defaultMaterialId, is_default: true }] : []);
+
+          // Process Edgeband Whitelist
+          const edgebandWhitelistIds = p.edgeband_whitelist
+              .filter(e => e.id !== defaultEdgebandId) 
+              .map(e => e.id);
+          const edgebandWhitelist = edgebandWhitelistIds.map(edge_id => ({ 
+              edgeband_id: edge_id, 
+              is_default: false 
+          })).concat(defaultEdgebandId ? [{ edgeband_id: defaultEdgebandId, is_default: true }] : []);
+          
+          // Process Hardware Rules
+          const partHardwareRules = p.hardware_rules.map(rule => ({
+              hardware_id: rule.item.id,
+              quantity_equation: rule.equation, 
+              // The model uses 'applicability_condition', but the UI currently doesn't capture it.
+              // For now, we'll send empty string or update the UI later.
+              applicability_condition: "" 
+          }));
+
+          return {
+              // PartTemplate fields
+              id: p.id,
+              name: p.name,
+              // LAYER 1: Equations (Ensure defaults are set if empty)
+              part_length_equation: p.part_length_equation || "",
+              part_width_equation: p.part_width_equation || "",
+              part_qty_equation: p.part_qty_equation || "1",
+              
+              // LAYER 2: Thickness (Must be a number)
+              part_thickness_mm: parseFloat(p.part_thickness_mm) || 0.00, 
+
+              // Default Edgeband Foreign Keys (FKs)
+              // NOTE: UI only captures 'default_edgeband'. Mapping to all sides for submission safety.
+              edgeband_top_id: p.edgeband_top_id || defaultEdgebandId,
+              edgeband_bottom_id: p.edgeband_bottom_id || defaultEdgebandId,
+              edgeband_left_id: p.edgeband_left_id || defaultEdgebandId,
+              edgeband_right_id: p.edgeband_right_id || defaultEdgebandId,
+              
+              shape_wastage_multiplier: parseFloat(p.shape_wastage_multiplier) || 1.0, 
+              
+              // Nested M2M models
+              material_whitelist: materialWhitelist,
+              edgeband_whitelist: edgebandWhitelist,
+              hardware_rules: partHardwareRules,
+          };
+      });
+
+      // 4. Map Product Hardware Rules (ModularProduct.hardware_rules)
+      const productHardwarePayload = productHardwareRules.map(rule => ({
+          hardware_id: rule.hardware.id,
+          // Model requires 'quantity' (integer). We assume the equation field is used for a simple integer quantity here.
+          quantity: parseInt(rule.quantity_equation) || 1, 
+      }));
+      
+      // 5. Assemble Final ModularProduct Payload
+      const finalPayload = {
+          id: productData.id,
+          name: productData.name,
+          // Correct field name from model
+          product_validation_expression: productData.validation_expression, 
+          three_d_asset: productData.three_d_asset, 
+          two_d_template_svg: productData.two_d_template_svg,
+          
+          // Nested models
+          parameters: parametersPayload, 
+          part_templates: partTemplatesPayload,
+          
+          // Mapped from productHardwareRules state
+          hardware_rules: productHardwarePayload, 
+      };
+
+      console.log('Submission Payload:', finalPayload);
+      return finalPayload;
+  }
+
+
+  /**
+   * Submits the compiled product payload to the API.
+   */
+  // Add this line at the top of your script's state/init section
+const PRODUCTS_API_BASE_URL = 'http://127.0.0.1:8000/modularcalc/api/products/';
+
+// --- Updated saveProduct function ---
+async function saveProduct() {
+    const payload = collectProductPayload();
+    const isUpdate = !!payload.id;
+
+    // Define the full API endpoint using the base URL
+    let apiURL;
+    if (isUpdate) {
+        // Use the product ID for the PUT request to update an existing resource.
+        // Assuming Django REST Framework (DRF) expects /products/{id}/
+        apiURL = `${PRODUCTS_API_BASE_URL}${payload.id}/`; 
+    } else {
+        // Use the base URL for the POST request to create a new resource.
+        apiURL = PRODUCTS_API_BASE_URL;
+    }
+    
+    // Determine the HTTP method
+    const method = isUpdate ? 'PUT' : 'POST';
+
+    showStatus(`Saving product... (Method: ${method}, URL: ${apiURL})`);
+
+    try {
+        const response = await fetch(apiURL, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                // You may need to add a CSRF token header for POST/PUT if running outside Django templates
+                // 'X-CSRFToken': 'your-token' 
+            },
+            body: JSON.stringify(payload)
+        });
+
+        // Ensure the JSON parsing only happens if the response body is not empty
+        const data = await (response.status !== 204 ? response.json() : {}); 
+
+        if (response.ok) {
+            if (!isUpdate) {
+                // Assuming the API returns the new object with its ID on creation
+                productData.id = data.id || 'SAVED'; 
+                document.getElementById('product-id').value = productData.id;
+            }
+            showStatus(`Product saved successfully! ID: ${productData.id}`, 'success');
+
+        } else {
+            const errorMsg = data.detail || JSON.stringify(data);
+            console.error('API Error:', data);
+            showStatus(`Failed to save product: ${errorMsg}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Network or Parsing Error:', error);
+        showStatus('Network error occurred. Could not reach the API.', 'danger');
+    }
+}
+
+
+  // ===== MODAL & SOURCE LOGIC =====
+  function showSelectionModal(partIndex, type) {
+    currentPartIndex = partIndex;
+    currentSelectionType = type;
+    document.getElementById('modal-title').textContent =
+      `Select ${type.replace('_', ' ').toUpperCase()}`;
+
+    const filterSection = document.getElementById('filter-section');
+    filterSection.innerHTML = ''; // reset filters
+
+    if (type === 'material_whitelist') renderMaterialFilters();
+    if (type === 'edgeband_whitelist') renderEdgebandFilters();
+    if (type === 'hardware_rule' || type === 'product_hardware_rule') renderHardwareFilters();
+
+    renderSelectionList(getSourceItems());
+    selectionModal.show();
+  }
+
+
+  function getSourceItems() {
+    if (currentSelectionType === 'material_whitelist') return allMaterials;
+    if (currentSelectionType === 'edgeband_whitelist') return allEdgebands;
+    if (currentSelectionType === 'hardware_rule' || currentSelectionType === 'product_hardware_rule') return allHardware;
+    return [];
+  }
+
+  // ===== FILTERS (Material, Edgeband, Hardware) - (No change needed here) =====
+
+  function renderMaterialFilters() {
+    const html = `
+      <div class="row g-2 mb-2">
+        <div class="col"><select id="mat-group" class="form-select"><option value="">All Groups</option></select></div>
+        <div class="col"><select id="mat-type" class="form-select"><option value="">All Types</option></select></div>
+        <div class="col"><select id="mat-model" class="form-select"><option value="">All Models</option></select></div>
+        <div class="col"><input id="mat-thickness" type="number" class="form-control" placeholder="Thickness mm"></div>
+      </div>
+      <div class="form-check mb-3">
+        <input type="checkbox" id="wooden-only" class="form-check-input">
+        <label class="form-check-label" for="wooden-only">Wooden Only</label>
+      </div>`;
+    document.getElementById('filter-section').innerHTML = html;
+    fillSelect('mat-group', [...new Set(allMaterials.map(m => m.group || ''))].filter(Boolean));
+    fillSelect('mat-type', [...new Set(allMaterials.map(m => m.type || ''))].filter(Boolean));
+    fillSelect('mat-model', [...new Set(allMaterials.map(m => m.model || ''))].filter(Boolean));
+    bindFilterEvents();
+  }
+
+  function renderEdgebandFilters() {
+    const html = `
+      <div class="row g-2 mb-3">
+        <div class="col"><select id="edge-depth" class="form-select"><option value="">All Depths</option></select></div>
+        <div class="col"><select id="edge-thickness" class="form-select"><option value="">All Thicknesses</option></select></div>
+        <div class="col"><select id="edge-brand" class="form-select"><option value="">All Brands</option></select></div>
+      </div>`;
+    document.getElementById('filter-section').innerHTML = html;
+    fillSelect('edge-depth', [...new Set(allEdgebands.map(e => e.edgeband_name?.depth))].filter(Boolean));
+    fillSelect('edge-thickness', [...new Set(allEdgebands.map(e => e.e_thickness))].filter(Boolean));
+    fillSelect('edge-brand', [...new Set(allEdgebands.map(e => e.brand?.name))].filter(Boolean));
+    bindFilterEvents();
+  }
+
+  function renderHardwareFilters() {
+    const html = `
+      <div class="row g-2 mb-3">
+        <div class="col"><select id="hw-group" class="form-select"><option value="">All Groups</option></select></div>
+        <div class="col"><select id="hw-brand" class="form-select"><option value="">All Brands</option></select></div>
+      </div>`;
+    document.getElementById('filter-section').innerHTML = html;
+    fillSelect('hw-group', [...new Set(allHardware.map(h => h.h_group?.name))].filter(Boolean));
+    fillSelect('hw-brand', [...new Set(allHardware.map(h => h.brand?.name))].filter(Boolean));
+    bindFilterEvents();
+  }
+
+  function fillSelect(id, items) {
+    const select = document.getElementById(id);
+    if (!select) return;
+    items.forEach(i => {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = i;
+      select.appendChild(opt);
+    });
+  }
+
+  function bindFilterEvents() {
+    document.querySelectorAll('#filter-section select, #filter-section input, #search-input')
+      .forEach(el => el.addEventListener('input', () => renderSelectionList(getSourceItems())));
+  }
+
+
+  // ===== FILTER & RENDER LIST - (No change needed here) =====
+  function renderSelectionList(source) {
+    const list = document.getElementById('selection-list-container');
+    let filtered = [...source];
+    const search = document.getElementById('search-input').value.toLowerCase();
+    const isEdgebandSide = currentSelectionType === 'edgeband_whitelist' && !!currentEdgebandSide;
+    // Filtering logic 
+    if (currentSelectionType === 'material_whitelist') {
+        const g = document.getElementById('mat-group').value;
+        const t = document.getElementById('mat-type').value;
+        const m = document.getElementById('mat-model').value;
+        const th = parseFloat(document.getElementById('mat-thickness').value);
+        const wood = document.getElementById('wooden-only')?.checked; 
+        if (g) filtered = filtered.filter(x => x.group === g);
+        if (t) filtered = filtered.filter(x => x.type === t);
+        if (m) filtered = filtered.filter(x => x.model === m);
+        if (!isNaN(th)) filtered = filtered.filter(x => x.thickness_mm == th);
+        if (wood) filtered = filtered.filter(x => x.category === 'wooden');
+        if (search) filtered = filtered.filter(x => (x.name || '').toLowerCase().includes(search));
+    }
+
+    if (currentSelectionType === 'edgeband_whitelist') {
+        const depth = document.getElementById('edge-depth').value;
+        const thick = document.getElementById('edge-thickness').value;
+        const brand = document.getElementById('edge-brand').value;
+        if (depth) filtered = filtered.filter(e => e.edgeband_name?.depth === depth);
+        if (thick) filtered = filtered.filter(e => e.e_thickness === thick);
+        if (brand) filtered = filtered.filter(e => e.brand?.name === brand);
+        if (search) filtered = filtered.filter(e => (e.display_name || '').toLowerCase().includes(search));
+    }
+
+    if (currentSelectionType === 'hardware_rule' || currentSelectionType === 'product_hardware_rule') {
+        const g = document.getElementById('hw-group').value;
+        const b = document.getElementById('hw-brand').value;
+        if (g) filtered = filtered.filter(h => h.h_group?.name === g);
+        if (b) filtered = filtered.filter(h => h.brand?.name === b);
+        if (search) filtered = filtered.filter(h => (h.h_name || '').toLowerCase().includes(search));
+    }
+    // End Filtering logic
+
+    list.innerHTML = '';
+    if (!filtered.length) {
+      list.innerHTML = '<p class="text-muted">No results found.</p>';
+      return;
+    }
+
+    // Render list items
+    filtered.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'list-group-item d-flex justify-content-between align-items-center';
+      const id = item.id;
+      
+      let extraInput = '';
+      let isPartHardware = currentSelectionType === 'hardware_rule';
+      let isProductHardware = currentSelectionType === 'product_hardware_rule';
+
+      if (isPartHardware) {
+        // Input for quantity equation on Part Hardware Rules
+        extraInput = `<input type="text" placeholder="Equation" class="form-control form-control-sm" data-cond="${id}" style="width:120px;">`;
+      } else if (isProductHardware) {
+        // Input for Quantity (integer) on Product Hardware Rules
+        extraInput = `<input type="number" placeholder="Quantity (int)" class="form-control form-control-sm" data-cond="${id}" style="width:120px;">`;
+      }
+      const checkboxType = isEdgebandSide ? 'radio' : 'checkbox';
+      const showDefaultRadio = !isProductHardware && !isEdgebandSide;
+      let isChecked = false;
+        if (isEdgebandSide && currentPartIndex !== null) {
+            const part = productData.part_templates[currentPartIndex];
+            if (part[`edgeband_${currentEdgebandSide}_id`] == id) {
+                isChecked = true;
+            }
+        }
+
+      div.innerHTML = `
+<div>
+                <input type="${checkboxType}" value="${id}" class="me-2 whitelist-check" name="temp-selection-group" ${isChecked ? 'checked' : ''}>
+                ${showDefaultRadio ? `<input type="radio" name="defaultItem" value="${id}" class="me-2 default-radio">` : ''}
+                ${item.h_name 
+                    ? `${item.h_name} (${item.h_group?.name || ''}) / ${item.brand?.name || ''}`
+                    : (item.display_name || item.name || 'Unnamed')
+                }
+            </div>
+        ${extraInput}
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  // ===== CONSOLIDATED SAVE SELECTION LOGIC - (No major change needed here) =====
+  
+function saveSelection() {
+    // --- 1. PRODUCT-LEVEL HARDWARE RULE LOGIC ---
+    if (currentSelectionType === 'product_hardware_rule') {
+        const selected = getSourceItems().filter(h => 
+            [...document.querySelectorAll('#selection-list-container .whitelist-check:checked')].some(cb => +cb.value === h.id)
+        );
+        selected.forEach(hw => {
+            const quantityInput = document.querySelector(`[data-cond="${hw.id}"]`);
+            productHardwareRules.push({
+                hardware: hw,
+                quantity_equation: quantityInput?.value || "1",
+                condition: ""
+            });
+        });
+        selectionModal.hide();
+        renderProductHardwareTable();
+        productHardwareModal.show();
+        return;
+    }
+    
+    const part = productData.part_templates[currentPartIndex];
+    if (!part) return;
+
+    // --- 2. HANDLE EDGEBAND SIDE SELECTION (NEW) ---
+    if (currentSelectionType === 'edgeband_whitelist' && currentEdgebandSide) {
+        // Since Edgeband Side selection uses radio buttons (as planned), we look for a single checked item.
+        const checkedItem = document.querySelector('input[name="temp-selection-group"]:checked');
+        
+        if (checkedItem) {
+            const edgebandId = checkedItem.value;
+            const selectedEdgeband = allEdgebands.find(e => e.id == edgebandId);
+            
+            // Set the Foreign Key ID
+            part[`edgeband_${currentEdgebandSide}_id`] = selectedEdgeband.id; 
+            // Set the full object for easy display in renderParts
+            part[`edgeband_${currentEdgebandSide}_obj`] = selectedEdgeband; 
+            showStatus(`Edgeband for ${currentEdgebandSide} side saved.`, 'success');
+        } else {
+            // If nothing is checked (user cleared it), remove the edgeband
+            part[`edgeband_${currentEdgebandSide}_id`] = null;
+            part[`edgeband_${currentEdgebandSide}_obj`] = null;
+            showStatus(`Edgeband removed from ${currentEdgebandSide} side.`, 'info');
+        }
+        
+        currentEdgebandSide = null; // Reset side state
+        selectionModal.hide();
+        renderParts();
+        return;
+    }
+
+
+    // --- 3. STANDARD MATERIAL/EDGEBAND/HARDWARE WHITELIST LOGIC (Existing) ---
+    const selectedDefault = document.querySelector('input[name="defaultItem"]:checked');
+    const checkedItems = [...document.querySelectorAll('#selection-list-container .whitelist-check:checked')];
+    const idToItem = Object.fromEntries(getSourceItems().map(i => [i.id, i]));
+    
+    if (currentSelectionType === 'material_whitelist') {
+        part.material_whitelist = [];
+        part.default_material = selectedDefault ? idToItem[selectedDefault.value] : null;
+        checkedItems.forEach(cb => part.material_whitelist.push(idToItem[cb.value]));
+    }
+
+    // Edgeband Whitelist is still here if you want to use it for global restrictions
+    if (currentSelectionType === 'edgeband_whitelist') { 
+        part.edgeband_whitelist = [];
+        part.default_edgeband = selectedDefault ? idToItem[selectedDefault.value] : null;
+        checkedItems.forEach(cb => part.edgeband_whitelist.push(idToItem[cb.value]));
+    }
+
+    if (currentSelectionType === 'hardware_rule') {
+        part.hardware_rules = [];
+        part.default_hardware = selectedDefault ? idToItem[selectedDefault.value] : null;
+        checkedItems.forEach(cb => {
+            const equation = document.querySelector(`[data-cond="${cb.value}"]`)?.value || '';
+            part.hardware_rules.push({ item: idToItem[cb.value], equation: equation });
+        });
+    }
+    
+    selectionModal.hide();
+    renderParts();
+}
+
+  // ===== PRODUCT FORM LOGIC (RENDERERS) =====
+  function newProduct() {
+    productData = {
+      id: null,
+      name: '',
+      validation_expression: '',
+      parameters: [],
+      part_templates: [],
+      three_d_asset: null, 
+      two_d_template_svg: ''
+    };
+    productHardwareRules = []; // Reset product hardware rules
+    renderProductForm();
+    showStatus('New product ready', 'info');
+  }
+
+  function renderProductForm() {
+    document.getElementById('product-id').value = productData.id ?? 'New Product';
+    document.getElementById('product-name').value = productData.name;
+    document.getElementById('validation-expr').value = productData.validation_expression;
+    renderParameters();
+    renderParts();
+  }
+
+  function addParameter() {
+    const name = prompt('Enter parameter name (e.g., product_length):');
+    if (!name) return;
+    productData.parameters.push({ 
+        name, 
+        abbreviation: name[0].toUpperCase(), 
+        default_value: 0, 
+        description: '' 
+    });
+    renderParameters();
+  }
+
+  function renderParameters() {
+    const c = document.getElementById('parameters-container');
+    c.innerHTML = '';
+    if (!productData.parameters.length) return c.innerHTML = '<p class="text-muted">No parameters.</p>';
+    
+    productData.parameters.forEach((p,i) => {
+        const div = document.createElement('div');
+        div.className = 'border p-2 mb-2 rounded';
+        
+        // Use an inner function to bind update events
+        const updateParam = (field, value) => {
+            productData.parameters[i][field] = value;
+            // console.log(`Param ${i} updated: ${field} = ${value}`);
+        };
+
+        div.innerHTML = `
+            <div class="row g-2 align-items-center">
+                <div class="col-4">
+                    <input class="form-control form-control-sm" placeholder="Name" value="${p.name}" 
+                        oninput="this.value = this.value.replace(/[^a-zA-Z0-9_]/g, ''); productData.parameters[${i}].name=this.value;">
+                </div>
+                <div class="col-2">
+                    <input class="form-control form-control-sm" placeholder="Abbr" value="${p.abbreviation}" 
+                        oninput="productData.parameters[${i}].abbreviation=this.value;">
+                </div>
+                <div class="col-2">
+                    <input type="number" step="0.01" class="form-control form-control-sm" placeholder="Default" value="${p.default_value}" 
+                        oninput="productData.parameters[${i}].default_value=parseFloat(this.value) || 0;">
+                </div>
+                <div class="col-3">
+                    <input class="form-control form-control-sm" placeholder="Description" value="${p.description}" 
+                        oninput="productData.parameters[${i}].description=this.value;">
+                </div>
+                <div class="col-1 text-end">
+                    <button class="btn btn-danger btn-sm py-0 px-1">✕</button>
+                </div>
+            </div>
+        `;
+        div.querySelector('button').onclick = () => { productData.parameters.splice(i,1); renderParameters(); };
+        c.appendChild(div);
+    });
+  }
+
+
+  function addPartTemplate() {
+    productData.part_templates.push({
+      id: null,
+      name: `New Part ${productData.part_templates.length+1}`,
+      // Core Geometry Fields (Equations)
+      part_length_equation: 'product_length', 
+      part_width_equation: 'product_width', 
+      part_qty_equation: '1', 
+      part_thickness_mm: 18.00,
+      shape_wastage_multiplier: 1.0,
+      
+      // NEW: Specific Edgeband Foreign Keys (FKs)
+      edgeband_top_id: null,
+      edgeband_left_id: null,
+      edgeband_bottom_id: null,
+      edgeband_right_id: null,
+      
+      // NEW: Corresponding Edgeband Objects for quick display (in renderParts)
+      edgeband_top_obj: null,
+      edgeband_left_obj: null,
+      edgeband_bottom_obj: null,
+      edgeband_right_obj: null,
+      
+      // Whitelist/Default state (used for Material/Hardware only)
+      default_material: null,
+      material_whitelist: [],
+      // Keep these for potential future generalized restrictions/compatibility checks
+      default_edgeband: null, 
+      edgeband_whitelist: [], 
+      default_hardware: null,
+      hardware_rules: []
+    });
+    renderParts();
+}
+
+  function removeItem(partIdx, key, itemIdx) {
+    productData.part_templates[partIdx][key].splice(itemIdx, 1);
+    renderParts();
+  };
+
+  
+function renderParts() {
+    const c = document.getElementById('part-templates-container');
+    c.innerHTML = '';
+    if (!productData.part_templates.length)
+      return c.innerHTML = '<p class="text-muted">No parts.</p>';
+
+    productData.part_templates.forEach((p, i) => {
+      const div = document.createElement('div');
+      div.className = 'border p-3 mb-3 rounded';
+
+      // Helper function to format list of items (unchanged)
+      const formatList = (items, key, displayKey) => {
+        return items.length > 0
+          ? items.map((item, idx) => 
+              `${item[displayKey]} <button class="btn btn-sm btn-danger py-0 px-1" onclick="removeItem(${i}, '${key}', ${idx})">×</button>`
+            ).join(', ')
+          : '—';
+      };
+
+      // NEW: Helper to render the side edgeband button
+      const getEdgebandButton = (side) => {
+          // Use the specific side object, or fallback to the old default if side object is missing (for initial load safety)
+          const obj = p[`edgeband_${side}_obj`] || p.default_edgeband; 
+          const name = obj ? obj.display_name.split(' ')[0] : 'None';
+          const className = obj ? 'btn-outline-success' : 'btn-outline-secondary';
+          return `<button class="btn btn-sm ${className}" onclick="selectEdgebandSide(${i}, '${side}')">
+                      ${side.toUpperCase()}: ${name}
+                  </button>`;
+      };
+      
+      const geometrySummary = 
+          `L: ${p.part_length_equation}, W: ${p.part_width_equation}, Qty: ${p.part_qty_equation} | T: ${p.part_thickness_mm}mm`;
+
+
+      div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <input class="form-control w-50 me-2" value="${p.name}" 
+                   oninput="productData.part_templates[${i}].name=this.value" placeholder="Part Name">
+            
+            <div>
+                <button class="btn btn-sm btn-outline-info me-2" onclick="showGeometryModal(${i})">
+                    📝 Edit Geometry
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="productData.part_templates.splice(${i}, 1); renderParts();">
+                    Remove Part
+                </button>
+            </div>
+        </div>
+        
+        <div class="small mb-3 text-muted border-bottom pb-2">
+            **Equations:** ${geometrySummary}
+        </div>
+
+
+        <div class="mt-3">
+            <h6 class="mb-2">Edgeband Sides</h6>
+            <div class="d-flex flex-wrap gap-2 mb-3 border p-2 rounded">
+                ${getEdgebandButton('top')}
+                ${getEdgebandButton('left')}
+                ${getEdgebandButton('bottom')}
+                ${getEdgebandButton('right')}
+            </div>
+        </div>
+
+        <h6 class="mt-3">Material & Hardware Rules</h6>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <button class="btn btn-sm btn-outline-primary" onclick="showSelectionModal(${i}, 'material_whitelist')">
+                Select Materials
+            </button>
+            <button class="btn btn-sm btn-outline-warning" onclick="showSelectionModal(${i}, 'hardware_rule')">
+                Select Hardware
+            </button>
+        </div>
+        
+        <div class="mt-3 small border-top pt-2">
+            <strong>Default Material:</strong> ${p.default_material?.name || '—'}<br>
+            <strong>Whitelist Materials:</strong> 
+            ${formatList(p.material_whitelist, 'material_whitelist', 'name')}<br>
+
+            <strong>Default Hardware:</strong> ${p.default_hardware?.h_name || '—'}<br>
+            <strong>Substitute Hardware:</strong> 
+            ${p.hardware_rules.length > 0
+              ? p.hardware_rules.map((h, idx) => 
+                  `${h.item.h_name}(${h.equation}) <button class="btn btn-sm btn-danger py-0 px-1" onclick="removeItem(${i}, 'hardware_rules', ${idx})">×</button>`
+                ).join(', ')
+              : '—'
+            }
+        </div>
+      `;
+
+      c.appendChild(div);
+    });
+}
+
+
+  // ===== PRODUCT HARDWARE RULES MODAL LOGIC - (No change needed here) =====
+
+  // open modal
+  document.getElementById('manage-hardware-rules-btn').addEventListener('click', () => {
+    renderProductHardwareTable();
+    productHardwareModal.show();
+  });
+
+  // add new rule (opens selection modal)
+  document.getElementById('add-product-hw-btn').addEventListener('click', () => {
+    currentSelectionType = 'product_hardware_rule'; 
+    document.getElementById('modal-title').textContent = 'Select Hardware for Product Rule (Simple Quantity)';
+    renderHardwareFilters();
+    renderSelectionList(allHardware);
+    productHardwareModal.hide(); 
+    selectionModal.show();
+  });
+
+  function renderProductHardwareTable() {
+    const tbody = document.getElementById('product-hardware-table-body');
+    tbody.innerHTML = '';
+
+    if (!productHardwareRules.length) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-muted text-center">No hardware rules defined</td></tr>`;
+      return;
+    }
+
+    productHardwareRules.forEach((rule, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${rule.hardware.h_name} 
+          <small class="text-muted">(${rule.hardware.h_group?.name || ''} / ${rule.hardware.brand?.name || ''})</small>
+        </td>
+        <td><input type="number" class="form-control form-control-sm eq-input" data-index="${index}" value="${rule.quantity_equation}"></td>
+        <td><input type="text" class="form-control form-control-sm cond-input" data-index="${index}" value="${rule.condition}" placeholder="Condition (if any)"></td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-danger" onclick="removeProductHardwareRule(${index})">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Update quantity_equation (which maps to int quantity in payload) and condition
+    document.querySelectorAll('.eq-input').forEach(el => {
+      el.addEventListener('input', e => {
+        // Ensure quantity remains a string representation of a number
+        productHardwareRules[e.target.dataset.index].quantity_equation = e.target.value; 
+      });
+    });
+    document.querySelectorAll('.cond-input').forEach(el => {
+      el.addEventListener('input', e => {
+        productHardwareRules[e.target.dataset.index].condition = e.target.value;
+      });
+    });
+  }
+
+  function removeProductHardwareRule(index) {
+    productHardwareRules.splice(index, 1);
+    renderProductHardwareTable();
+  }
+
+  // ===== INITIALIZATION & BINDINGS =====
+  document.getElementById('new-btn').onclick = newProduct;
+  document.getElementById('add-param-btn').onclick = addParameter;
+  document.getElementById('add-part-btn').onclick = addPartTemplate;
+  document.getElementById('save-btn').onclick = saveProduct; // New Save Binding
+
+  // Run initial data load
+  window.onload = preloadAllData;
+
+})();
+</script>
+
+{% endblock %}

@@ -1,35 +1,95 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from django.http import HttpResponse
-from quoting.models import QuoteProduct
+from django.http import HttpResponse, Http404
 
+from quoting.models import QuoteProduct
+from modular_calc.evaluation.product_engine import ProductEngine
 from .services import render_svg
+
 
 @api_view(["GET"])
 def product_svg(request, quote_product_id: int):
     """
-    Renders 2D SVG for a product:
-    - Uses product two_d_template_svg if present, else falls back to each part's SVG template stitched (simple).
-    Context variables: product_length, product_width, product_height, product_depth
+    Generate full-product SVG using:
+    1. Product's master SVG template (preferred)
+    2. Else, individual part templates stitched vertically
+    3. Else, fallback rectangle layout
+
+    All dimensions come from the new ProductEngine evaluator.
     """
-    qp = QuoteProduct.objects.select_related("product_template").get(pk=quote_product_id)
-    product = qp.product_template
-    ctx = qp.as_dims()
+    try:
+        qp = QuoteProduct.objects.select_related("product_template").get(pk=quote_product_id)
+    except QuoteProduct.DoesNotExist:
+        raise Http404("QuoteProduct not found")
 
-    if product.two_d_template_svg:
-        svg = render_svg(product.two_d_template_svg, ctx)
-        return HttpResponse(svg, content_type="image/svg+xml")
+    # Build product context (length/width/height/quantity/parameters)
+    dims = qp.as_dims()
 
-    # Fallback: simple composite from parts (minimal demo)
-    parts = qp.parts.all()
-    chunks = ['<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200">']
+    # Run ProductEngine to evaluate parts with new evaluator
+    engine = ProductEngine(qp.product_template)
+    result = engine.evaluate(dims, parameters={})   # parameters={} for now
+
+    parts = result["parts"]
+    product_template = qp.product_template
+
+    # ------------------------------------------------------------------
+    # CASE 1: PRODUCT LEVEL SVG TEMPLATE EXISTS  → BEST QUALITY OUTPUT
+    # ------------------------------------------------------------------
+    if product_template.two_d_template_svg:
+        try:
+            svg = render_svg(product_template.two_d_template_svg, dims)
+            return HttpResponse(svg, content_type="image/svg+xml")
+        except Exception as e:
+            return Response(
+                {"error": f"SVG template rendering failed: {str(e)}"},
+                status=400
+            )
+
+    # ------------------------------------------------------------------
+    # CASE 2: PART-LEVEL SVG TEMPLATES EXIST  → STITCH INTO ONE SVG
+    # ------------------------------------------------------------------
+    stitched = []
     y = 10
+    stitched.append('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="3000">')
+
     for p in parts:
-        # Draw rectangles proportional; you can scale based on real dims
-        w = float(p.length_mm) / 5
-        h = float(p.width_mm) / 5
-        chunks.append(f'<rect x="10" y="{y}" width="{w:.1f}" height="{h:.1f}" fill="none" stroke="black"/>')
-        chunks.append(f'<text x="{10+w+5}" y="{y+12}" font-size="12">{p.part_name} {p.length_mm}x{p.width_mm} (t{p.thickness_mm})</text>')
-        y += h + 20
-    chunks.append("</svg>")
-    return HttpResponse("".join(chunks), content_type="image/svg+xml")
+        if p["two_d_template_svg"]:
+            # PART TEMPLATE DEFINED
+            ctx = {
+                "length": float(p["length"]),
+                "width": float(p["width"]),
+                "qty": float(p["quantity"]),
+                "thickness": float(p["thickness"]),
+                "grain_direction": p["grain_direction"],
+            }
+
+            try:
+                part_svg = render_svg(p["two_d_template_svg"], ctx)
+            except Exception as e:
+                part_svg = f'<text x="10" y="{y}" font-size="12" fill="red">Error in {p["name"]}: {str(e)}</text>'
+            
+            stitched.append(f'<g transform="translate(0,{y})">{part_svg}</g>')
+            y += 300
+        else:
+            # NO PART SVG → DRAW SIMPLE OUTLINE
+            w = float(p["length"]) / 5
+            h = float(p["width"]) / 5
+            stitched.append(f'<rect x="10" y="{y}" width="{w:.1f}" height="{h:.1f}" fill="none" stroke="black"/>')
+            stitched.append(
+                f'<text x="{20+w}" y="{y+12}" font-size="14">'
+                f'{p["name"]} {p["length"]}×{p["width"]} (t{p["thickness"]})'
+                '</text>'
+            )
+            y += h + 40
+
+    stitched.append("</svg>")
+
+    return HttpResponse("".join(stitched), content_type="image/svg+xml")
+
+
+# ✔ Auto-scale SVG to fit screen
+# ✔ Grain direction arrows
+# ✔ Edge-band visualization (left/right/top/bottom thickness lines)
+# ✔ Option to export PNG / PDF
+# ✔ Combine product + parts into a single downloadable ZIP
+# ✔ 2D nesting preview from Cutlist optimizer

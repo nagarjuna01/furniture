@@ -1,105 +1,87 @@
-# orders/views.py or customers/views.py
-from rest_framework import viewsets
-from .models import Customer
-from .serializers import CustomerSerializer
+from rest_framework import viewsets, filters, permissions
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import Client, Lead, Opportunity, SupportTicket, Interaction
+from .serializers import ClientSerializer, LeadSerializer, OpportunitySerializer, SupportTicketSerializer, InteractionSerializer
+
+# Simple permission: anyone authenticated can access. You can expand later.
+class IsAuthenticatedCRM(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated
+
+
+class ClientViewSet(viewsets.ModelViewSet):
+    queryset = Client.objects.all()
+    serializer_class = ClientSerializer
+    permission_classes = [IsAuthenticatedCRM]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['name', 'email', 'phone_number']
+    search_fields = ['name', 'email', 'phone_number']
+    ordering_fields = ['id', 'name', 'created_at']
+    ordering = ['id']
+
+
+class LeadViewSet(viewsets.ModelViewSet):
+    queryset = Lead.objects.all()
+    serializer_class = LeadSerializer
+    permission_classes = [IsAuthenticatedCRM]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'source']
+    search_fields = ['name', 'email', 'phone_number']
+    ordering_fields = ['id', 'name', 'created_at']
+    ordering = ['id']
+
+
+class OpportunityViewSet(viewsets.ModelViewSet):
+    queryset = Opportunity.objects.all()
+    serializer_class = OpportunitySerializer
+    permission_classes = [IsAuthenticatedCRM]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['stage']
+    search_fields = ['name']
+    ordering_fields = ['id', 'name', 'expected_close_date']
+    ordering = ['id']
+
+
+class SupportTicketViewSet(viewsets.ModelViewSet):
+    queryset = SupportTicket.objects.all()
+    serializer_class = SupportTicketSerializer
+    permission_classes = [IsAuthenticatedCRM]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'priority']
+    search_fields = ['subject', 'client__name', 'client__email']
+    ordering_fields = ['id', 'created_at']
+    ordering = ['id']
+
+
+class InteractionViewSet(viewsets.ModelViewSet):
+    queryset = Interaction.objects.all()
+    serializer_class = InteractionSerializer
+    permission_classes = [IsAuthenticatedCRM]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['interaction_type', 'client']
+    search_fields = ['subject', 'description', 'client__name']
+    ordering_fields = ['id', 'interaction_date']
+    ordering = ['interaction_date']
+
 from django.shortcuts import render
-from django.views import View
-
-class CustomerViewSet(viewsets.ModelViewSet):
-    queryset = Customer.objects.all()
-    serializer_class = CustomerSerializer
-
-class CustomerRegisterView(View):
-    def get(self, request):
-        return render(request, 'customer_register.html')
-    
-
-###################################################
-def dashboard_view(request):
-    user = request.user
-    if user.user_type == 'company' and user.company:
-        # Company dashboard logic
-        ...
-    else:
-        # Freebie view logic
-        ...
-    
-from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import get_user_model
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-from django.contrib.auth.models import Group
-from django.contrib.auth import login ,logout
 
-
-User = get_user_model()
 @login_required
-def customer_dashboard(request):
-    user = request.user
-    customer = getattr(user, 'customer_profile', None)
+def leads_page(request):
+    return render(request, 'leads.html')
 
-    if customer and customer.user_type == 'company' and customer.company:
-        return render(request, 'dashboards/company_dashboard.html', {'user': user})
-    else:
-        return render(request, 'dashboards/freebie_dashboard.html', {'user': user})
+@login_required
+def opportunities_page(request):
+    return render(request, 'opportunities.html')
 
-# views.py
-from django.contrib.auth import authenticate, login, logout
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+@login_required
+def support_tickets_page(request):
+    return render(request, 'support_tickets.html')
 
-@csrf_exempt  # For AJAX POST, or pass CSRF token in header (preferred)
-def ajax_login(request):
-    if request.method == "POST":
-        username = request.POST.get("username")
-        password = request.POST.get("password")
+@login_required
+def customers_page(request):
+    return render(request, 'customers.html')
 
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            if user.is_active:
-                login(request, user)
-                return JsonResponse({"success": True, "redirect_url": "/dashboard/"})
-            else:
-                return JsonResponse({"success": False, "message": "Account is inactive."}, status=403)
-        return JsonResponse({"success": False, "message": "Invalid credentials"}, status=400)
-    
-    return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
-
-@require_POST
-@csrf_exempt
-def ajax_register(request):
-    username = request.POST.get("username")
-    email = request.POST.get("email")
-    password1 = request.POST.get("password1")
-    password2 = request.POST.get("password2")
-
-    if not all([username, email, password1, password2]):
-        return JsonResponse({"success": False, "message": "All fields are required."}, status=400)
-
-    if password1 != password2:
-        return JsonResponse({"success": False, "message": "Passwords do not match."}, status=400)
-
-    if User.objects.filter(username=username).exists():
-        return JsonResponse({"success": False, "message": "Username already taken."}, status=400)
-
-    user = User.objects.create_user(username=username, email=email, password=password1)
-
-    # If you're using your custom Customer model as AbstractUser:
-    user.user_type = 'freebie'
-    user.save()
-
-    # Optional group assignment
-    freebie_group, _ = Group.objects.get_or_create(name="freebie")
-    user.groups.add(freebie_group)
-
-    login(request, user)
-    return JsonResponse({"success": True, "redirect_url": "/dashboard/"})
-
-@csrf_exempt
-def ajax_logout(request):
-    if request.method == "POST":
-        logout(request)
-        return JsonResponse({'success': True, 'message': 'Logged out'})
-    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+@login_required
+def crm_dashboard(request):
+    return render(request, 'dashboard.html')

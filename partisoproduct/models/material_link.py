@@ -1,5 +1,7 @@
 from django.db import models
-from material.models import EdgeBand
+from material.models.edgeband import EdgeBand
+from material.models.category import Category,CategoryModel,CategoryTypes
+from material.models.wood import WoodMaterial
 from .modular import Modular1
 
 GRAIN_CHOICES = [
@@ -17,20 +19,16 @@ class Part1(models.Model):
     part_qty_equation = models.CharField(max_length=255)
 
     compatible_categories = models.ManyToManyField(
-        'material.Category',
-        blank=True, related_name='parts_by_category'
+    'material.Category', blank=True, related_name='parts_by_category'
     )
     compatible_types = models.ManyToManyField(
-        'material.CategoryTypes',
-        blank=True, related_name='parts_by_type'
+        'material.CategoryTypes', blank=True, related_name='parts_by_type'
     )
     compatible_models = models.ManyToManyField(
-        'material.CategoryModel',
-        blank=True, related_name='parts_by_model'
+        'material.CategoryModel', blank=True, related_name='parts_by_model'
     )
     compatible_woods = models.ManyToManyField(
-        'material.WoodEn',
-        blank=True, related_name='parts_by_wood'
+        'material.WoodMaterial', blank=True, related_name='parts_by_wood'
     )
 
     part_edgematerial_top = models.ForeignKey(EdgeBand, on_delete=models.SET_NULL, null=True, blank=True, related_name='part_top_edges')

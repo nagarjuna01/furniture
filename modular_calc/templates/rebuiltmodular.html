@@ -1,0 +1,323 @@
+{% extends "base_b.html" %}
+{% load static %}
+{% block title %}Product Master{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-end mb-3">
+    <button id="show-add-product-btn" class="btn btn-primary">➕ Add Product</button>
+</div>
+
+<div id="modular-products-container">
+    <div class="row">
+
+    <div class="row">
+
+        <!-- ================================================= -->
+        <!-- LEFT 30% : CATEGORY / TYPE / MODEL ACCORDION CRUD -->
+        <!-- ================================================= -->
+        <div class="col-3" style="max-height:85vh; overflow-y:auto;">
+
+            <div class="accordion" id="masterAccordion">
+
+                <!-- ================= CATEGORY SECTION =============== -->
+                <div class="accordion-item">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#categorySection">
+            📦 Categories
+        </button>
+    </h2>
+    <div id="categorySection" class="accordion-collapse collapse"
+         data-bs-parent="#masterAccordion">
+        <div class="accordion-body">
+            <div class="d-flex justify-content-between mb-2">
+                <h6 class="fw-bold">Categories</h6>
+                <button class="btn btn-primary btn-sm" onclick="openCategoryModal()">Add</button>
+            </div>
+
+            <!-- Search input -->
+            <input id="category-search" class="form-control form-control-sm mb-2" placeholder="Search...">
+
+            <!-- Per-page selector -->
+            <div class="mb-2 d-flex align-items-center">
+                <label for="category-per-page" class="me-2 mb-0">Show:</label>
+                <select id="category-per-page" class="form-select form-select-sm w-auto">
+                    <option value="5">5 per page</option>
+                    <option value="10">10 per page</option>
+                    <option value="20">20 per page</option>
+                </select>
+            </div>
+
+            <!-- Loading spinner -->
+            <div id="category-loading" class="text-center mb-2" style="display:none;">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div> Loading categories...
+            </div>
+
+            <table class="table table-sm table-bordered table-hover">
+    <thead>
+    <tr>
+        <th class="sortable" data-tab="categories" data-sort="name">Name</th>
+        <th style="width: 100px;">Actions</th>
+    </tr>
+</thead>
+    <tbody id="categoryTable">
+        <!-- Rows generated dynamically -->
+    </tbody>
+</table>
+
+
+            <!-- Pagination buttons -->
+            <div class="d-flex justify-content-between">
+                <button id="category-prev" class="btn btn-outline-primary btn-sm">Prev</button>
+                <button id="category-next" class="btn btn-outline-primary btn-sm">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+                <!-- ================= TYPE SECTION ================== -->
+                <div class="accordion-item">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#typesSection">
+            📦 Types
+        </button>
+    </h2>
+    <div id="typesSection" class="accordion-collapse collapse" data-bs-parent="#masterAccordion">
+        <div class="accordion-body">
+            <div class="d-flex justify-content-between mb-2">
+                <h6 class="fw-bold">Types</h6>
+                <button class="btn btn-primary btn-sm" onclick="openTypeModal()">Add</button>
+            </div>
+
+            <!-- Search input -->
+            <input id="type-search" class="form-control form-control-sm mb-2" placeholder="Search...">
+
+            <!-- Table -->
+            <table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        
+                        <thead>
+    <tr>
+        <th class="sortable" data-tab="types" data-sort="name">Name</th>
+        <th class="sortable" data-tab="types" data-sort="category_name">Category</th>
+        <th class="text-center">Actions</th>
+    </tr>
+</thead>
+                        
+                <tbody id="typeTable"></tbody>
+            </table>
+
+            <!-- Rows per page selector -->
+            <div class="d-flex align-items-center mb-2">
+                <label for="type-per-page" class="me-2 mb-0">Rows per page:</label>
+                <select id="type-per-page" class="form-select form-select-sm w-auto">
+                    <option value="5" selected>5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                </select>
+            </div>
+
+            <!-- Pagination buttons -->
+            <div class="d-flex justify-content-between">
+                <button id="type-prev" class="btn btn-outline-primary btn-sm">Prev</button>
+                <button id="type-next" class="btn btn-outline-primary btn-sm">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+                <!-- ================= MODEL SECTION ================== -->
+                <div class="accordion-item">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#modelsSection">
+            📦 Models
+        </button>
+    </h2>
+    <div id="modelsSection" class="accordion-collapse collapse" data-bs-parent="#masterAccordion">
+        <div class="accordion-body">
+            <div class="d-flex justify-content-between mb-2">
+                <h6 class="fw-bold">Models</h6>
+                <button class="btn btn-primary btn-sm" onclick="openModelModal()">Add</button>
+            </div>
+
+            <!-- Search input -->
+            <input id="model-search" class="form-control form-control-sm mb-2" placeholder="Search...">
+
+            <!-- Table -->
+            <table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        
+                        <th class="sortable" data-tab="models" data-sort="name">Name</th>
+        <th class="sortable" data-tab="models" data-sort="type_name">Type</th>
+        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="modelTable"></tbody>
+            </table>
+
+            <!-- Rows per page selector -->
+            <div class="d-flex align-items-center mb-2">
+                <label for="model-per-page" class="me-2 mb-0">Rows per page:</label>
+                <select id="model-per-page" class="form-select form-select-sm w-auto">
+                    <option value="5" selected>5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                </select>
+            </div>
+
+            <!-- Pagination buttons -->
+            <div class="d-flex justify-content-between">
+                <button id="model-prev" class="btn btn-outline-primary btn-sm">Prev</button>
+                <button id="model-next" class="btn btn-outline-primary btn-sm">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+            </div> <!-- accordion end -->
+
+        </div> <!-- col-3 end -->
+
+        <!-- ================================================= -->
+        <!-- RIGHT 70% : MODULAR PRODUCT LIST & FILTERS       -->
+        <!-- ================================================= -->
+        <div class="col-9">
+
+            <!-- Filters in Card -->
+            <div class="card mb-3">
+  <div class="card-header" id="filtersHeader" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="true" aria-controls="filtersCollapse">
+    🔍 Filters
+    <span class="float-end">▼</span> <!-- optional arrow indicator -->
+  </div>
+  <div id="filtersCollapse" class="collapse">
+    <div class="card-body d-flex flex-column gap-2">
+      <input id="mp-search" class="form-control" placeholder="Search products...">
+      <select id="mp-filter-category" class="form-select" onchange="enableTypeFilter(this.value)"></select>
+      <select id="mp-filter-type" class="form-select" disabled onchange="enableModelFilter(this.value)"></select>
+      <select id="mp-filter-model" class="form-select" disabled></select>
+    </div>
+  </div>
+</div>
+
+
+            <!-- Product List -->
+            <div id="product-list-container"></div>
+
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between mt-3">
+                <button id="mp-prev-page" class="btn btn-outline-primary btn-sm">Previous</button>
+                <button id="mp-next-page" class="btn btn-outline-primary btn-sm">Next</button>
+            </div>
+
+        </div> <!-- col-9 end -->
+
+    </div> <!-- row end -->
+
+</div> <!-- tab-content -->
+
+<!-- ======= ALL MODALS (category, type, model, product-details, builder modals) ======= -->
+
+<!-- Category Modal -->
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="categoryModalLabel">Category</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="categoryForm" onsubmit="saveCategory(event)">
+          <div class="mb-3">
+            <label for="categoryName" class="form-label">Category Name</label>
+            <input type="text" class="form-control" id="categoryName" required>
+          </div>
+          <input type="hidden" id="categoryId">
+          <button type="submit" class="btn btn-primary">Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="typeModal" tabindex="-1" aria-labelledby="typeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="typeModalLabel">Type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="typeForm" onsubmit="saveType(event)">
+          <div class="mb-3">
+            <label for="typeName" class="form-label">Type Name</label>
+            <input type="text" class="form-control" id="typeName" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="typeCategory" class="form-label">Category</label>
+            <select id="typeCategory" class="form-select" required>
+              <!-- Categories will be loaded here dynamically -->
+            </select>
+          </div>
+
+          <input type="hidden" id="typeId">
+          <button type="submit" class="btn btn-primary">Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modelModal" tabindex="-1" aria-labelledby="modelModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modelModalLabel">Model</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="modelForm" onsubmit="saveModel(event)">
+          <div class="mb-3">
+            <label for="modelName" class="form-label">Model Name</label>
+            <input type="text" class="form-control" id="modelName" required>
+          </div>
+          
+          <div class="mb-3">
+            <label for="modelCategory" class="form-label">Category</label>
+                <select id="modelCategory" class="form-select" onchange="loadTypesDropdownByCategory(this.value)">
+
+              <!-- Categories will be loaded here -->
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="modelType" class="form-label">Type</label>
+            <select id="modelType" class="form-select">
+              <!-- Types will be loaded here based on selected category -->
+            </select>
+          </div>
+
+          <input type="hidden" id="modelId">
+          <button type="submit" class="btn btn-primary">Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'JS/MProduct.js' %}"></script>
+{% endblock %}

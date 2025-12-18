@@ -6,8 +6,8 @@ $(function() {
 
     const api = {
         products: '/products1/api/products/',
-        types: '/products1/api/types/',
-        models: '/products1/api/models/',
+        types: '/products1/api/product-types/',
+        models: '/products1/api/product-series/',
         measurementUnits: '/products1/api/measurement-units/',
         billingUnits: '/products1/api/billing-units/',
         attributes: '/products1/api/attributes/',
@@ -102,8 +102,8 @@ $('#product-type-id').on('change', function () {
             $('#productTable tbody').html(results.map(p => `
                 <tr data-id="${p.id}">
                     <td>${p.name}</td>
-                    <td>${p.type?.name || 'N/A'}</td>
-                    <td>${p.model?.name || 'N/A'}</td>
+                    <td>${p.product_type?.name || 'N/A'}</td>
+                    <td>${p.product_series?.name || 'N/A'}</td>
                     <td>${p.is_active ? 'Yes' : 'No'}</td>
                     <td>${new Date(p.created_at).toLocaleDateString()}</td>
                     <td>${p.variants_data?.length || 0}</td>
@@ -124,7 +124,7 @@ $('#product-type-id').on('change', function () {
                 <button class="btn btn-sm btn-danger position-absolute top-0 end-0 remove-image">×</button>
             </div>`).join(''));
     }
-
+window.loadProducts = loadProducts;
     // --- Admin Data Tables ---
     function loadTypes() {
         $.get(api.types, ({ results }) => {
@@ -162,17 +162,36 @@ $('#product-type-id').on('change', function () {
     let url = api.models;
     if (typeId) url += `?type=${typeId}`;
 
-    $.get(url, ({ results }) => {
-        $('#table-models tbody').html(results.map(m => `
-            <tr data-id="${m.id}" data-type="${m.type.id}">
-                <td>${m.name}</td><td>${m.code}</td><td>${m.type.name}</td>
-                <td>
-                    <button class="btn btn-info btn-sm edit-model">Edit</button>
-                    <button class="btn btn-danger btn-sm delete-model">Delete</button>
-                </td>
-            </tr>`).join(''));
+    $.get(url, function (resp) {
+        const results = resp.results || [];
+
+        console.log('Loaded models:', results);
+
+        if (!results.length) {
+            $('#table-models tbody').html(
+                `<tr><td colspan="4" class="text-center text-muted">No models found</td></tr>`
+            );
+            return;
+        }
+
+        $('#table-models tbody').html(
+            results.map(m => `
+                <tr data-id="${m.id}" data-type="${m.product_type ? m.product_type.id : ''}">
+                    <td>${m.name}</td>
+                    <td>${m.code}</td>
+                    <td>${m.product_type ? m.product_type.name : '-'}</td>
+                    <td>
+                        <button class="btn btn-info btn-sm edit-model">Edit</button>
+                        <button class="btn btn-danger btn-sm delete-model">Delete</button>
+                    </td>
+                </tr>
+            `).join('')
+        );
+    }).fail(xhr => {
+        console.error('Failed to load models', xhr.responseText);
     });
 }
+
 $('#filter-model-type').on('change', function () {
     const typeId = $(this).val();
     loadModels(typeId);
@@ -214,7 +233,7 @@ $('#filter-model-type').on('change', function () {
         ajaxSubmit('#form-model', api.models + (id ? id + '/' : ''), id ? 'PUT' : 'POST', {
             name: $('#model-name').val(),
             code: $('#model-code').val(),
-            type_id: $('#model-type-id').val()
+            product_type_id: $('#model-type-id').val()
         }, loadModels);
     });
 

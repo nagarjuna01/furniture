@@ -1,0 +1,18 @@
+{% extends "base_b.html" %}
+
+{% block title %}Product Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Product Management</h1>
+
+    {# Dedicated block for product SPA content (standard products, variants, images, etc.) #}
+    {% block product_content %}
+    <!-- Default content can go here or be overridden by child templates -->
+    {% endblock %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Page-specific JS can go here -->
+{% endblock %}

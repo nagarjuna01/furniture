@@ -1,0 +1,143 @@
+{% extends 'base_crm.html' %}
+{% block title %}CRM Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row g-3 mb-3">
+    <!-- KPI cards -->
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Clients</h5>
+          <h2 id="kpi-clients">—</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Leads</h5>
+          <h2 id="kpi-leads">—</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Opportunities</h5>
+          <h2 id="kpi-opps">—</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Tickets</h5>
+          <h2 id="kpi-tickets">—</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">Interactions</h5>
+          <h2 id="kpi-interactions">—</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs" id="crmTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" id="clients-tab" data-bs-toggle="tab" data-bs-target="#clients" type="button">Clients</button></li>
+    <li class="nav-item"><button class="nav-link" id="leads-tab" data-bs-toggle="tab" data-bs-target="#leads" type="button">Leads</button></li>
+    <li class="nav-item"><button class="nav-link" id="opps-tab" data-bs-toggle="tab" data-bs-target="#opps" type="button">Opportunities</button></li>
+    <li class="nav-item"><button class="nav-link" id="tickets-tab" data-bs-toggle="tab" data-bs-target="#tickets" type="button">Support Tickets</button></li>
+    <li class="nav-item"><button class="nav-link" id="interactions-tab" data-bs-toggle="tab" data-bs-target="#interactions" type="button">Interactions</button></li>
+  </ul>
+
+  <div class="tab-content pt-3">
+    <!-- Shared controls -->
+    <div class="d-flex mb-2">
+      <input id="crm-search" class="form-control me-2" placeholder="Search (press Enter)" />
+      <select id="crm-page-size" class="form-select" style="width:120px;">
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+      </select>
+      <button id="btn-add" class="btn btn-primary ms-2">Add</button>
+    </div>
+
+    <!-- Clients Tab -->
+    <div class="tab-pane fade show active" id="clients" role="tabpanel">
+      <table class="table table-sm table-hover" id="clients-table">
+        <thead class="table-light"><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Company</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <nav><ul class="pagination" id="clients-pagination"></ul></nav>
+    </div>
+
+    <!-- Leads Tab -->
+    <div class="tab-pane fade" id="leads" role="tabpanel">
+      <table class="table table-sm table-hover" id="leads-table">
+        <thead class="table-light"><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Source</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <nav><ul class="pagination" id="leads-pagination"></ul></nav>
+    </div>
+
+    <!-- Opportunities Tab -->
+    <div class="tab-pane fade" id="opps" role="tabpanel">
+      <table class="table table-sm table-hover" id="opps-table">
+        <thead class="table-light"><tr><th>ID</th><th>Name</th><th>Lead</th><th>Client</th><th>Stage</th><th>Amount</th><th>Close</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <nav><ul class="pagination" id="opps-pagination"></ul></nav>
+    </div>
+
+    <!-- Tickets Tab -->
+    <div class="tab-pane fade" id="tickets" role="tabpanel">
+      <table class="table table-sm table-hover" id="tickets-table">
+        <thead class="table-light"><tr><th>ID</th><th>Client</th><th>Subject</th><th>Status</th><th>Priority</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <nav><ul class="pagination" id="tickets-pagination"></ul></nav>
+    </div>
+
+    <!-- Interactions Tab -->
+    <div class="tab-pane fade" id="interactions" role="tabpanel">
+      <table class="table table-sm table-hover" id="interactions-table">
+        <thead class="table-light"><tr><th>ID</th><th>Client</th><th>Type</th><th>Subject</th><th>Date</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <nav><ul class="pagination" id="interactions-pagination"></ul></nav>
+    </div>
+  </div>
+</div>
+
+<!-- Universal Modal (Create / Edit) -->
+<div class="modal fade" id="crmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form id="crm-form" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="crmModalTitle">Create</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% csrf_token %}
+        <input type="hidden" id="entity-type" />
+        <input type="hidden" id="entity-id" />
+        <div id="crm-form-body"><!-- rendered by JS --></div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary" id="crm-save">Save</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/crm_dashboard.js' %}"></script>
+{% endblock %}

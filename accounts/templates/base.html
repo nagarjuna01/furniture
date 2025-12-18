@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}My App{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap 5 CSS -->
+  <link rel="stylesheet"
+        href="{% static 'css/bootstrap.min.css' %}">
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light px-3">
+    <a class="navbar-brand" href="/">MyApp</a>
+
+    <div class="ms-auto">
+      <!-- Guest -->
+      <button class="btn btn-outline-primary"
+              id="loginBtn"
+              data-bs-toggle="modal"
+              data-bs-target="#authModal">
+        Login
+      </button>
+
+      <!-- Authenticated -->
+      <button class="btn btn-outline-danger d-none"
+              id="logoutBtn">
+        Logout
+      </button>
+    </div>
+  </nav>
+
+  <!-- Page Content -->
+  <main class="container mt-4">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Global Modals -->
+  {% include "components/auth_modal.html" %}
+
+  <!-- JS: Vendor -->
+  <script src="{% static 'js/vendor/jquery.min.js' %}"></script>
+  <script src="{% static 'js/vendor/bootstrap.bundle.min.js' %}"></script>
+
+  <!-- JS: App -->
+  <script src="{% static 'js/common/ajax_setup.js' %}"></script>
+  <script src="{% static 'js/auth/auth.js' %}"></script>
+  <script src="{% static 'js/auth/token_refresh.js' %}"></script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

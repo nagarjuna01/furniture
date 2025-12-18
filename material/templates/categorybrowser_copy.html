@@ -143,12 +143,18 @@
           </select>
         </th>
         <th>Type<br>
-          <select id="filterType" class="form-select form-select-sm">
+          <select id="filterType" class="form-select form-select-sm"
+                  disabled
+                  data-bs-toggle="tooltip"
+                  title="Select a Category first to view available Types">
             <option value="">All</option>
           </select>
         </th>
         <th>Model<br>
-          <select id="filterModel" class="form-select form-select-sm">
+          <select id="filterModel" class="form-select form-select-sm"
+                  disabled
+                  data-bs-toggle="tooltip"
+                  title="Select a Type first to view available Models">
             <option value="">All</option>
           </select>
         </th>
@@ -157,9 +163,9 @@
             <option value="">All</option>
           </select>
         </th>
-        <th>Length</th>
-        <th>Width</th>
-        <th>Thickness</th>
+        <th>Length(mm)</th>
+        <th>Width(mm)</th>
+        <th>Thickness(mm)</th>
         <th>Purchase Price (Panel / Sqft)</th>
         <th>Selling Price (Panel / Sqft)</th>
         <th>Actions</th>
@@ -168,6 +174,7 @@
     <tbody></tbody>
   </table>
 </div>
+
 
       <div class="d-flex justify-content-between align-items-center">
         <button class="btn btn-sm btn-outline-secondary" id="woodenPrev">Prev</button>
@@ -265,7 +272,7 @@
         <input type="hidden" id="woodenId">
         <div class="col-md-3 mb-2">
           <label>Name</label>
-          <input type="text" id="woodenName" class="form-control">
+          <input type="text" id="woodenName" class="form-control" required>
         </div>
         <div class="col-md-3 mb-2">
           <label>Category</label>
@@ -472,7 +479,7 @@ $("#categoryForm").on("submit", function(e){
 
 
 // Edit
-$("#categoryTable").on("click", ".btn-edit-cat", function(){
+$("#categoriesTable").on("click", ".btn-edit-cat", function(){
   const id = $(this).closest("tr").data("id");
   $.get(API.categories + id + "/", function(c){
     $("#categoryId").val(c.id);
@@ -483,7 +490,7 @@ $("#categoryTable").on("click", ".btn-edit-cat", function(){
 });
 
 // Delete
-$("#categoryTable").on("click", ".btn-del-cat", function(){
+$("#categoriesTable").on("click", ".btn-del-cat", function(){
   if(!confirm("Delete this category?")) return;
   const id = $(this).closest("tr").data("id");
   $.ajax({ url: API.categories + id + "/", type: "DELETE" }).done(()=> loadCategories()).fail(alertError);
@@ -541,7 +548,7 @@ $("#categoryTypeForm").on("submit", function(e){
 });
 
 // Edit
-$("#categoryTypeTable").on("click", ".btn-edit-type", function(){
+$("#categoryTypesTable").on("click", ".btn-edit-type", function(){
   const id = $(this).closest("tr").data("id");
   $.get(API.categoryTypes + id + "/", function(t){
     $("#categoryTypeId").val(t.id);
@@ -553,7 +560,7 @@ $("#categoryTypeTable").on("click", ".btn-edit-type", function(){
 });
 
 // Delete
-$("#categoryTypeTable").on("click", ".btn-del-type", function(){
+$("#categoryTypesTable").on("click", ".btn-del-type", function(){
   if(!confirm("Delete this type?")) return;
   const id = $(this).closest("tr").data("id");
   $.ajax({ url: API.categoryTypes + id + "/", type: "DELETE" }).done(()=> loadCategoryTypes()).fail(alertError);
@@ -594,7 +601,16 @@ function loadCategoryTypeOptions(){
     $("#woodenTypeId").html(options);
   });
 }
-
+// Load types for select
+function loadCategoryModelTypeOptions(){
+  $.get(API.categoryTypes, function(data){
+    const options = data.results.map(t => {
+        const catName = t.category?.name || "Unknown";
+        return `<option value="${t.id}">${catName} → ${t.name}</option>`;
+    }).join("");
+    $("#categoryModelTypeId").html(`<option value="">Select Type</option>` + options);
+  });
+}
 // Create/Update
 $("#categoryModelForm").on("submit", function(e){
   e.preventDefault();
@@ -609,26 +625,38 @@ $("#categoryModelForm").on("submit", function(e){
 });
 
 // Edit
-$("#categoryModelTable").on("click", ".btn-edit-model", function(){
+$("#categoryModelsTable").on("click", ".btn-edit-model", function(){
   const id = $(this).closest("tr").data("id");
+
   $.get(API.categoryModels + id + "/", function(m){
-    $("#categoryModelId").val(m.id);
-    $("#categoryModelName").val(m.name);
-    $("#categoryModelTypeId").val(m.model_category?.id ?? "");
-    $("#categoryModelModalTitle").text("Edit Category Model");
-    $("#categoryModelModal").modal("show");
+    // Load types before setting the value
+    $.get(API.categoryTypes, function(data){
+      const options = data.results.map(t => {
+        const catName = t.category?.name || "Unknown";
+        return `<option value="${t.id}">${catName} → ${t.name}</option>`;
+      }).join("");
+      $("#categoryModelTypeId").html('<option value="">Select Type</option>' + options);
+
+      // Now set the selected value safely
+      $("#categoryModelId").val(m.id);
+      $("#categoryModelName").val(m.name);
+      $("#categoryModelTypeId").val(m.model_category?.id ?? "");
+      $("#categoryModelModalTitle").text("Edit Category Model");
+      $("#categoryModelModal").modal("show");
+    });
+
   }).fail(alertError);
 });
 
 // Delete
-$("#categoryModelTable").on("click", ".btn-del-model", function(){
+$("#categoryModelsTable").on("click", ".btn-del-model", function(){
   if(!confirm("Delete this model?")) return;
   const id = $(this).closest("tr").data("id");
   $.ajax({ url: API.categoryModels + id + "/", type: "DELETE" }).done(()=> loadCategoryModels()).fail(alertError);
 });
 
 $("#categoryModelSearch").on("input", function(){ loadCategoryModels(null, $(this).val()); });
-$("#addCategoryModelBtn").click(()=> { $("#categoryModelModalTitle").text("Add Category Model"); $("#categoryModelForm")[0].reset(); $("#categoryModelId").val(""); loadCategoryTypeOptions(); $("#categoryModelModal").modal("show"); });
+$("#addCategoryModelBtn").click(()=> { $("#categoryModelModalTitle").text("Add Category Model"); $("#categoryModelForm")[0].reset(); $("#categoryModelId").val(""); loadCategoryModelTypeOptions(); $("#categoryModelModal").modal("show"); });
 
 
 // ======== WOODEN CRUD =========
@@ -862,42 +890,116 @@ function populateFilters() {
         return data.results || data; // if paginated, use results; else use raw
     }
 
-    // categories
+    const $cat = $("#filterCategory");
+    const $type = $("#filterType");
+    const $model = $("#filterModel");
+    const $brand = $("#filterBrand");
+
+    // Initially disable dependent filters
+    $type.prop("disabled", true);
+    $model.prop("disabled", true);
+
+    // Initialize tooltips (Bootstrap 5)
+    $(function () {
+        $('[data-bs-toggle="tooltip"]').tooltip();
+    });
+
+    function refreshTooltips() {
+        $('[data-bs-toggle="tooltip"]').tooltip('dispose');
+        $('[data-bs-toggle="tooltip"]').tooltip();
+    }
+
+    // Load categories
     $.getJSON("/material/v1/categories/", function(data) {
-        const $cat = $("#filterCategory");
-        $cat.empty().append(`<option value="">All</option>`);
+        $cat.empty().append(`<option value="">All Categories</option>`);
         getResults(data).forEach(c => {
             $cat.append(`<option value="${c.id}">${c.name}</option>`);
         });
     });
 
-    // types
-    $.getJSON("/material/v1/category-types/", function(data) {
-        const $type = $("#filterType");
-        $type.empty().append(`<option value="">All</option>`);
-        getResults(data).forEach(t => {
-            $type.append(`<option value="${t.id}">${t.name}</option>`);
-        });
-    });
-
-    // models
-    $.getJSON("/material/v1/category-models/", function(data) {
-        const $model = $("#filterModel");
-        $model.empty().append(`<option value="">All</option>`);
-        getResults(data).forEach(m => {
-            $model.append(`<option value="${m.id}">${m.name}</option>`);
-        });
-    });
-
-    // brands
+    // Load brands (independent)
     $.getJSON("/material/v1/brands/", function(data) {
-        const $brand = $("#filterBrand");
-        $brand.empty().append(`<option value="">All</option>`);
+        $brand.empty().append(`<option value="">All Brands</option>`);
         getResults(data).forEach(b => {
             $brand.append(`<option value="${b.id}">${b.name}</option>`);
         });
     });
+
+    // Category → Type → Model cascading logic
+    $cat.on("change", function() {
+        const catId = $(this).val();
+
+        // Reset dependents
+        $type.empty().append(`<option value="">All Types</option>`).prop("disabled", true);
+        $model.empty().append(`<option value="">All Models</option>`).prop("disabled", true);
+
+        if (!catId) {
+            loadWoodens();
+            refreshTooltips();
+            return;
+        }
+
+        // Enable type after category is selected
+        $type.prop("disabled", false);
+
+        $.getJSON("/material/v1/category-types/", { category: catId }, function(data) {
+            getResults(data).forEach(t => {
+                $type.append(`<option value="${t.id}">${t.name}</option>`);
+            });
+        });
+
+        loadWoodens();
+        refreshTooltips();
+    });
+
+    // Type → Model cascade
+    $type.on("change", function() {
+        const typeId = $(this).val();
+
+        $model.empty().append(`<option value="">All Models</option>`).prop("disabled", true);
+
+        if (!typeId) {
+            loadWoodens();
+            refreshTooltips();
+            return;
+        }
+
+        // Enable model after type is selected
+        $model.prop("disabled", false);
+
+        $.getJSON("/material/v1/category-models/", { model_category: typeId }, function(data) {
+            getResults(data).forEach(m => {
+                $model.append(`<option value="${m.id}">${m.name}</option>`);
+            });
+        });
+
+        loadWoodens();
+        refreshTooltips();
+    });
+
+    // Model + Brand change triggers refresh
+    $model.on("change", function() { loadWoodens(); });
+    $brand.on("change", function() { loadWoodens(); });   
+
+    // Show tooltip when clicking disabled selects (nice UX)
+    $(document).on("click", "select[disabled][data-bs-toggle='tooltip']", function() {
+        $(this).tooltip('show');
+        setTimeout(() => $(this).tooltip('hide'), 1500);
+    });
 }
+
+
+// === Bootstrap Tooltip Setup ===
+$(function () {
+  $('[data-bs-toggle="tooltip"]').tooltip();
+});
+
+function refreshTooltips() {
+  $('[data-bs-toggle="tooltip"]').tooltip('dispose');
+  $('[data-bs-toggle="tooltip"]').tooltip();
+}
+
+
 
 
 // ====== INITIAL LOAD ======

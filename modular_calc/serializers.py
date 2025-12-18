@@ -6,11 +6,13 @@ from django.db import transaction
 from .models import (
     ModularProduct, ProductParameter, PartTemplate, 
     PartMaterialWhitelist, PartEdgeBandWhitelist, ProductHardwareRule, 
-    PartHardwareRule
+    PartHardwareRule,ModularProductCategory,ModularProductType,ModularProductModel
 )
 # Assuming material.serializers contains the read-only serializers
 # Note: Since material.models is imported, we will define the mini serializers here for completeness.
-from material.models import WoodEn, EdgeBand, Hardware 
+from material.models.wood import WoodMaterial
+from material.models.edgeband import EdgeBand
+from material.models.hardware import Hardware
 
 
 # ==============================================================================
@@ -32,7 +34,7 @@ class WoodEnMiniSerializer(serializers.ModelSerializer):
     # Assuming 'panel' is not explicitly used, you can exclude it or map it if an equivalent exists.
     
     class Meta:
-        model = WoodEn
+        model = WoodMaterial
         fields = (
             'id', 
             'name', 
@@ -162,6 +164,9 @@ class PartTemplateSerializer(serializers.ModelSerializer):
 
 class ModularProductSerializer(serializers.ModelSerializer):
     # Use the nested serializers defined above (Level 2)
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    type_name = serializers.CharField(source="type.name", read_only=True)
+    productmodel_name = serializers.CharField(source='productmodel.name', read_only=True)
     parameters = ProductParameterSerializer(many=True, required=False)
     hardware_rules = ProductHardwareRuleSerializer(many=True, required=False) 
     part_templates = PartTemplateSerializer(many=True, required=False)
@@ -169,10 +174,10 @@ class ModularProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = ModularProduct
         fields = (
-            'id', 'name', 'product_validation_expression', 'three_d_asset', 
+            'id', 'name', "category", "category_name","type", "type_name",'productmodel', 'productmodel_name','product_validation_expression', 'three_d_asset', 
             'two_d_template_svg', 
-            'parameters', 'hardware_rules', 'part_templates' # Nested fields
-        )
+            'parameters', 'hardware_rules', 'part_templates') # Nested fields
+        
         read_only_fields = ('created_at', 'updated_at')
         
     # --------------------------------------------------
@@ -310,3 +315,39 @@ class ModularProductSerializer(serializers.ModelSerializer):
             self._handle_part_template_update(instance, validated_data)
 
             return instance
+
+class ModularProductModelSerializer(serializers.ModelSerializer):
+    type_name = serializers.SerializerMethodField()
+    products = ModularProductSerializer(source="modularproduct_set", many=True, read_only=True)
+    class Meta:
+        model = ModularProductModel
+        fields = ['id', 'name', 'type', 'type_name','products']
+
+    def get_type_name(self, obj):
+        return obj.type.name if obj.type else None
+
+
+class ModularProductTypeSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    models = ModularProductModelSerializer(
+        source='modularproductmodel_set', 
+        many=True, 
+        read_only=True
+    )
+
+    class Meta:
+        model = ModularProductType
+        fields = ['id', 'name', 'category', 'category_name', 'models']
+
+
+
+class ModularProductCategorySerializer(serializers.ModelSerializer):
+    """Serializes ProductCategory, including its nested Types."""
+    types = ModularProductTypeSerializer(source='modularproducttype_set', many=True, read_only=True)
+
+    class Meta:
+        model = ModularProductCategory
+        fields = ['id', 'name', 'types']
+
+
+

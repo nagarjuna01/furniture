@@ -4,7 +4,9 @@ import logging
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
-from material.models import EdgeBand, Hardware, WoodEn, Brand # Ensure these are correct imports
+from material.models.wood import WoodMaterial
+from material.models.edgeband import EdgeBand
+from material.models.hardware import Hardware
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from decimal import Decimal, InvalidOperation
@@ -235,7 +237,7 @@ class Part(models.Model):
     part_thickness_mm = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, help_text="Fixed thickness in mm")
     part_quantity_formula = models.CharField(max_length=255, null=True, blank=True, default='1', help_text="Formula for quantity, e.g., '1' or '2 * (L / 100)'")
     
-    material = models.ForeignKey(WoodEn, related_name='parts_using_this_wood', on_delete=models.SET_NULL, null=True, blank=True)
+    material = models.ForeignKey(WoodMaterial, related_name='parts_using_this_wood', on_delete=models.SET_NULL, null=True, blank=True)
     
     # --- Wastage Factor ---
     wastage_factor = models.DecimalField(
@@ -1216,7 +1218,7 @@ class ModularProductMaterialOverride(models.Model):
         help_text="The modular product this override applies to."
     )
     wooden_material = models.ForeignKey(
-        WoodEn,
+        WoodMaterial,
         on_delete=models.PROTECT,
         related_name='product_material_overrides',
         help_text="The specific WoodEn material being overridden or specified."

@@ -1,9 +1,14 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.http import HttpResponse
 
-from .models import QuoteRequest, QuoteProduct, QuotePart
+from .models import QuoteRequest, QuoteProduct, QuotePart, OverrideLog
 from .serializers import QuoteRequestSerializer, QuoteProductSerializer, QuotePartSerializer
+from modular_calc.evaluation.part_evaluator import PartEvaluator
+from material.models.wood import WoodMaterial
+
+from .visuals.services import render_svg
 
 
 class QuoteRequestViewSet(viewsets.ModelViewSet):
@@ -21,17 +26,60 @@ class QuoteProductViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def validate_dimensions(self, request, pk=None):
         qp = self.get_object()
-        ok = qp.validate_inputs()
+        product_dims = {
+            "product_length": qp.length_mm,
+            "product_width": qp.width_mm,
+            "product_height": qp.height_mm,
+        }
+        valid = True
+        for pt in qp.product_template.part_templates.all():
+            evaluator = PartEvaluator(pt, product_dims, parameters={})
+            result = evaluator.evaluate()
+            if result["length"] <= 0 or result["width"] <= 0 or result["quantity"] <= 0:
+                valid = False
+                break
+
+        qp.validated = valid
         qp.save(update_fields=["validated"])
-        return Response({"validated": ok})
+        return Response({"validated": valid})
 
     @action(detail=True, methods=["post"])
     def expand_parts(self, request, pk=None):
         qp = self.get_object()
-        if not qp.validated and not qp.validate_inputs():
-            return Response({"detail": "Dimensions invalid."}, status=status.HTTP_400_BAD_REQUEST)
+        if not qp.validated:
+            return Response({"detail": "Product not validated."}, status=status.HTTP_400_BAD_REQUEST)
 
-        count = qp.expand_to_parts()
+        # Clear previous parts
+        qp.parts.all().delete()
+
+        product_dims = {
+            "product_length": qp.length_mm,
+            "product_width": qp.width_mm,
+            "product_height": qp.height_mm,
+        }
+
+        count = 0
+        for pt in qp.product_template.part_templates.all():
+            evaluator = PartEvaluator(pt, product_dims, parameters={})
+            part_data = evaluator.evaluate()
+
+            qp_part = QuotePart.objects.create(
+                quote_product=qp,
+                part_template=pt,
+                part_name=part_data["name"],
+                length_mm=part_data["length"],
+                width_mm=part_data["width"],
+                part_qty=int(part_data["quantity"]),
+                thickness_mm=part_data["thickness"],
+                shape_wastage_multiplier=part_data["shape_wastage_multiplier"],
+                material=part_data["material_obj"],
+                edgeband_top=part_data["edgeband_objs"].get("top"),
+                edgeband_bottom=part_data["edgeband_objs"].get("bottom"),
+                edgeband_left=part_data["edgeband_objs"].get("left"),
+                edgeband_right=part_data["edgeband_objs"].get("right"),
+            )
+            count += 1
+
         parts = QuotePart.objects.filter(quote_product=qp)
         data = QuotePartSerializer(parts, many=True).data
         return Response({"created_parts": count, "parts": data}, status=status.HTTP_200_OK)
@@ -43,31 +91,26 @@ class QuotePartViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def override_material(self, request, pk=None):
-        """
-        Employee can change material; we log the override and warn if thickness mismatch.
-        payload: { "material": <id>, "reason": "budget" }
-        """
         qp = self.get_object()
         old = qp.material
         new_id = request.data.get("material")
         reason = request.data.get("reason", "")
+
         if not new_id:
             return Response({"detail": "material required"}, status=400)
 
-        from material.models import Material
-        new = Material.objects.get(pk=new_id)
+        new = WoodEn.objects.get(pk=new_id)
 
-        # warn if thickness mismatch
+        # Warn if thickness mismatch
         warn = None
         if str(new.thickness_mm) != str(qp.thickness_mm):
-            warn = f"Material thickness {new.thickness_mm} ≠ part thickness {qp.thickness_mm}"
+            warn = f"Material thickness {new.thickness_mm} != part thickness {qp.thickness_mm}"
 
         qp.material = new
         qp.override_by_employee = True
         qp.override_reason = reason
         qp.save()
 
-        from .models import OverrideLog
         OverrideLog.objects.create(
             quote_part=qp,
             field="material",

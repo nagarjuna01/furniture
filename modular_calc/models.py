@@ -5,18 +5,58 @@ from django.db import models
 # Material(category, thickness_mm, price_per_sqft, ...)
 # EdgeBand(thickness_mm, cost_price_per_mm, ...)
 # Hardware(name, sku, cost, ...)
-from material.models import WoodEn, EdgeBand, Hardware
+from material.models.wood import WoodMaterial
+from material.models.edgeband import EdgeBand
+from material.models.hardware import Hardware
 
+
+class ModularProductCategory(models.Model):
+    name = models.CharField(max_length=255, unique= True)
+    def __str__(self):
+        return self.name
+    
+class ModularProductType(models.Model):
+    name = models.CharField(max_length=255)
+    category = models.ForeignKey(ModularProductCategory, on_delete=models.CASCADE)
+    class Meta:
+        unique_together = ("category", "name")
+    def __str__(self):
+        return self.name
+
+class ModularProductModel(models.Model):
+    name = models.CharField(max_length=255)
+    type = models.ForeignKey(ModularProductType, on_delete=models.CASCADE)
+    class Meta:
+        unique_together = ("type", "name")
+    def __str__(self):
+        return self.name
 
 class ModularProduct(models.Model):
     """
     Template of a modular product; only expressions & metadata live here.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
+    category = models.ForeignKey(ModularProductCategory,
+    on_delete=models.PROTECT,
+    blank=False,
+    null=False
+    )
 
-    # Python-like expression, validated via safe evaluator
-    # Variables available: product_length, product_width, product_height, product_depth, quantity
+    type = models.ForeignKey(
+        ModularProductType,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True
+    )
+
+    productmodel = models.ForeignKey(
+        ModularProductModel,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True
+    )
+    
     product_validation_expression = models.TextField(
         blank=True,
         help_text="e.g., '600 <= product_width <= 2400 and 300 <= product_depth <= 700'"
@@ -30,6 +70,7 @@ class ModularProduct(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        unique_together = ("productmodel", "name")
         ordering = ["name"]
 
     def __str__(self):
@@ -121,7 +162,7 @@ class PartMaterialWhitelist(models.Model):
     Admin whitelists materials AFTER automatic thickness filtering.
     """
     part_template = models.ForeignKey(PartTemplate, on_delete=models.CASCADE, related_name="material_whitelist")
-    material = models.ForeignKey(WoodEn, on_delete=models.CASCADE)
+    material = models.ForeignKey(WoodMaterial, on_delete=models.CASCADE)
     is_default = models.BooleanField(default=False)
 
     class Meta:
@@ -129,15 +170,21 @@ class PartMaterialWhitelist(models.Model):
 
 
 class PartEdgeBandWhitelist(models.Model):
-    """
-    Optional whitelisting for edgebands (auto-suggest thickness ∈ [t..t+5], admin finalizes).
-    """
+    SIDE_CHOICES = [
+        ("top", "Top"),
+        ("bottom", "Bottom"),
+        ("left", "Left"),
+        ("right", "Right"),
+    ]
     part_template = models.ForeignKey(PartTemplate, on_delete=models.CASCADE, related_name="edgeband_whitelist")
+    side = models.CharField(max_length=10, choices=SIDE_CHOICES,
+        null=True,
+        blank=True)
     edgeband = models.ForeignKey(EdgeBand, on_delete=models.CASCADE)
     is_default = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ("part_template", "edgeband")
+        unique_together = ("part_template","side", "edgeband")
 
 
 class ProductHardwareRule(models.Model):
