@@ -1,21 +1,57 @@
 from decimal import Decimal
 from django.db import models, transaction
 from django.conf import settings
+
+from accounts.models.base import TenantModel
 from modular_calc.models import ModularProduct, PartTemplate
 from material.models.wood import WoodMaterial
 from material.models.edgeband import EdgeBand
 from material.models.hardware import Hardware
-from modular_calc.evaluation.part_evaluator import PartEvaluator
 
+# Industry Standard Conversion
 MM2_TO_SQFT = Decimal("0.0000107639")
 
-
-class QuoteRequest(models.Model):
+class QuoteRequest(TenantModel):
     customer_name = models.CharField(max_length=255)
+    
+    STATUS_CHOICES = [
+        ('draft', 'Draft/Preview'),
+        ('sent', 'Sent to Customer'),
+        ('approved', 'Approved for Production'),
+        ('cancelled', 'Cancelled'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+
+    total_cp = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total Factory Cost")
+    total_sp = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total Selling Price (Pre-Tax)")
+    
+    tax_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=18.0)
+    shipping_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def tax_amount(self) -> Decimal:
+        return (self.total_sp * (self.tax_percentage / Decimal("100"))).quantize(Decimal("1.00"))
+
+    @property
+    def grand_total(self) -> Decimal:
+        return self.total_sp + self.tax_amount + self.shipping_charges
+
+    def refresh_totals(self):
+        """Aggregate totals from all products in this quote."""
+        totals = self.products.aggregate(
+            cp=models.Sum("total_cp"),
+            sp=models.Sum("total_sp")
+        )
+        self.total_cp = totals["cp"] or Decimal("0.00")
+        self.total_sp = totals["sp"] or Decimal("0.00")
+        self.save(update_fields=["total_cp", "total_sp"])
 
     class Meta:
         ordering = ["-created_at"]
@@ -24,34 +60,29 @@ class QuoteRequest(models.Model):
         return f"Quote {self.pk} - {self.customer_name}"
 
 
-class QuoteProduct(models.Model):
+class QuoteProduct(TenantModel):
     quote = models.ForeignKey(QuoteRequest, on_delete=models.CASCADE, related_name="products")
-    product_template = models.ForeignKey(ModularProduct, on_delete=models.CASCADE)
+    product_template = models.ForeignKey(ModularProduct, on_delete=models.PROTECT)
 
     length_mm = models.DecimalField(max_digits=9, decimal_places=2)
     width_mm = models.DecimalField(max_digits=9, decimal_places=2)
     height_mm = models.DecimalField(max_digits=9, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)
 
+    override_material = models.ForeignKey(WoodMaterial, on_delete=models.SET_NULL, null=True, blank=True)
+    config_parameters = models.JSONField(default=dict, blank=True)
+
+    total_sp = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_cp = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     validated = models.BooleanField(default=False)
 
     class Meta:
-        indexes = [
-            models.Index(fields=["quote", "product_template"])
-        ]
+        indexes = [models.Index(fields=["tenant", "quote", "product_template"])]
 
     def __str__(self):
-        return f"{self.product_template.name} (Q{self.quote_id})"
-
-    @property
-    def description(self):
-        return (
-            f"{self.product_template.name} | "
-            f"L{self.length_mm} W{self.width_mm} H{self.height_mm} | Qty {self.quantity}"
-        )
+        return f"{self.product_template.name} ({self.length_mm}x{self.width_mm})"
 
     def as_dims(self) -> dict:
-        """Return product dimensions for part evaluation context."""
         return {
             "product_length": float(self.length_mm),
             "product_width": float(self.width_mm),
@@ -59,98 +90,119 @@ class QuoteProduct(models.Model):
             "quantity": float(self.quantity),
         }
 
+    def get_final_context(self) -> dict:
+        from accounts.models import GlobalVariable
+        context = self.as_dims()
+        globals_dict = {v.abbr: float(v.value) for v in GlobalVariable.objects.filter(tenant=self.tenant)}
+        context.update(globals_dict)
+        context.update(self.config_parameters) 
+        return context
+
+    def evaluate_now(self):
+        from modular_calc.evaluation.product_engine import ProductEngine
+        engine = ProductEngine(self.product_template)
+        full_ctx = self.get_final_context()
+        # Pass context twice (as dims and as params) to ensure logic resolves
+        return engine.evaluate(full_ctx, parameters=full_ctx)
+
     @transaction.atomic
-    def expand_to_parts(self, parameters=None):
-        """
-        Generate QuotePart + QuotePartHardware rows using PartEvaluator.
-        """
+    def expand_to_parts(self):
+        """Creates QuotePart records based on current evaluation."""
         self.parts.all().delete()
-        product_dims = self.as_dims()
-        parameters = parameters or {}
+        evaluation = self.evaluate_now()
+        
+        prod_cp = Decimal("0.00")
+        prod_sp = Decimal("0.00")
 
-        for pt in self.product_template.part_templates.all():
-            evaluator = PartEvaluator(pt, product_dims, parameters)
-            part_data = evaluator.evaluate()
-
-            qp = QuotePart.objects.create(
+        for p_data in evaluation.get("parts", []):
+            qp_part = QuotePart.objects.create(
+                tenant=self.tenant,
                 quote_product=self,
-                part_template=pt,
-                part_name=part_data["name"],
-                length_mm=part_data["length"],
-                width_mm=part_data["width"],
-                part_qty=int(part_data["quantity"]),
-                thickness_mm=part_data["thickness"],
-                shape_wastage_multiplier=part_data["shape_wastage_multiplier"],
-                material=part_data["material_obj"],
-                edgeband_top=part_data["edgeband_objs"].get("top"),
-                edgeband_bottom=part_data["edgeband_objs"].get("bottom"),
-                edgeband_left=part_data["edgeband_objs"].get("left"),
-                edgeband_right=part_data["edgeband_objs"].get("right"),
+                part_template=p_data.get("template_obj"),
+                part_name=p_data["name"],
+                length_mm=Decimal(str(p_data["length"])),
+                width_mm=Decimal(str(p_data["width"])),
+                part_qty=int(p_data["quantity"]),
+                thickness_mm=Decimal(str(p_data["thickness"])),
+                material=p_data.get("material_obj"),
+                edgeband_top=p_data["edgeband_objs"].get("top"),
+                edgeband_bottom=p_data["edgeband_objs"].get("bottom"),
+                edgeband_left=p_data["edgeband_objs"].get("left"),
+                edgeband_right=p_data["edgeband_objs"].get("right"),
+                total_part_cp=Decimal(str(p_data.get("total_cost", 0))),
+                total_part_sp=Decimal(str(p_data.get("total_price", 0))),
+                two_d_svg_path=p_data.get("two_d_svg", "")
             )
 
-            # Create QuotePartHardware
-            for hardware_rule in pt.hardware_rules.select_related("hardware").all():
-                h_qty = int(part_data["quantity"] * hardware_rule.quantity_equation)
+            for hw_item in p_data.get("hardware", []):
+                hw_obj = hw_item["obj"]
                 QuotePartHardware.objects.create(
-                    quote_part=qp,
-                    hardware=hardware_rule.hardware,
-                    quantity=h_qty
+                    tenant=self.tenant,
+                    quote_part=qp_part,
+                    hardware=hw_obj,
+                    quantity=hw_item["quantity"],
+                    unit_cp=hw_obj.cost_price,
+                    unit_sp=hw_obj.selling_price
                 )
+            
+            prod_cp += qp_part.total_part_cp
+            prod_sp += qp_part.total_part_sp
 
+        self.total_cp = prod_cp
+        self.total_sp = prod_sp
+        self.validated = True
+        self.save()
+        self.quote.refresh_totals()
         return self.parts.count()
 
 
-class QuotePart(models.Model):
+class QuotePart(TenantModel):
     quote_product = models.ForeignKey(QuoteProduct, on_delete=models.CASCADE, related_name="parts")
-    part_template = models.ForeignKey(PartTemplate, on_delete=models.PROTECT)
+    part_template = models.ForeignKey(PartTemplate, on_delete=models.SET_NULL, null=True, blank=True)
     part_name = models.CharField(max_length=255)
 
-    length_mm = models.DecimalField(max_digits=9, decimal_places=2)
-    width_mm = models.DecimalField(max_digits=9, decimal_places=2)
+    length_mm = models.DecimalField(max_digits=10, decimal_places=2)
+    width_mm = models.DecimalField(max_digits=10, decimal_places=2)
     part_qty = models.PositiveIntegerField(default=1)
-
     thickness_mm = models.DecimalField(max_digits=5, decimal_places=2)
-    material = models.ForeignKey(WoodMaterial, on_delete=models.SET_NULL, null=True, blank=True)
-    override_by_employee = models.BooleanField(default=False)
-    override_reason = models.CharField(max_length=255, blank=True)
+    grain_direction = models.CharField(max_length=20, default='none')
 
+    material = models.ForeignKey(WoodMaterial, on_delete=models.PROTECT, null=True)
     edgeband_top = models.ForeignKey(EdgeBand, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     edgeband_bottom = models.ForeignKey(EdgeBand, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     edgeband_left = models.ForeignKey(EdgeBand, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     edgeband_right = models.ForeignKey(EdgeBand, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
-    shape_wastage_multiplier = models.DecimalField(max_digits=5, decimal_places=2, default=1.0)
+    
+    total_part_cp = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_part_sp = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    area_mm2 = models.DecimalField(max_digits=14, decimal_places=2, default=0)
-    area_sqft = models.DecimalField(max_digits=12, decimal_places=4, default=0)
-
-    cutting_charges = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    making_charges = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-
-    def compute_area(self):
-        mm2 = (self.length_mm * self.width_mm) * self.part_qty * self.shape_wastage_multiplier
-        self.area_mm2 = mm2
-        self.area_sqft = (mm2 * MM2_TO_SQFT).quantize(Decimal("0.0001"))
-
-    def save(self, *args, **kwargs):
-        if not self.area_mm2 or not self.area_sqft:
-            self.compute_area()
-        super().save(*args, **kwargs)
+    two_d_svg_path = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.part_name} ({self.length_mm}x{self.width_mm}x{self.thickness_mm}) x {self.part_qty}"
+        return f"{self.part_name} ({self.length_mm}x{self.width_mm})"
 
 
-class QuotePartHardware(models.Model):
+class QuotePartHardware(TenantModel):
     quote_part = models.ForeignKey(QuotePart, on_delete=models.CASCADE, related_name="hardware")
     hardware = models.ForeignKey(Hardware, on_delete=models.PROTECT)
     quantity = models.PositiveIntegerField(default=1)
 
+    unit_cp = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    unit_sp = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    total_cp = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_sp = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
     class Meta:
-        unique_together = ("quote_part", "hardware")
+        unique_together = ("tenant", "quote_part", "hardware")
+
+    def save(self, *args, **kwargs):
+        self.total_cp = self.unit_cp * Decimal(str(self.quantity))
+        self.total_sp = self.unit_sp * Decimal(str(self.quantity))
+        super().save(*args, **kwargs)
 
 
-class OverrideLog(models.Model):
+class OverrideLog(TenantModel):
     quote_part = models.ForeignKey(QuotePart, on_delete=models.CASCADE, related_name="overrides")
     field = models.CharField(max_length=50)
     old_value = models.CharField(max_length=255)
@@ -158,3 +210,6 @@ class OverrideLog(models.Model):
     reason = models.CharField(max_length=255, blank=True)
     changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-changed_at"]

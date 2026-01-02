@@ -2,9 +2,10 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from decimal import Decimal, InvalidOperation
 from .brand import Brand
+from accounts.models.base import GlobalOrTenantModel,TenantModel
 #from accounts.models import Tenant
 
-class HardwareGroup(models.Model):
+class HardwareGroup(GlobalOrTenantModel):
     name = models.CharField(max_length=50, unique=True)  
             
     def __str__(self):
@@ -14,13 +15,7 @@ class HardwareGroup(models.Model):
         self.name = self.name.upper()
         super().save(*args, **kwargs)
 
-class Hardware(models.Model):
-    # tenant = models.ForeignKey(
-    #     "accounts.Tenant",
-    #     on_delete=models.CASCADE,
-    #     related_name="hardware_items"
-    # )
-
+class Hardware(TenantModel):
     h_group = models.ForeignKey(
         HardwareGroup,
         on_delete=models.CASCADE,
@@ -50,7 +45,7 @@ class Hardware(models.Model):
 
     class Meta:
         unique_together = (
-           # "tenant",
+           "tenant",
             "h_group",
             "h_name",
             "brand"

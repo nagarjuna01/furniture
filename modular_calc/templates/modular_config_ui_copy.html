@@ -474,7 +474,7 @@ document.getElementById('two-d-svg-input').addEventListener('input', e => {
    * Submits the compiled product payload to the API.
    */
   // Add this line at the top of your script's state/init section
-const PRODUCTS_API_BASE_URL = 'http://127.0.0.1:8000/modularcalc/api/products/';
+const PRODUCTS_API_BASE_URL = '/modularcalc/api/products/';
 
 // --- Updated saveProduct function ---
 async function saveProduct() {
@@ -502,6 +502,7 @@ async function saveProduct() {
             method: method,
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': window.CSRF_TOKEN
                 // You may need to add a CSRF token header for POST/PUT if running outside Django templates
                 // 'X-CSRFToken': 'your-token' 
             },
@@ -515,7 +516,7 @@ async function saveProduct() {
             if (!isUpdate) {
                 // Assuming the API returns the new object with its ID on creation
                 productData.id = data.id || 'SAVED'; 
-                document.getElementById('product-id').value = productData.id;
+                
             }
             showStatus(`Product saved successfully! ID: ${productData.id}`, 'success');
 
@@ -717,13 +718,16 @@ function saveSelection() {
             [...document.querySelectorAll('#selection-list-container .whitelist-check:checked')].some(cb => +cb.value === h.id)
         );
         selected.forEach(hw => {
-            const quantityInput = document.querySelector(`[data-cond="${hw.id}"]`);
-            productHardwareRules.push({
-                hardware: hw,
-                quantity_equation: quantityInput?.value || "1",
-                condition: ""
-            });
-        });
+    const exists = productHardwareRules.some(r => r.hardware.id === hw.id);
+    if (exists) return;
+
+    const quantityInput = document.querySelector(`[data-cond="${hw.id}"]`);
+    productHardwareRules.push({
+        hardware: hw,
+        quantity_equation: quantityInput?.value || "1",
+        condition: ""
+    });
+});
         selectionModal.hide();
         renderProductHardwareTable();
         productHardwareModal.show();
@@ -809,7 +813,7 @@ function saveSelection() {
   }
 
   function renderProductForm() {
-    document.getElementById('product-id').value = productData.id ?? 'New Product';
+    
     document.getElementById('product-name').value = productData.name;
     document.getElementById('validation-expr').value = productData.validation_expression;
     renderParameters();

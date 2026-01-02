@@ -1,23 +1,16 @@
 from django.db import models
-#from accounts.models import Tenant
+from accounts.models.base import TenantModel
 
-class Category(models.Model):
-    # tenant = models.ForeignKey(
-    #     "accounts.Tenant",
-    #     on_delete=models.CASCADE,
-    #     related_name="categories"
-    # )
-    # ↑ Future: tenant-specific material categories
+class Category(TenantModel):
+    name = models.CharField(max_length=100)
 
-    name = models.CharField(max_length=100, unique=True)
+    class Meta:
+        unique_together = ("tenant", "name")
 
     def save(self, *args, **kwargs):
-        if self.name:
-            self.name = self.name.upper()
+        self.name = self.name.upper()
         super().save(*args, **kwargs)
 
-    def __str__(self):
-        return self.name
 
 
 class CategoryTypes(models.Model):

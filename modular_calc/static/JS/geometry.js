@@ -48,7 +48,7 @@ document.getElementById("save-geometry-btn")?.addEventListener("click", () => {
 
     if (!svg && !lengthEq && !widthEq && !qtyEq) return alert("Provide SVG or equations");
 
-    window.savedGeometry = { svg, lengthEq, widthEq, qtyEq };
-    document.dispatchEvent(new CustomEvent("geometrySaved", { detail: window.savedGeometry }));
+    const geometry = { svg, lengthEq, widthEq, qtyEq };
+    document.dispatchEvent(new CustomEvent("geometrySaved", { detail: geometry }));
     hideModal("geometryModal");
 });

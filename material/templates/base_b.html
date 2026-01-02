@@ -98,7 +98,7 @@
                 <i class="fas fa-chevron-down small"></i>
             </a>
             <div class="collapse" id="productSubmenu">
-                <a href="{% url 'product_spa' %}" class="list-group-item list-group-item-action ps-5"><i class="fas fa-cube"></i> <span>User Products SPA</span></a>
+                
                 <a href="{% url 'master-admin' %}" class="list-group-item list-group-item-action ps-5"><i class="fas fa-couch"></i> <span>Standard Products</span></a>
                 <a href="{% url 'configurator_ui_copy' %}" class="list-group-item list-group-item-action ps-5"><i class="fas fa-copy"></i> <span>Modular Editor</span></a>
             </div>
@@ -169,8 +169,31 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 <script src="{% static 'js/scripts.js' %}"></script>
+<script src="{% static 'js/globaldropdowns.js' %}"></script>
 
 <script>
+    window.handleApiError = function (xhr) {
+    console.error("API Error:", xhr);
+
+    let message = "Something went wrong";
+
+    if (xhr.responseJSON) {
+        if (xhr.responseJSON.detail) {
+            message = xhr.responseJSON.detail;
+        } else if (xhr.responseJSON.non_field_errors) {
+            message = xhr.responseJSON.non_field_errors.join(", ");
+        } else {
+            message = Object.values(xhr.responseJSON)
+                .flat()
+                .join(", ");
+        }
+    } else if (xhr.responseText) {
+        message = xhr.responseText;
+    }
+
+    showToast(message, "error"); // or alert(message) if toast not ready
+};
+
 document.addEventListener("DOMContentLoaded", function () {
     const sidebar = document.getElementById("sidebar-wrapper");
 

@@ -1,6 +1,7 @@
 // Only global variables & initialization
-const allData = window.allData || { hardware: [], edgebands: [], materials: [] };
-const selected = {
+window.allData = window.allData || { hardware: [], edgebands: [], materials: [] };
+const allData = window.allData
+window.selected = {
     materials: [],
     defaultMaterialId: null,
     edgebands: {

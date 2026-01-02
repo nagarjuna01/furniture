@@ -15,14 +15,14 @@ class ProductEvaluationViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=['post'])
     def run(self, request, pk=None):
-        product = get_object_or_404(ModularProduct, pk=pk)
-
+        qs = ModularProduct.objects.all()
+        if not request.user.is_superuser:
+            qs = qs.filter(tenant=request.user.tenant)
+        product = get_object_or_404(qs, pk=pk)
         product_dims = request.data.get('product_dims', {})
         parameters = request.data.get('parameters', {})
         quantities = request.data.get('quantities', [1])
-
         engine = ProductEngine(product, product_dims, parameters, quantities)
         result = engine.run()
-
         serializer = ProductEvaluationSerializer(result)
         return Response(serializer.data, status=status.HTTP_200_OK)

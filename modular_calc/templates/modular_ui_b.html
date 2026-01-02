@@ -128,7 +128,6 @@
 </div>
 
 <!-- Edgeband Modal -->
-<!-- Edgeband Modal -->
 <div class="modal fade" id="edgebandModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
@@ -136,91 +135,28 @@
         <h5 class="modal-title">Select Edgebands</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
+
       <div class="modal-body">
 
-        <!-- Per-side sections -->
-        <div class="row">
-          <!-- Top Side -->
-          <div class="col-md-6 mb-4">
-            <h6>Top</h6>
-            <div class="row mb-2" id="filters-top">
-              <div class="col"><select class="form-select filter-depth" data-side="top"><option value="">Depth</option></select></div>
-              <div class="col"><select class="form-select filter-name" data-side="top"><option value="">Name</option></select></div>
-              <div class="col"><select class="form-select filter-thickness" data-side="top"><option value="">Thickness</option></select></div>
-              <div class="col"><select class="form-select filter-brand" data-side="top"><option value="">Brand</option></select></div>
-            </div>
-            <table class="table table-sm table-bordered">
-              <thead>
-                <tr><th>Name</th><th>Whitelist</th><th>Default</th></tr>
-              </thead>
-              <tbody id="edgeband-body-top"></tbody>
-            </table>
-          </div>
+        <div class="row" id="edgeband-sides"></div>
 
-          <!-- Right Side -->
-          <div class="col-md-6 mb-4">
-            <h6>Right</h6>
-            <div class="row mb-2" id="filters-right">
-              <div class="col"><select class="form-select filter-depth" data-side="right"><option value="">Depth</option></select></div>
-              <div class="col"><select class="form-select filter-name" data-side="right"><option value="">Name</option></select></div>
-              <div class="col"><select class="form-select filter-thickness" data-side="right"><option value="">Thickness</option></select></div>
-              <div class="col"><select class="form-select filter-brand" data-side="right"><option value="">Brand</option></select></div>
-            </div>
-            <table class="table table-sm table-bordered">
-              <thead>
-                <tr><th>Name</th><th>Whitelist</th><th>Default</th></tr>
-              </thead>
-              <tbody id="edgeband-body-right"></tbody>
-            </table>
-          </div>
-
-          <!-- Bottom Side -->
-          <div class="col-md-6 mb-4">
-            <h6>Bottom</h6>
-            <div class="row mb-2" id="filters-bottom">
-              <div class="col"><select class="form-select filter-depth" data-side="bottom"><option value="">Depth</option></select></div>
-              <div class="col"><select class="form-select filter-name" data-side="bottom"><option value="">Name</option></select></div>
-              <div class="col"><select class="form-select filter-thickness" data-side="bottom"><option value="">Thickness</option></select></div>
-              <div class="col"><select class="form-select filter-brand" data-side="bottom"><option value="">Brand</option></select></div>
-            </div>
-            <table class="table table-sm table-bordered">
-              <thead>
-                <tr><th>Name</th><th>Whitelist</th><th>Default</th></tr>
-              </thead>
-              <tbody id="edgeband-body-bottom"></tbody>
-            </table>
-          </div>
-
-          <!-- Left Side -->
-          <div class="col-md-6 mb-4">
-            <h6>Left</h6>
-            <div class="row mb-2" id="filters-left">
-              <div class="col"><select class="form-select filter-depth" data-side="left"><option value="">Depth</option></select></div>
-              <div class="col"><select class="form-select filter-name" data-side="left"><option value="">Name</option></select></div>
-              <div class="col"><select class="form-select filter-thickness" data-side="left"><option value="">Thickness</option></select></div>
-              <div class="col"><select class="form-select filter-brand" data-side="left"><option value="">Brand</option></select></div>
-            </div>
-            <table class="table table-sm table-bordered">
-              <thead>
-                <tr><th>Name</th><th>Whitelist</th><th>Default</th></tr>
-              </thead>
-              <tbody id="edgeband-body-left"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Selected summary -->
         <hr>
-        <div id="selected-edgebands"></div>
+        <div id="selected-edgebands" class="small text-muted"></div>
 
       </div>
+
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="save-edgeband-btn">Save</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary" id="save-edgeband-btn">
+          Save
+        </button>
       </div>
     </div>
   </div>
 </div>
+
 
 <!-- =============== HARDWARE MODAL ========================== -->
 
@@ -250,18 +186,19 @@
           </div>
         </div>
 
-        <!-- Table -->
-        <table class="table table-sm">
-          <thead>
-            <tr>
-              <th>Hardware</th>
-              <th>Quantity Equation</th>
-              <th>Condition</th>
-              <th>Select</th>
-            </tr>
-          </thead>
-          <tbody id="part-hardware-body"></tbody>
-        </table>
+        <table class="table table-sm align-middle">
+  <thead class="table-light">
+    <tr>
+      <th style="width: 5%;" class="text-center">Select</th>
+      <th style="width: 25%;">Hardware</th>
+      <th style="width: 10%;">Unit</th>
+      <th style="width: 30%;">Quantity / Equation</th>
+      <th style="width: 30%;">Condition</th>
+    </tr>
+  </thead>
+  <tbody id="part-hardware-body">
+    </tbody>
+</table>
 
         <hr>
 
@@ -279,58 +216,62 @@
 </div>
 
 
-<!-- =============== PRODUCT HARDWARE MODAL ===================== -->
 <div class="modal fade" id="productHardwareModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content">
+    <div class="modal-content shadow-lg">
 
-      <div class="modal-header">
-        <h5 class="modal-title">Product Hardware</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title"><i class="bi bi-cpu me-2"></i>Product Hardware </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
 
       <div class="modal-body">
-
-        <div class="row mb-3">
-          <div class="col">
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="small fw-bold">Filter Group</label>
             <select class="form-select filter-hw-group" data-type="product">
               <option value="">All Groups</option>
             </select>
           </div>
-
-          <div class="col">
+          <div class="col-md-6">
+            <label class="small fw-bold">Search Hardware</label>
             <select class="form-select filter-hw-name" data-type="product">
               <option value="">All Hardware</option>
             </select>
           </div>
         </div>
 
-        <table class="table table-sm">
-          <thead>
-            <tr>
-              <th>Hardware</th>
-              <th>Quantity</th>
-              <th>Select</th>
-            </tr>
-          </thead>
-          <tbody id="product-hardware-body"></tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 5%;">Select</th>
+                <th style="width: 30%;">Hardware Name</th>
+                <th style="width: 15%;">Unit</th>
+                <th style="width: 50%;">Quantity / Equation Logic</th>
+              </tr>
+            </thead>
+            <tbody id="product-hardware-body">
+              </tbody>
+          </table>
+        </div>
 
-        <hr>
-
-        <div id="selected-product-hardware"></div>
-
+        <div id="selected-product-hardware" class="mt-3"></div>
       </div>
 
-      <div class="modal-footer">
-        <button class="btn btn-primary" id="save-product-hardware-btn">Save</button>
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      <div class="modal-footer bg-light">
+        <div class="me-auto">
+          <small class="text-muted"><i class="bi bi-info-circle"></i> Use equations like <code>L > 10 ? 2 : 1</code> for parametric logic.</small>
+        </div>
+        <button class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary px-4" id="save-product-hardware-btn">
+          <i class="bi bi-check-lg"></i> Save Hardware Rules
+        </button>
       </div>
 
     </div>
   </div>
 </div>
-
 
 <div class="modal fade" id="quotationModal" tabindex="-1">
   <div class="modal-dialog modal-md">

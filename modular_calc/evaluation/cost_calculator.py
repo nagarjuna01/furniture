@@ -17,18 +17,38 @@ class CostCalculator:
 
     def _calculate_parts(self):
         for part in self.bom["parts"]:
-            qty_with_wastage = Decimal(part["quantity"]) * Decimal(part.get("shape_wastage_multiplier", 1))
-            unit_cost = self._get_material_cost(part)  # Implement this to fetch from DB or pricing table
-            total_cost = qty_with_wastage * unit_cost
+            # 1. IDENTIFY THICKNESS (The Source of Truth)
+            # We check part-specific thickness first, then fallback to Global Variable @ST
+            part_thickness = Decimal(str(part.get("material_thickness", self.global_vars.get('@ST', 18))))
+
+            # 2. RESOLVE GEOMETRY
+            # We convert the equations into actual numbers (mm)
+            length = self._resolve_equation(part["length_eq"], part_thickness)
+            width = self._resolve_equation(part["width_eq"], part_thickness)
+
+            # 3. CALCULATE QUANTITY & AREA
+            qty = Decimal(str(part["quantity"]))
+            wastage = Decimal(str(part.get("shape_wastage_multiplier", 1)))
+            qty_with_wastage = qty * wastage
+            
+            # Area in Square Meters (mm * mm / 1,000,000)
+            area_m2 = (length * width) / Decimal("1000000")
+
+            # 4. FETCH COST & CALCULATE TOTAL
+            # This calls your material DB to get price per sqm based on the part/thickness
+            unit_rate = self._get_material_cost(part) 
+            
+            total_cost = area_m2 * qty_with_wastage * unit_rate
+
+            # 5. STORE RESULTS for the Quote/BOM
             self.part_costs.append({
                 "name": part["name"],
-                "length": part["length"],
-                "width": part["width"],
-                "thickness": part["thickness"],
-                "quantity": part["quantity"],
-                "qty_with_wastage": qty_with_wastage,
-                "unit_cost": unit_cost,
-                "total_cost": total_cost
+                "calculated_length": length.quantize(Decimal("0.1")), # Round to 1 decimal place (0.1mm)
+                "calculated_width": width.quantize(Decimal("0.1")),
+                "thickness": part_thickness,
+                "quantity": qty,
+                "area_m2": area_m2.quantize(Decimal("0.0001")), # 4 decimals for area accuracy
+                "total_cost": total_cost.quantize(Decimal("0.01")) # 2 decimals for currency
             })
 
     def _calculate_hardware(self):

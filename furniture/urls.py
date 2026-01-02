@@ -27,7 +27,7 @@ urlpatterns = [
     #path('products/', include('products.urls')),  # Product app URL routing
     path('products1/', include('products1.urls')),  # Product app URL routing
     path('customers/', include('customer.urls')),  # Customers URLs
-    path("api/auth/", include("accounts.urls")),
+    path('accounts/',include('accounts.urls')),
     path('partiso/', include('partisoproduct.urls')),  # partisoproduct URLs
     path('modularcalc/', include('modular_calc.urls')),  # Modular_calc URLs
     path('quoting/', include('quoting.urls')),  # quoting URLs
@@ -37,7 +37,7 @@ urlpatterns = [
    
     #path('payment/', include('payment.urls')),  # Include payment URLs
     path('material/', include('material.urls')),
-    #path('accounts/', include('django.contrib.auth.urls')),  # Add this line
+    path('accounts/', include('django.contrib.auth.urls')),  # Add this line
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='swagger-docs'),  # Correct this line
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
 

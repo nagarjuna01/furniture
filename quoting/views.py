@@ -1,89 +1,80 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, decorators
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.http import HttpResponse
-
+from accounts.mixins import TenantSafeViewSetMixin
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from modular_calc.models import ModularProduct
 from .models import QuoteRequest, QuoteProduct, QuotePart, OverrideLog
-from .serializers import QuoteRequestSerializer, QuoteProductSerializer, QuotePartSerializer
+from .serializers import QuoteRequestSerializer, QuoteProductSerializer, QuotePartSerializer,MarketplaceQuoteSerializer,TenantQuoteSerializer
 from modular_calc.evaluation.part_evaluator import PartEvaluator
 from material.models.wood import WoodMaterial
-
+from accounts.mixins import TenantSafeMixin
 from .visuals.services import render_svg
 
+# 1. MARKETPLACE CATALOG (Public Lead Generation)
+# ---------------------------------------------------------
+class MarketplaceCatalogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Used by public customers to browse all public products across ALL tenants.
+    """
+    permission_classes = [AllowAny]
+    queryset = ModularProduct.objects.filter(is_public=True)
+    # Use a basic serializer for the catalog list
+    # serializer_class = ModularProductSerializer 
 
-class QuoteRequestViewSet(viewsets.ModelViewSet):
+
+class QuoteRequestViewSet(TenantSafeMixin, viewsets.ModelViewSet):
     queryset = QuoteRequest.objects.all().prefetch_related("products")
     serializer_class = QuoteRequestSerializer
 
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user if self.request.user.is_authenticated else None)
-
-
-class QuoteProductViewSet(viewsets.ModelViewSet):
+class QuoteProductViewSet(TenantSafeMixin, viewsets.ModelViewSet):
     queryset = QuoteProduct.objects.select_related("product_template", "quote")
     serializer_class = QuoteProductSerializer
 
-    @action(detail=True, methods=["post"])
-    def validate_dimensions(self, request, pk=None):
-        qp = self.get_object()
-        product_dims = {
-            "product_length": qp.length_mm,
-            "product_width": qp.width_mm,
-            "product_height": qp.height_mm,
-        }
-        valid = True
-        for pt in qp.product_template.part_templates.all():
-            evaluator = PartEvaluator(pt, product_dims, parameters={})
-            result = evaluator.evaluate()
-            if result["length"] <= 0 or result["width"] <= 0 or result["quantity"] <= 0:
-                valid = False
-                break
+    def get_serializer_class(self):
+        # Switch serializer based on who is looking
+        if self.request.query_params.get('portal') == 'marketplace':
+            return MarketplaceQuoteSerializer
+        
+        if self.request.user.is_staff:
+            return TenantQuoteSerializer
+            
+        return QuoteProductSerializer
 
-        qp.validated = valid
-        qp.save(update_fields=["validated"])
-        return Response({"validated": valid})
+    def perform_create(self, serializer):
+        """
+        Custom create to handle Lead Generation logic.
+        """
+        # 1. If Marketplace portal, we assign tenant from the PRODUCT template owner
+        if self.request.query_params.get('portal') == 'marketplace':
+            product_template = serializer.validated_data['product_template']
+            instance = serializer.save(tenant=product_template.tenant)
+            self.notify_factory_of_new_lead(instance)
+        else:
+            # 2. If internal, use the worker's tenant
+            serializer.save(tenant=self.request.user.tenant)
 
-    @action(detail=True, methods=["post"])
-    def expand_parts(self, request, pk=None):
-        qp = self.get_object()
-        if not qp.validated:
-            return Response({"detail": "Product not validated."}, status=status.HTTP_400_BAD_REQUEST)
+    @decorators.action(detail=True, methods=['post'])
+    def expand(self, request, pk=None):
+        """
+        FREEZE geometry and generate production parts (Staff Only).
+        """
+        product = self.get_object()
+        
+        if not request.user.is_staff:
+            return Response({"error": "Manufacturing data is restricted"}, status=403)
+            
+        count = product.expand_to_parts()
+        return Response({
+            "status": "Success", 
+            "parts_generated": count,
+            "total_factory_cost": product.total_cp
+        })
 
-        # Clear previous parts
-        qp.parts.all().delete()
-
-        product_dims = {
-            "product_length": qp.length_mm,
-            "product_width": qp.width_mm,
-            "product_height": qp.height_mm,
-        }
-
-        count = 0
-        for pt in qp.product_template.part_templates.all():
-            evaluator = PartEvaluator(pt, product_dims, parameters={})
-            part_data = evaluator.evaluate()
-
-            qp_part = QuotePart.objects.create(
-                quote_product=qp,
-                part_template=pt,
-                part_name=part_data["name"],
-                length_mm=part_data["length"],
-                width_mm=part_data["width"],
-                part_qty=int(part_data["quantity"]),
-                thickness_mm=part_data["thickness"],
-                shape_wastage_multiplier=part_data["shape_wastage_multiplier"],
-                material=part_data["material_obj"],
-                edgeband_top=part_data["edgeband_objs"].get("top"),
-                edgeband_bottom=part_data["edgeband_objs"].get("bottom"),
-                edgeband_left=part_data["edgeband_objs"].get("left"),
-                edgeband_right=part_data["edgeband_objs"].get("right"),
-            )
-            count += 1
-
-        parts = QuotePart.objects.filter(quote_product=qp)
-        data = QuotePartSerializer(parts, many=True).data
-        return Response({"created_parts": count, "parts": data}, status=status.HTTP_200_OK)
-
+    def notify_factory_of_new_lead(self, instance):
+        # Logic for Email/Dashboard Alert to the Tenant
+        print(f"ALERT: Tenant {instance.tenant.id} has a new Marketplace Lead!")
 
 class QuotePartViewSet(viewsets.ModelViewSet):
     queryset = QuotePart.objects.select_related("quote_product", "part_template", "material")

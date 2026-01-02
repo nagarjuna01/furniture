@@ -1,193 +1,294 @@
-// Open Material Modal
-window.openMaterialModal = function(initialSelection) {
-    initialSelection = initialSelection || { whitelist: [], defaultMaterial: null };
+/* ============================================================
+   MATERIAL MODAL – PART SCOPED STATE (FIXED)
+   ============================================================ */
 
-    if (!allData.materials || !allData.materials.length) {
-        console.warn("[MODAL-DEBUG] Materials data not loaded yet, retrying in 100ms");
-        setTimeout(() => openMaterialModal(initialSelection), 100);
-        return;
-    }
+let MATERIALS = [];
+let FILTERED = [];
 
-    console.log("[MODAL-DEBUG] Opening materialModal", initialSelection);
+const modal = document.getElementById("materialModal");
 
-    // Preselect whitelist
-    selected.materials = allData.materials.filter(m => 
-        initialSelection.whitelist && initialSelection.whitelist.includes(m.id)
-    );
+const selGroup = document.getElementById("filter-material-group");
+const selType = document.getElementById("filter-material-type");
+const selModel = document.getElementById("filter-material-model");
+const selBrand = document.getElementById("filter-material-brand");
+const selThickness = document.getElementById("filter-material-thickness");
 
-    // Preselect default material
-    selected.defaultMaterialId = initialSelection.defaultMaterial || null;
+const tbody = document.getElementById("material-body");
+const whitelistBox = document.getElementById("selected-materials");
+const defaultBox = document.getElementById("default-material");
 
-    showModal("materialModal");
 
-    updateFiltersAndTable();      // Render filtered table
-    renderSelectedMaterials();    // Render selected materials at bottom
+/* ============================================================
+   SAFE PART MATERIAL STATE ACCESSOR
+   ============================================================ */
+function getMaterialState() {
+  if (!window.currentPartState) {
+    console.warn("⚠️ currentPartState missing, creating fallback");
+    window.currentPartState = {};
+  }
 
-    console.log("[MODAL-DEBUG] Preselected whitelist IDs:", selected.materials.map(m => m.id));
-    console.log("[MODAL-DEBUG] Preselected default ID:", selected.defaultMaterialId);
+  if (!window.currentPartState.materials) {
+    window.currentPartState.materials = {
+      whitelist: [],
+      defaultMaterialId: null
+    };
+  }
+
+  return window.currentPartState.materials;
+}
+
+
+/* ============================================================
+   FILTER HELPERS
+   ============================================================ */
+function resetSelect(select, label = "All") {
+  select.innerHTML = `<option value="">${label}</option>`;
+}
+
+function fillSelect(select, items, idKey, labelKey) {
+  const current = select.value;
+  resetSelect(select);
+  const seen = new Set();
+
+  items.forEach(item => {
+    const id = item[idKey];
+    const label = item[labelKey];
+    if (id == null || seen.has(id)) return;
+    seen.add(id);
+    select.appendChild(new Option(label || "-", id));
+  });
+
+  if ([...select.options].some(o => o.value === current)) {
+    select.value = current;
+  }
+}
+
+
+/* ============================================================
+   API
+   ============================================================ */
+async function fetchMaterials() {
+  try {
+    const res = await fetch("/material/v1/woodens/");
+    const data = await res.json();
+    MATERIALS = data.results || [];
+    console.log("✅ MATERIALS FETCHED", MATERIALS.length);
+    initFilters();
+    applyFilters();
+  } catch (e) {
+    console.error("❌ MATERIAL FETCH FAILED", e);
+  }
+}
+
+
+/* ============================================================
+   FILTER LOGIC
+   ============================================================ */
+function initFilters() {
+  fillSelect(selGroup, MATERIALS, "material_grp", "material_grp_label");
+  fillSelect(selBrand, MATERIALS, "brand", "brand_label");
+  fillSelect(
+    selThickness,
+    MATERIALS.map(m => ({
+      thickness_mm: m.thickness_mm,
+      label: `${m.thickness_mm} mm`
+    })),
+    "thickness_mm",
+    "label"
+  );
+
+  selGroup.onchange = () => {
+    selType.value = "";
+    selModel.value = "";
+    applyFilters();
+    updateDependentState();
+  };
+
+  selType.onchange = () => {
+    selModel.value = "";
+    applyFilters();
+    updateDependentState();
+  };
+
+  selModel.onchange = applyFilters;
+  selBrand.onchange = applyFilters;
+  selThickness.onchange = applyFilters;
+
+  updateDependentState();
+}
+
+function updateDependentState() {
+  selType.disabled = !selGroup.value;
+  selModel.disabled = !selType.value;
+}
+/* ============================================================
+   APPLY FILTERS – FULL BIDIRECTIONAL INTERDEPENDENCE
+   ============================================================ */
+function applyFilters() {
+  const g = selGroup.value || null;
+  const t = selType.value || null;
+  const m = selModel.value || null;
+  const b = selBrand.value || null;
+  const th = selThickness.value || null;
+
+  // Filter materials based on all current selections
+  FILTERED = MATERIALS.filter(x => {
+    if (g && String(x.material_grp) !== g) return false;
+    if (t && String(x.material_type) !== t) return false;
+    if (m && String(x.material_model) !== m) return false;
+    if (b && String(x.brand) !== b) return false;
+    if (th && String(x.thickness_mm) !== th) return false;
+    return true;
+  });
+
+  // Rebuild all dependent filters using filtered results
+  rebuildDependentFilters();
+  renderTable();
+}
+
+/* ============================================================
+   REBUILD DEPENDENT FILTERS – FULL BIDIRECTIONAL INTERDEPENDENCE
+   ============================================================ */
+function rebuildDependentFilters() {
+  // Type options filtered by current selections
+  fillSelect(
+    selType,
+    FILTERED,
+    "material_type",
+    "material_type_label"
+  );
+
+  // Model options filtered by current selections
+  fillSelect(
+    selModel,
+    FILTERED,
+    "material_model",
+    "material_model_label"
+  );
+
+  // Brand options filtered by current selections
+  fillSelect(
+    selBrand,
+    FILTERED,
+    "brand",
+    "brand_label"
+  );
+
+  // Thickness options filtered by current selections
+  fillSelect(
+    selThickness,
+    FILTERED.map(m => ({ thickness_mm: m.thickness_mm, label: `${m.thickness_mm} mm` })),
+    "thickness_mm",
+    "label"
+  );
+
+  updateDependentState();
+}
+
+
+/* ============================================================
+   TABLE RENDER
+   ============================================================ */
+function renderTable() {
+  const mat = getMaterialState();
+  tbody.innerHTML = "";
+
+  FILTERED.forEach(m => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${m.name}</td>
+      <td>${m.thickness_mm} mm</td>
+      <td>${m.brand_label || "-"}</td>
+      <td class="text-center">
+        <input type="checkbox"
+          ${mat.whitelist.includes(m.id) ? "checked" : ""}
+          onchange="toggleWhitelist(${m.id})">
+      </td>
+      <td class="text-center">
+        <input type="radio" name="default_material"
+          ${mat.defaultMaterialId === m.id ? "checked" : ""}
+          onclick="setDefault(${m.id})">
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
+window.toggleWhitelist = function (id) {
+  const mat = getMaterialState();
+  const set = new Set(mat.whitelist || []);
+
+  set.has(id) ? set.delete(id) : set.add(id);
+  mat.whitelist = [...set];
+
+  if (mat.defaultMaterialId && !set.has(mat.defaultMaterialId)) {
+    mat.defaultMaterialId = null;
+  }
+
+  console.log("🧾 MATERIAL STATE", mat);
+  updatePreview();
+};
+
+window.setDefault = function (id) {
+  const mat = getMaterialState();
+  if (!mat.whitelist.includes(id)) return;
+
+  mat.defaultMaterialId = id;
+  updatePreview();
 };
 
 
-// Initialize filters
-function initMaterialFilters() {
-    console.log("[MODAL-DEBUG] Initializing Material Filters");
+/* ============================================================
+   PREVIEW
+   ============================================================ */
+function updatePreview() {
+  const mat = getMaterialState();
 
-    fillSelect('filter-material-group', [...new Set(allData.materials.map(m => m.material_grp?.name).filter(Boolean))]);
-    fillSelect('filter-material-type', [...new Set(allData.materials.map(m => m.material_type?.name).filter(Boolean))]);
-    fillSelect('filter-material-model', [...new Set(allData.materials.map(m => m.material_model?.name).filter(Boolean))]);
-    fillSelect('filter-material-brand', [...new Set(allData.materials.map(m => m.brand?.name).filter(Boolean))]);
-    fillSelect('filter-material-thickness', [...new Set(allData.materials.map(m => m.thickness).filter(Boolean))]);
+  whitelistBox.innerHTML = mat.whitelist
+    .map(id => MATERIALS.find(m => m.id === id)?.name)
+    .filter(Boolean)
+    .map(n => `<span class="badge bg-secondary me-1">${n}</span>`)
+    .join("");
 
-    ['filter-material-group','filter-material-type','filter-material-model','filter-material-brand','filter-material-thickness']
-        .forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.addEventListener('change', onFilterChange);
-        });
+  defaultBox.innerHTML = mat.defaultMaterialId
+    ? `<span class="badge bg-success">${MATERIALS.find(m => m.id === mat.defaultMaterialId)?.name}</span>`
+    : "<em>No default</em>";
 }
 
-// Filter change handler
-function onFilterChange(e) {
-    const id = e.target.id;
-    const groupSelect = document.getElementById('filter-material-group');
-    const typeSelect = document.getElementById('filter-material-type');
-    const modelSelect = document.getElementById('filter-material-model');
 
-    console.log("[MODAL-DEBUG] Filter changed:", id, e.target.value);
+/* ============================================================
+   MODAL EVENTS
+   ============================================================ */
+function resetModal() {
+  selGroup.value = "";
+  selType.value = "";
+  selModel.value = "";
+  selBrand.value = "";
+  selThickness.value = "";
 
-    // Reset dependent filters
-    if (id === 'filter-material-group') {
-        typeSelect.value = '';
-        modelSelect.value = '';
-    } else if (id === 'filter-material-type') {
-        modelSelect.value = '';
-    }
-
-    // Disable/enable dependent filters
-    typeSelect.disabled = !groupSelect.value;       // Type disabled if no Group
-    modelSelect.disabled = !typeSelect.value;       // Model disabled if no Type
-
-    updateFiltersAndTable();
+  // const mat = getMaterialState();
+  // mat.whitelist = [];
+  // mat.defaultMaterialId = null;
+console.log("🧼 Filters reset, but data preserved.");
+  renderTable();
+  updatePreview();
+  updateDependentState();
 }
 
-function getMaterialFilterValues() {
-    return {
-        group: document.getElementById('filter-material-group')?.value || '',
-        type: document.getElementById('filter-material-type')?.value || '',
-        model: document.getElementById('filter-material-model')?.value || '',
-        brand: document.getElementById('filter-material-brand')?.value || '',
-        thickness: document.getElementById('filter-material-thickness')?.value || ''
-    };
+modal?.addEventListener("shown.bs.modal", () => {
+  if (!MATERIALS.length) {
+  fetchMaterials().then(() => {
+    renderTable();
+    updatePreview();
+  });
+} else {
+  renderTable();
+  updatePreview();
 }
-// Update table & thickness options
-function updateFiltersAndTable() {
-    const { group, type, model, brand, thickness } = getMaterialFilterValues();
-    let filtered = allData.materials.filter(m =>
-        (!group || m.material_grp?.name === group) &&
-        (!type || m.material_type?.name === type) &&
-        (!model || m.material_model?.name === model) &&
-        (!brand || m.brand?.name === brand)
-    );
-
-    const thicknessOptions = [...new Set(filtered.map(m => m.thickness).filter(Boolean))];
-    fillSelect('filter-material-thickness', thicknessOptions);
-
-    if (thickness && thicknessOptions.includes(thickness)) {
-        filtered = filtered.filter(m => m.thickness === thickness);
-    }
-
-    renderMaterialTable(filtered);
-}
-
-// Render material table
-function renderMaterialTable(materials = allData.materials) {
-    console.log("[MODAL-DEBUG] Rendering material table", materials.length);
-
-    const tbody = document.getElementById('material-body');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    materials.forEach(m => {
-        const tr = document.createElement('tr');
-        tr.dataset.materialId = m.id;
-
-        const isChecked = selected.materials.some(sm => sm.id === m.id);
-        const isDefault = selected.defaultMaterialId === m.id;
-
-        tr.innerHTML = `
-            <td>${m.name || '(No Name)'}</td>
-            <td>${m.thickness || '-'}</td>
-            <td>${m.brand?.name || '-'}</td>
-            <td><input type="checkbox" class="material-whitelist" data-id="${m.id}" ${isChecked ? 'checked' : ''}></td>
-            <td><input type="radio" class="material-default" name="material-default" data-id="${m.id}" ${isDefault ? 'checked' : ''}></td>
-        `;
-
-        // Whitelist checkbox
-        tr.querySelector('.material-whitelist').addEventListener('change', function() {
-            if (this.checked) {
-                if (!selected.materials.some(sm => sm.id === m.id)) selected.materials.push(m);
-            } else {
-                selected.materials = selected.materials.filter(sm => sm.id !== m.id);
-                if (selected.defaultMaterialId === m.id) selected.defaultMaterialId = null;
-            }
-            console.log("[MODAL-DEBUG] Whitelist changed", selected.materials.map(s => s.id));
-            renderSelectedMaterials();
-        });
-
-        // Default radio
-        tr.querySelector('.material-default').addEventListener('change', function() {
-            selected.defaultMaterialId = m.id;
-            console.log("[MODAL-DEBUG] Default material set:", selected.defaultMaterialId);
-            renderSelectedMaterials();
-        });
-
-        tbody.appendChild(tr);
-    });
-}
-
-// Render selected materials at bottom
-function renderSelectedMaterials() {
-    const container = document.getElementById('selected-materials');
-    const defaultContainer = document.getElementById('default-material');
-    if (!container || !defaultContainer) return;
-
-    container.innerHTML = '';
-    selected.materials.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'selected-material-item';
-        div.innerHTML = `
-            ${m.name || '(No Name)'} - ${m.thickness}mm - ${m.brand?.name || '-'}
-            <button type="button" class="btn btn-sm btn-danger remove-selected" data-id="${m.id}">x</button>
-        `;
-        container.appendChild(div);
-    });
-
-    // Remove button
-    container.querySelectorAll('.remove-selected').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const id = parseInt(this.dataset.id);
-            selected.materials = selected.materials.filter(sm => sm.id !== id);
-            if (selected.defaultMaterialId === id) selected.defaultMaterialId = null;
-            console.log("[MODAL-DEBUG] Removed material:", id);
-            updateFiltersAndTable();
-            renderSelectedMaterials();
-        });
-    });
-
-    // Show default
-    const defaultMat = selected.materials.find(m => m.id === selected.defaultMaterialId);
-    defaultContainer.innerHTML = defaultMat ? `${defaultMat.name || '(No Name)'} - ${defaultMat.thickness}mm - ${defaultMat.brand?.name || '-'}` : '(None)';
-}
-
-// Save materials
-document.getElementById('save-material-btn').addEventListener('click', function() {
-    console.log("[MODAL-DEBUG] Saving Materials");
-
-    document.dispatchEvent(new CustomEvent("materialsSaved", {
-        detail: {
-            whitelist: selected.materials.map(m => m.id),
-            defaultMaterial: selected.defaultMaterialId
-        }
-    }));
-
-    bootstrap.Modal.getInstance(document.getElementById('materialModal')).hide();
 });
+
+// modal?.addEventListener("hidden.bs.modal", resetModal);

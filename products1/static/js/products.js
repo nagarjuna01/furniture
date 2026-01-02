@@ -1,36 +1,21 @@
 const productApi = {
-    list: '/products1/api/products/',
+    list: '/products1/v1/products/',
     // Add a detail method for consistency, used for GET/PUT/PATCH/DELETE on a single product
-    detail: id => `/products1/api/products/${id}/`,
-    types: '/products1/api/product-types/',
-    models: '/products1/api/product-series/',
+    detail: id => `/products1/v1/products/${id}/`,
+    types: '/products1/v1/product-types/',
+    models: '/products1/v1/product-series/',
     // The 'update' is redundant if 'detail' is used for PUT/PATCH. I'll remove it below for clarity.
     // update: id => `/products1/api/products/${id}/`,
 };
 const productImageApi = {
     upload: productId =>
-        `/products1/api/products/${productId}/upload-images/`,
+        `/products1/v1/products/${productId}/upload-images/`,
     delete: (productId, imageId) =>
-        `/products1/api/products/${productId}/delete-image/${imageId}/`,
+        `/products1/v1/products/${productId}/delete-image/${imageId}/`,
 };
 
 $(function() {
-    const csrftoken = $('[name="csrfmiddlewaretoken"]').val();
-
-    // --- Utility Functions (Keep as is) ---
-    function showToast(message, type = 'info') {
-        const toastId = 'toast-' + Date.now();
-        $('#toast-container').append(`
-            <div id="${toastId}" class="toast text-bg-${type} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        `);
-        new bootstrap.Toast(document.getElementById(toastId)).show();
-    }
-
+    
     function initSelect2({ selector, url, textField = 'name', value = null, text = null, placeholder = 'Select...', dropdownParent = 'body', minimumInputLength = 0, pageSize = 10 }) {
         const $el = $(selector);
         if (!$el.length) return console.error(`initSelect2: Element not found: ${selector}`);
@@ -163,9 +148,14 @@ $(function() {
     const $cardContainer = $('#productCardView').empty();
 
     $.get(productApi.list, function (data) {
+        
         const products = data.results || [];
 
         products.forEach(product => {
+            console.log(
+  'PRODUCT', product.id,
+  'variants:', product.variants
+);
 
             // ✅ IMAGE RESOLUTION (VERY IMPORTANT)
             const resolvedImage =
@@ -474,7 +464,7 @@ $(document).on('click', '.btn-delete-product-image', function () {
     $.ajax({
         url: productImageApi.delete(productId, imageId),
         method: 'DELETE',
-        headers: { 'X-CSRFToken': csrftoken },
+        headers: {  'X-CSRFToken': window.CSRF_TOKEN },
     }).done(() => {
         showToast('Product image deleted', 'success');
         $wrapper.remove();

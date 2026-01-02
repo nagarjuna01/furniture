@@ -1,0 +1,20 @@
+<!-- accounts/templates/accounts/subscription_expired.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Subscription Expired</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-5">
+    <div class="alert alert-warning text-center">
+        <h3>Subscription Expired</h3>
+        <p>Your subscription has expired. Please contact the administrator to renew access.</p>
+        <a href="{% url 'material-login' %}" class="btn btn-primary mt-3">Go to Login</a>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

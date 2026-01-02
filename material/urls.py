@@ -10,9 +10,9 @@ router = DefaultRouter()
 router.register(r'brands', views.BrandViewSet)
 router.register('measurement-units', views.MeasurementUnitViewSet)
 router.register('billing-units', views.BillingUnitViewSet)
-router.register(r'categories', views.CategoryViewSet)
-router.register(r'category-types', views.CategoryTypesViewSet)
-router.register(r'category-models', views.CategoryModelViewSet)
+router.register(r'categories', views.CategoryViewSet,basename="category")
+router.register(r'category-types', views.CategoryTypesViewSet,basename="category-type")
+router.register(r'category-models', views.CategoryModelViewSet, basename="category-model")
 router.register(r'edgebands', views.EdgeBandViewSet)
 router.register(r'woodens', views.WoodMaterialViewSet, basename='wooden')
 router.register(r'hardware-groups', views.HardwareGroupViewSet)
@@ -32,7 +32,10 @@ urlpatterns = [
 
     path('brand/', views.brand_list_page, name='brand_page'),
     path('category-browser/', views.category_browser, name='category-browser'),
-
+    path('measurement-units/',views.measurement_unit_view,
+        name="measurement-unit-ui",
+    ),
+    path('billing-units/',views.billing_unit_view,name="billing-unit-ui",),
     # # Category tree
     # #path('category-type/', views.category_types, name='category-types'),
     # #path('category-type/<int:category_id>/', views.category_type_list, name='category-type-list'),

@@ -1,14 +1,9 @@
 from django.db import models
+from accounts.models.base import TenantModel
 #from accounts.models import Tenant
 
-class Brand(models.Model):
-    # tenant = models.ForeignKey(
-    #     "accounts.Tenant",
-    #     on_delete=models.CASCADE,
-    #     related_name="brands"
-    # )
-    # ↑ Future: multi-tenant brand separation
-
+class Brand(TenantModel):
+    
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(null=True, blank=True)
 
@@ -29,6 +24,12 @@ class Brand(models.Model):
         if self.name:
             self.name = self.name.upper()
         super().save(*args, **kwargs)
-
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "name"],
+                name="unique_brand_per_tenant"
+            )
+        ]
     def __str__(self):
         return self.name

@@ -1,0 +1,20 @@
+{% extends "base1.html" %}
+{% load static %}
+
+{% block content %}
+<h4>Brands</h4>
+
+<table class="table table-sm" id="brand-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Name</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'material/js/brand_list.js' %}"></script>
+{% endblock %}

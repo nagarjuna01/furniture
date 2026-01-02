@@ -3,28 +3,34 @@
 {% block title %}Hardware Inventory{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3">Hardware Inventory</h1>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#hardwareModal" id="addHardwareBtn">
-            <i class="fas fa-plus-circle"></i> Add Hardware
+<div class="container mt-4">
+    <div class="d-flex justify-content-between mb-3">
+        <h4>Hardware Inventory</h4>
+        <button class="btn btn-primary" id="addHardwareBtn"
+                data-bs-toggle="modal"
+                data-bs-target="#hardwareModal">
+            + Add Hardware
         </button>
     </div>
-
-    <!-- Alerts -->
-    <div id="hardwareAlert" class="alert d-none" role="alert"></div>
-
+<div class="row mb-3">
+    <div class="col-md-4">
+        <input
+            type="text"
+            id="hardwareSearch"
+            class="form-control form-control-sm"
+            placeholder="Search hardware, brand, group…">
+    </div>
+</div>
     <div class="table-responsive">
-        <table class="table table-hover table-bordered align-middle">
+        <table class="table table-sm table-bordered align-middle">
             <thead class="table-light">
                 <tr>
-                    <th>ID</th>
                     <th>Group</th>
                     <th>Name</th>
                     <th>Brand</th>
+                    <th>Purchase</th>
+                    <th>Selling</th>
                     <th>Unit</th>
-                    <th>Purchase Price</th>
-                    <th>Selling Price</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -32,324 +38,365 @@
         </table>
     </div>
 
-    <!-- Pagination -->
     <nav>
-        <ul class="pagination justify-content-center" id="paginationControls"></ul>
+        <ul class="pagination pagination-sm justify-content-center"
+            id="paginationControls"></ul>
     </nav>
 </div>
 
-<!-- Add/Edit Hardware Modal -->
-<div class="modal fade" id="hardwareModal" tabindex="-1" aria-hidden="true">
+<!-- ================= MODAL ================= -->
+<div class="modal fade" id="hardwareModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <form id="hardwareForm">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="hardwareModalLabel">Add Hardware</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
+        <form id="hardwareForm" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="hardwareModalLabel">Add Hardware</h5>
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="modal"></button>
+            </div>
 
-                    <input type="hidden" id="hardwareId">
+            <div class="modal-body">
+                <input type="hidden" id="hardwareId">
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="h_group" class="form-label">Hardware Group</label>
-                            <div class="input-group">
-                                <select class="form-select" id="h_group" required></select>
-                                <button type="button" class="btn btn-outline-secondary" id="showNewGroupInput">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                            <div id="newGroupWrapper" class="mt-2 d-none">
-                                <input type="text" id="newGroupName" class="form-control mb-2" placeholder="New group name">
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-sm btn-primary" id="addNewGroupBtn">
-                                        <i class="fas fa-save"></i> Add
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-secondary" id="cancelNewGroupBtn">
-                                        <i class="fas fa-times"></i> Cancel
-                                    </button>
-                                </div>
-                            </div>
+                <!-- GROUP + NAME -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Hardware Group</label>
+                        <div class="input-group">
+                            <select id="h_group" class="form-select" required></select>
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    id="showNewGroupInput">Add Hardware Group</button>
                         </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label for="h_name" class="form-label">Hardware Name</label>
-                            <input type="text" class="form-control" id="h_name" required>
+                        <div id="newGroupWrapper" class="mt-2 d-none">
+                            <input id="newGroupName" class="form-control mb-1"
+                                   placeholder="Group name">
+                            <div class="d-flex gap-2">
+                                <button type="button"
+                                        class="btn btn-sm btn-primary"
+                                        id="addNewGroupBtn">Add</button>
+                                <button type="button"
+                                        class="btn btn-sm btn-secondary"
+                                        id="cancelNewGroupBtn">Cancel</button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="brand" class="form-label">Brand</label>
-                            <div class="input-group">
-                                <select class="form-select" id="brand" required></select>
-                                <button type="button" class="btn btn-outline-secondary" id="showNewBrandInput">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                            <div id="newBrandWrapper" class="mt-2 d-none">
-                                <input type="text" id="newBrandName" class="form-control mb-2" placeholder="New brand name">
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-sm btn-primary" id="addNewBrandBtn">
-                                        <i class="fas fa-save"></i> Add
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-secondary" id="cancelNewBrandBtn">
-                                        <i class="fas fa-times"></i> Cancel
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Hardware Name</label>
+                        <input id="h_name" class="form-control" required>
+                    </div>
+                </div>
 
-                        <div class="col-md-6 mb-3">
-                            <label for="unit" class="form-label">Unit</label>
-                            <select class="form-select" id="unit" required>
-                                <option value="each">Each</option>
-                                <option value="set">Set</option>
-                                <option value="nos">Nos</option>
-                            </select>
+                <!-- BRAND + UNIT -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Brand</label>
+                        <div class="input-group">
+                            <select id="brand" class="form-select"></select>
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    id="showNewBrandInput">Add Brand</button>
+                        </div>
+                        <div id="newBrandWrapper" class="mt-2 d-none">
+                            <input id="newBrandName" class="form-control mb-1"
+                                   placeholder="Brand name">
+                            <div class="d-flex gap-2">
+                                <button type="button"
+                                        class="btn btn-sm btn-primary"
+                                        id="addNewBrandBtn">Add</button>
+                                <button type="button"
+                                        class="btn btn-sm btn-secondary"
+                                        id="cancelNewBrandBtn">Cancel</button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="p_price" class="form-label">Purchase Price</label>
-                            <input type="number" step="0.01" class="form-control" id="p_price" required>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="s_price" class="form-label">Selling Price</label>
-                            <input type="number" step="0.01" class="form-control" id="s_price" required>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="sl_price" class="form-label">Shop Link (Optional)</label>
-                            <input type="url" class="form-control" id="sl_price">
-                        </div>
-                    </div>
+                    <div class="col-md-6">
+    <label class="form-label">Billing Unit</label>
+    <div class="input-group">
+        <select id="billing_unit" class="form-select" required></select>
+        <button type="button"
+                class="btn btn-outline-secondary"
+                id="showNewBillingUnitInput">add billing unit</button>
+    </div>
 
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save</button>
-                </div>
-            </form>
+    <div id="newBillingUnitWrapper" class="mt-2 d-none">
+        <input id="newBillingUnitName"
+               class="form-control mb-1"
+               placeholder="Unit name (e.g. Meter)">
+        <input id="newBillingUnitCode"
+               class="form-control mb-1"
+               placeholder="Code (e.g. m)">
+        <input id="newBillingUnitFactor"
+               type="number"
+               step="0.0001"
+               class="form-control mb-2"
+               placeholder="Factor (e.g. 1.0)">
+
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-sm btn-primary"
+                    id="addNewBillingUnitBtn">
+                Add
+            </button>
+            <button type="button"
+                    class="btn btn-sm btn-secondary"
+                    id="cancelNewBillingUnitBtn">
+                Cancel
+            </button>
         </div>
     </div>
 </div>
+                </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirm Deletion</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <!-- PRICES -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Purchase Price</label>
+                        <input id="p_price" type="number" step="0.01"
+                               class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Selling Price</label>
+                        <input id="s_price" type="number" step="0.01"
+                               class="form-control" required>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body">
-                Are you sure you want to delete this hardware item? This action cannot be undone!
-            </div>
+
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="fas fa-ban"></i> Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn"><i class="fas fa-trash-alt"></i> Delete</button>
+                <button class="btn btn-success" type="submit">Save</button>
             </div>
-        </div>
+        </form>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-$(function() {
+$(function () {
+
     const HARDWARE_API = '/material/v1/hardware/';
     const GROUP_API = '/material/v1/hardware-groups/';
     const BRAND_API = '/material/v1/brands/';
+    const BILLING_UNIT_API = '/material/v1/billing-units/';
 
     let editingId = null;
-    let deleteId = null;
-    let nextPage = null, prevPage = null;
+    let currentPageUrl = HARDWARE_API;
 
-    function fetchHardware(url=HARDWARE_API) {
+    /* =================== SELECT2 =================== */
+    $('#h_group, #brand, #billing_unit').select2({
+        dropdownParent: $('#hardwareModal'),
+        width: '100%'
+    });
+
+    /* =================== LOAD TABLE =================== */
+    function loadHardware(url = HARDWARE_API) {
+        currentPageUrl = url;
+        console.log('🔗 Fetch hardware:', url);
+
         $.get(url).done(res => {
             const tbody = $('#hardwareTableBody').empty();
-            if(res.results && res.results.length) {
-                res.results.forEach(h => {
-                    tbody.append(`
-                        <tr>
-                            <td>${h.id}</td>
-                            <td>${h.h_group?.name || 'N/A'}</td>
-                            <td>${h.h_name}</td>
-                            <td>${h.brand?.name || 'N/A'}</td>
-                            <td>${h.unit}</td>
-                            <td>${parseFloat(h.p_price).toFixed(2)}</td>
-                            <td>${parseFloat(h.s_price).toFixed(2)}</td>
-                            <td>
-                                <button class="btn btn-sm btn-info edit-btn" data-id="${h.id}" data-bs-toggle="modal" data-bs-target="#hardwareModal">
-                                    <i class="fas fa-pencil-alt"></i>
-                                </button>
-                                <button class="btn btn-sm btn-danger delete-btn" data-id="${h.id}" data-bs-toggle="modal" data-bs-target="#deleteConfirmModal">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `);
-                });
-            } else {
-                tbody.append('<tr><td colspan="8" class="text-center">No hardware items found.</td></tr>');
-            }
 
-            // Update pagination
-            nextPage = res.next;
-            prevPage = res.previous;
-            const pagination = $('#paginationControls').empty();
-            if(prevPage) pagination.append(`<li class="page-item"><button class="page-link" data-url="${prevPage}">Prev</button></li>`);
-            if(nextPage) pagination.append(`<li class="page-item"><button class="page-link" data-url="${nextPage}">Next</button></li>`);
-        }).fail(() => window.showToast('Failed to load hardware.', 'error'));
-    }
+            (res.results || []).forEach(h => {
+                tbody.append(`
+                    <tr data-id="${h.id}">
+                        <td>${h.h_group_label || '-'}</td>
+                        <td>${h.h_name}</td>
+                        <td>${h.brand_label || '-'}</td>
+                        <td>${Number(h.cost_price).toFixed(2)}</td>
+                        <td>${Number(h.sell_price).toFixed(2)}</td>
+                        <td>${h.billing_unit_code || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-info edit-btn">✏️</button>
+                            <button class="btn btn-sm btn-danger delete-btn">🗑️</button>
+                        </td>
+                    </tr>
+                `);
+            });
 
-    function populateSelects() {
-        $.get(GROUP_API).done(res => {
-            const select = $('#h_group').empty().append('<option value="">Select Group</option>');
-            (res.results||res).forEach(g => select.append(`<option value="${g.id}">${g.name}</option>`));
-        });
-        $.get(BRAND_API).done(res => {
-            const select = $('#brand').empty().append('<option value="">Select Brand</option>');
-            (res.results||res).forEach(b => select.append(`<option value="${b.id}">${b.name}</option>`));
+            renderPagination(res);
         });
     }
 
-    // Initial load
-    fetchHardware();
-    populateSelects();
+    /* =================== PAGINATION =================== */
+    function renderPagination(res){
+        const p = $('#paginationControls').empty();
 
-    // Pagination click
-    $(document).on('click', '#paginationControls button', function(){
-        const url = $(this).data('url');
-        if(url) fetchHardware(url);
+        if(res.previous){
+            p.append(`
+                <li class="page-item">
+                    <a class="page-link" data-url="${res.previous}">Prev</a>
+                </li>
+            `);
+        }
+        if(res.next){
+            p.append(`
+                <li class="page-item">
+                    <a class="page-link" data-url="${res.next}">Next</a>
+                </li>
+            `);
+        }
+    }
+
+    $('#paginationControls').on('click', 'a', function(e){
+        e.preventDefault();
+        loadHardware($(this).data('url'));
     });
 
-    // Add/Edit modal
-    $('#addHardwareBtn').click(function(){
+    /* =================== DROPDOWNS =================== */
+    function loadGroups(selected=null){
+        return $.get(GROUP_API).done(res=>{
+            const s=$('#h_group').empty().append('<option></option>');
+            (res.results||res).forEach(g=>{
+                s.append(`<option value="${g.id}">${g.name}</option>`);
+            });
+            if(selected) s.val(String(selected)).trigger('change');
+        });
+    }
+
+    function loadBrands(selected=null){
+        return $.get(BRAND_API).done(res=>{
+            const s=$('#brand').empty().append('<option></option>');
+            (res.results||res).forEach(b=>{
+                s.append(`<option value="${b.id}">${b.name}</option>`);
+            });
+            if(selected) s.val(String(selected)).trigger('change');
+        });
+    }
+
+    function loadBillingUnits(selected=null){
+        return $.get(BILLING_UNIT_API).done(res=>{
+            const s=$('#billing_unit').empty().append('<option></option>');
+            (res.results||res).forEach(u=>{
+                s.append(`<option value="${u.id}">${u.name}</option>`);
+            });
+            if(selected) s.val(String(selected)).trigger('change');
+        });
+    }
+
+    let searchTimer = null;
+
+$('#hardwareSearch').on('input', function () {
+    clearTimeout(searchTimer);
+
+    searchTimer = setTimeout(() => {
+        const q = $(this).val().trim();
+
+        const url = q
+            ? `${HARDWARE_API}?search=${encodeURIComponent(q)}`
+            : HARDWARE_API;
+
+        loadHardware(url);
+    }, 300);
+});
+
+    /* =================== ADD HARDWARE =================== */
+    $('#addHardwareBtn').click(()=>{
         editingId = null;
-        $('#hardwareModalLabel').text('Add Hardware');
         $('#hardwareForm')[0].reset();
-        $('#h_group').val('');
-        $('#brand').val('');
-        $('#newGroupWrapper, #newBrandWrapper').addClass('d-none');
-        $('#showNewGroupInput, #showNewBrandInput').prop('disabled', false);
+        $('#h_group,#brand,#billing_unit').val(null).trigger('change');
+        $('#hardwareModalLabel').text('Add Hardware');
     });
 
-    $(document).on('click', '.edit-btn', function(){
-        const id = $(this).data('id');
+    /* =================== EDIT =================== */
+    $('#hardwareTableBody').on('click','.edit-btn',function(){
+        const id = $(this).closest('tr').data('id');
         editingId = id;
-        $('#hardwareModalLabel').text('Edit Hardware');
-        $.get(`${HARDWARE_API}${id}/`).done(h => {
-            $('#hardwareId').val(h.id);
-            $('#h_group').val(h.h_group?.id || '');
+
+        $.get(`${HARDWARE_API}${id}/`).done(h=>{
+            $('#hardwareModalLabel').text('Edit Hardware');
+
             $('#h_name').val(h.h_name);
-            $('#brand').val(h.brand?.id || '');
-            $('#unit').val(h.unit);
-            $('#p_price').val(h.p_price);
-            $('#s_price').val(h.s_price);
-            $('#sl_price').val(h.sl_price);
-        }).fail(()=>window.showToast('Failed to fetch hardware.', 'error'));
+            $('#p_price').val(h.cost_price);
+            $('#s_price').val(h.sell_price);
+
+            $.when(
+                loadGroups(h.h_group),
+                loadBrands(h.brand),
+                loadBillingUnits(h.billing_unit)
+            ).done(()=>{
+                $('#hardwareModal').modal('show');
+            });
+        });
     });
 
-    // Submit hardware form
+    /* =================== DELETE (SOFT) =================== */
+    $('#hardwareTableBody').on('click','.delete-btn',function(){
+        const id = $(this).closest('tr').data('id');
+        if(!confirm('Deactivate this hardware item?')) return;
+
+        $.ajax({
+            url: `${HARDWARE_API}${id}/`,
+            method: 'PATCH',
+            headers:{'X-CSRFToken':window.CSRF_TOKEN},
+            contentType:'application/json',
+            data: JSON.stringify({is_active:false})
+        }).done(()=>loadHardware(currentPageUrl));
+    });
+
+    /* =================== SAVE =================== */
     $('#hardwareForm').submit(function(e){
         e.preventDefault();
-        const data = {
-            h_group_id: $('#h_group').val(),
+
+        const payload = {
+            h_group: Number($('#h_group').val()),
             h_name: $('#h_name').val(),
-            brand_id: $('#brand').val(),
-            unit: $('#unit').val(),
-            p_price: $('#p_price').val(),
-            s_price: $('#s_price').val(),
-            sl_price: $('#sl_price').val() || null
+            brand: Number($('#brand').val() || null),
+            billing_unit: Number($('#billing_unit').val()),
+            cost_price: $('#p_price').val(),
+            sell_price: $('#s_price').val()
         };
+
         const url = editingId ? `${HARDWARE_API}${editingId}/` : HARDWARE_API;
         const method = editingId ? 'PUT' : 'POST';
+
         $.ajax({
             url, method,
             contentType:'application/json',
-            headers:{'X-CSRFToken': window.CSRF_TOKEN},
-            data: JSON.stringify(data)
-        }).done(() => {
-            bootstrap.Modal.getInstance($('#hardwareModal')[0]).hide();
-            fetchHardware();
-            window.showToast(`Hardware ${editingId ? 'updated' : 'added'} successfully!`, 'success');
+            headers:{'X-CSRFToken':window.CSRF_TOKEN},
+            data: JSON.stringify(payload)
+        }).done(()=>{
+            $('#hardwareModal').modal('hide');
+            loadHardware(currentPageUrl);
             editingId = null;
-        }).fail(() => window.showToast('Failed to save hardware.', 'error'));
+        });
     });
 
-    // Delete hardware
-    $(document).on('click', '.delete-btn', function(){ deleteId = $(this).data('id'); });
-    $('#confirmDeleteBtn').click(function(){
-        if(!deleteId) return;
-        $.ajax({
-            url:`${HARDWARE_API}${deleteId}/`,
-            type:'DELETE',
-            headers:{'X-CSRFToken': window.CSRF_TOKEN}
-        }).done(()=> {
-            bootstrap.Modal.getInstance($('#deleteConfirmModal')[0]).hide();
-            fetchHardware();
-            window.showToast('Hardware deleted successfully!', 'warning');
-            deleteId = null;
-        }).fail(()=>window.showToast('Failed to delete hardware.', 'error'));
+    /* =================== SERVER FILTERING =================== */
+    $('#h_group, #brand').on('change', function(){
+        const params = new URLSearchParams();
+        if($('#h_group').val()) params.append('h_group', $('#h_group').val());
+        if($('#brand').val()) params.append('brand', $('#brand').val());
+
+        loadHardware(`${HARDWARE_API}?${params.toString()}`);
     });
 
-    // Add new group
-    $('#showNewGroupInput').click(function(){ 
-        $('#newGroupWrapper').removeClass('d-none'); 
-        $(this).prop('disabled', true); 
-    });
-    $('#cancelNewGroupBtn').click(function(){ 
-        $('#newGroupWrapper').addClass('d-none'); 
-        $('#newGroupName').val(''); 
-        $('#showNewGroupInput').prop('disabled', false); 
-    });
-    $('#addNewGroupBtn').click(function(){
-        const name = $('#newGroupName').val().trim();
-        if(!name) return window.showToast('Enter group name', 'error');
-        $.ajax({
-            url: GROUP_API,
-            method:'POST',
-            contentType:'application/json',
-            headers:{'X-CSRFToken': window.CSRF_TOKEN},
-            data: JSON.stringify({name})
-        }).done(g => { 
-            $('#newGroupWrapper').addClass('d-none'); 
-            $('#newGroupName').val(''); 
-            $('#showNewGroupInput').prop('disabled', false); 
-            $('#h_group').append(`<option value="${g.id}" selected>${g.name}</option>`); 
-        }).fail(()=>window.showToast('Failed to add group', 'error'));
+    /* =================== CLIENT FILTER =================== */
+    $('#h_name').on('input', function(){
+        const v = $(this).val().toLowerCase();
+        $('#hardwareTableBody tr').each(function(){
+            $(this).toggle($(this).text().toLowerCase().includes(v));
+        });
     });
 
-    // Add new brand
-    $('#showNewBrandInput').click(function(){ 
-        $('#newBrandWrapper').removeClass('d-none'); 
-        $(this).prop('disabled', true); 
+    /* =================== AI PRICE SUGGESTION =================== */
+    $('#p_price').on('input', function(){
+        const cost = Number($(this).val() || 0);
+
+        // BASIC → 30% margin
+        const suggested = (cost * 1.3).toFixed(2);
+
+        // Pro-ready hook
+        $('#s_price').attr('placeholder', `AI Suggestion: ${suggested}`);
     });
-    $('#cancelNewBrandBtn').click(function(){ 
-        $('#newBrandWrapper').addClass('d-none'); 
-        $('#newBrandName').val(''); 
-        $('#showNewBrandInput').prop('disabled', false); 
-    });
-    $('#addNewBrandBtn').click(function(){
-        const name = $('#newBrandName').val().trim();
-        if(!name) return window.showToast('Enter brand name', 'error');
-        $.ajax({
-            url: BRAND_API,
-            method:'POST',
-            contentType:'application/json',
-            headers:{'X-CSRFToken': window.CSRF_TOKEN},
-            data: JSON.stringify({name})
-        }).done(b => { 
-            $('#newBrandWrapper').addClass('d-none'); 
-            $('#newBrandName').val(''); 
-            $('#showNewBrandInput').prop('disabled', false); 
-            $('#brand').append(`<option value="${b.id}" selected>${b.name}</option>`); 
-        }).fail(()=>window.showToast('Failed to add brand', 'error'));
-    });
+
+    /* =================== INIT =================== */
+    loadGroups();
+    loadBrands();
+    loadBillingUnits();
+    loadHardware();
 
 });
 </script>
 {% endblock %}
-

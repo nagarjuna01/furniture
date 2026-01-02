@@ -1,317 +1,173 @@
-from django.db import transaction
+from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import render
-from django.views.generic import TemplateView
+from rest_framework.filters import SearchFilter, OrderingFilter
 
+from django.contrib.auth.decorators import login_required
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
-
+from accounts.mixins import TenantSafeViewSetMixin
 from django_filters.rest_framework import DjangoFilterBackend
 
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
+from .filters import ProductFilter,ProductVariantFilter
 
 from .models import (
     Product,
     ProductType,
     ProductSeries,
-    BillingUnit,
-    MeasurementUnit,
-    AttributeDefinition,
     ProductVariant,
     ProductImage,
     VariantImage,
+    AttributeDefinition,
+    VariantAttributeValue,
 )
 
 from .serializers import (
-    ProductSerializer,
     ProductTypeSerializer,
     ProductSeriesSerializer,
-    BillingUnitSerializer,
-    MeasurementUnitSerializer,
-    AttributeDefinitionSerializer,
+    ProductListSerializer,
+    ProductDetailSerializer,
     ProductVariantSerializer,
     ProductImageSerializer,
     VariantImageSerializer,
+    AttributeDefinitionSerializer,
+    VariantAttributeValueSerializer,
 )
 
 # -------------------------------------------------------------------
-# MASTER DATA VIEWSETS
+# MASTER / GLOBAL DATA (READ ONLY)
 # -------------------------------------------------------------------
 
-class ProductTypeViewSet(viewsets.ModelViewSet):
+class ProductTypeViewSet(TenantSafeViewSetMixin, ModelViewSet):
     queryset = ProductType.objects.all()
     serializer_class = ProductTypeSerializer
+    permission_classes = [IsAuthenticated]
 
 
-class ProductSeriesViewSet(viewsets.ModelViewSet):
+class ProductSeriesViewSet(TenantSafeViewSetMixin, ModelViewSet):
     queryset = ProductSeries.objects.select_related("product_type")
     serializer_class = ProductSeriesSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["product_type"]
+    permission_classes = [IsAuthenticated]
 
 
-class BillingUnitViewSet(viewsets.ModelViewSet):
-    queryset = BillingUnit.objects.all()
-    serializer_class = BillingUnitSerializer
+class ProductViewSet(TenantSafeViewSetMixin, ModelViewSet):
+    queryset = Product.objects.all()
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = ProductFilter
+    search_fields = ["name", "sku"]
+    ordering_fields = ["created_at", "name"]
+    def get_queryset(self):
+        qs = Product.objects.select_related(
+            "product_type",
+            "product_series"
+        ).prefetch_related(
+            "variants"
+        )
 
+        print("DEBUG Products:", qs.count())
+        return super().get_queryset().select_related(
+            "product_type",
+            "product_series"
+        ).prefetch_related("variants")
 
-class MeasurementUnitViewSet(viewsets.ModelViewSet):
-    queryset = MeasurementUnit.objects.all()
-    serializer_class = MeasurementUnitSerializer
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return ProductDetailSerializer
+        return ProductListSerializer
 
+class ProductVariantViewSet(TenantSafeViewSetMixin, ModelViewSet):
+    queryset = ProductVariant.objects.all()
+    serializer_class = ProductVariantSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_class = ProductVariantFilter
+    search_fields = ["sku"]
 
-class AttributeDefinitionViewSet(viewsets.ModelViewSet):
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+
+        # Tenant filtering
+        if hasattr(user, "tenant"):
+            qs = qs.filter(tenant=user.tenant)
+
+        # Filter by product_id if provided
+        product_id = self.request.query_params.get("product_id")
+        if product_id:
+            qs = qs.filter(product_id=product_id)
+
+        # Optimize
+        return qs.select_related("product", "measurement_unit", "billing_unit").prefetch_related("images", "attributes__attribute")
+
+class AttributeDefinitionViewSet(TenantSafeViewSetMixin, ModelViewSet):
     queryset = AttributeDefinition.objects.all()
     serializer_class = AttributeDefinitionSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["field_type"]
-    search_fields = ["name"]
+    permission_classes = [IsAuthenticated]
 
-# -------------------------------------------------------------------
-# PRODUCT VIEWSET
-# -------------------------------------------------------------------
+class VariantAttributeValueViewSet(TenantSafeViewSetMixin, ModelViewSet):
+    queryset = VariantAttributeValue.objects.all()
+    serializer_class = VariantAttributeValueSerializer
+    permission_classes = [IsAuthenticated]
 
-class ProductViewSet(viewsets.ModelViewSet):
-    queryset = (
-        Product.objects
-        .select_related("product_type", "product_series")
-        .prefetch_related("variants__images", "images")
-    )
-    serializer_class = ProductSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["product_type", "is_active"]
-    search_fields = ["name", "sku"]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    @swagger_auto_schema(
-        request_body=ProductSerializer,
-        consumes=["application/json", "multipart/form-data"],
-    )
-    def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
-
-    @swagger_auto_schema(
-        request_body=ProductSerializer,
-        consumes=["application/json", "multipart/form-data"],
-    )
-    def update(self, request, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
-
-    # ------------------ PRODUCT IMAGE UPLOAD ------------------
-
-    @action(
-        detail=True,
-        methods=["post"],
-        parser_classes=[MultiPartParser],
-        url_path="upload-images",
-    )
-    def upload_images(self, request, pk=None):
-        product = self.get_object()
-        files = request.FILES.getlist("images")
-
-        if not files:
-            return Response(
-                {"detail": "No images provided"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        created = []
-        for file in files:
-            img = ProductImage.objects.create(
-                product=product,
-                image=file
-            )
-            created.append(img)
-
-        return Response(
-            ProductImageSerializer(
-                created, many=True, context={"request": request}
-            ).data,
-            status=status.HTTP_201_CREATED
+    def get_queryset(self):
+        variant_id = self.kwargs.get("variant_pk")
+        qs = VariantAttributeValue.objects.select_related(
+            "variant",
+            "attribute"
         )
 
-    # ------------------ SET PRIMARY IMAGE ------------------
+        if variant_id:
+            qs = qs.filter(variant_id=variant_id)
 
-    @action(detail=True, methods=["post"])
-    def set_primary_image(self, request, pk=None):
-        product = self.get_object()
-        image_id = request.data.get("image_id")
-
-        if not image_id:
-            return Response(
-                {"detail": "image_id is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            with transaction.atomic():
-                ProductImage.objects.filter(
-                    product=product
-                ).update(is_primary=False)
-
-                image = ProductImage.objects.get(
-                    id=image_id, product=product
-                )
-                image.is_primary = True
-                image.save()
-
-        except ProductImage.DoesNotExist:
-            return Response(
-                {"detail": "Invalid image_id"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        return Response({"status": "primary image set"})
-
-    # ------------------ DELETE IMAGE ------------------
-
-    @action(
-        detail=True,
-        methods=["delete"],
-        url_path="delete-image/(?P<image_id>[^/.]+)",
-    )
-    def delete_image(self, request, pk=None, image_id=None):
-        product = self.get_object()
-
-        try:
-            image = ProductImage.objects.get(
-                id=image_id, product=product
-            )
-            image.delete()
-        except ProductImage.DoesNotExist:
-            return Response(
-                {"detail": "Image not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        return Response({"status": "image deleted"})
-
-# -------------------------------------------------------------------
-# PRODUCT VARIANT VIEWSET
-# -------------------------------------------------------------------
-
-class ProductVariantViewSet(viewsets.ModelViewSet):
-    queryset = (
-        ProductVariant.objects
-        .select_related("product", "measurement_unit", "billing_unit")
-        .prefetch_related("attributes__attribute", "images")
-    )
-    serializer_class = ProductVariantSerializer
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    @swagger_auto_schema(
-        request_body=ProductVariantSerializer,
-        consumes=["application/json", "multipart/form-data"],
-    )
-    def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
-
-    @swagger_auto_schema(
-        request_body=ProductVariantSerializer,
-        consumes=["application/json", "multipart/form-data"],
-    )
-    def update(self, request, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
-
-    # ------------------ VARIANT IMAGE UPLOAD ------------------
-
-    @action(
-        detail=True,
-        methods=["post"],
-        parser_classes=[MultiPartParser],
-        url_path="upload-images",
-    )
-    def upload_images(self, request, pk=None):
-        variant = self.get_object()
-        files = request.FILES.getlist("images")
-
-        if not files:
-            return Response(
-                {"detail": "No images provided"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        created = []
-        for file in files:
-            img = VariantImage.objects.create(
-                variant=variant,
-                image=file
-            )
-            created.append(img)
-
-        return Response(
-            VariantImageSerializer(
-                created, many=True, context={"request": request}
-            ).data,
-            status=status.HTTP_201_CREATED
+        return super().get_queryset().select_related(
+            "variant",
+            "attribute"
         )
 
-    # ------------------ SET PRIMARY IMAGE ------------------
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["variant"] = ProductVariant.objects.get(
+            id=self.kwargs["variant_pk"]
+        )
+        return context
 
-    @action(detail=True, methods=["post"])
-    def set_primary_image(self, request, pk=None):
-        variant = self.get_object()
-        image_id = request.data.get("image_id")
+class ProductImageViewSet(TenantSafeViewSetMixin, ModelViewSet):
+    serializer_class = ProductImageSerializer
+    permission_classes = [IsAuthenticated]
 
-        if not image_id:
-            return Response(
-                {"detail": "image_id is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    def get_queryset(self):
+        qs = ProductImage.objects.select_related("product")
+        return super().get_queryset().select_related("product")
 
-        try:
-            with transaction.atomic():
-                VariantImage.objects.filter(
-                    variant=variant
-                ).update(is_primary=False)
+class VariantImageViewSet(TenantSafeViewSetMixin, ModelViewSet):
+    serializer_class = VariantImageSerializer
+    permission_classes = [IsAuthenticated]
 
-                image = VariantImage.objects.get(
-                    id=image_id, variant=variant
-                )
-                image.is_primary = True
-                image.save()
+    def get_queryset(self):
+        qs = VariantImage.objects.select_related("variant")
+        return super().get_queryset().select_related("variant")
 
-        except VariantImage.DoesNotExist:
-            return Response(
-                {"detail": "Invalid image_id"},
-                status=status.HTTP_404_NOT_FOUND
-            )
 
-        return Response({"status": "primary variant image set"})
 
-    # ------------------ DELETE IMAGE ------------------
-
-    @action(
-        detail=True,
-        methods=["delete"],
-        url_path="delete-image/(?P<image_id>[^/.]+)",
-    )
-    def delete_image(self, request, pk=None, image_id=None):
-        variant = self.get_object()
-
-        try:
-            image = VariantImage.objects.get(
-                id=image_id, variant=variant
-            )
-            image.delete()
-        except VariantImage.DoesNotExist:
-            return Response(
-                {"detail": "Image not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        return Response({"status": "variant image deleted"})
 
 # -------------------------------------------------------------------
 # FRONTEND VIEWS
 # -------------------------------------------------------------------
+from django.views.decorators.cache import never_cache
+@login_required
+@never_cache
+def product_management_view(request):
+    """
+    Renders the complete product & variant management page.
+    All CRUD actions are handled via AJAX calls to DRF endpoints.
+    """
+    return render(request, "products/product_list.html")
 
-class ProductSPAView(TemplateView):
-    template_name = "products/index.html"
-
-
+@login_required(login_url="/accounts/login/")
 def master_admin_view(request):
     return render(request, "products/admin_master1.html")
 

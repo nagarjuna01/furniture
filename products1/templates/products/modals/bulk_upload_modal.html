@@ -1,0 +1,20 @@
+<div class="modal fade" id="bulkUploadModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Bulk Upload Variants</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="bulkUploadForm">
+          <div class="mb-3">
+            <label>CSV File</label>
+            <input type="file" name="file" class="form-control" required>
+          </div>
+          <button type="submit" class="btn btn-success">Upload</button>
+        </form>
+        <div id="bulkUploadMessage" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     'import_export',
     'polymorphic',
     
-    'rest_framework',  # Add this line to enable DRF
+    'rest_framework',  
     
     #'products',
     #'order',
@@ -55,12 +55,12 @@ INSTALLED_APPS = [
     #'standprod',
     #'payment',
     'accounts',
-    'rest_framework_simplejwt.token_blacklist',
+    #'rest_framework_simplejwt.token_blacklist',
     'material',
     'partisoproduct',
     'products1',
     'guardian',
-    'djoser',
+    #'djoser',
     'modular_calc',
     'quoting',
     
@@ -80,7 +80,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
+ 
+LOGIN_URL = "/accounts/login/"
 
 ROOT_URLCONF = 'furniture.urls'
 
@@ -179,11 +180,11 @@ REST_FRAMEWORK = {
     
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        #'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        #"rest_framework.permissions.IsAuthenticated",
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
+        #"rest_framework.permissions.AllowAny",
     )
 }
 SIMPLE_JWT = {

@@ -67,15 +67,14 @@ async function preloadReferenceData() {
             fetchAllPages(api.types),
             fetchAllPages(api.models)
         ]);
-
-        
-
         renderCategoryTable();
         renderTypeTable();
         renderModelTable();
         loadCategoriesDropdown(["mp-filter-category"]);
     } catch (err) {
         console.error("Failed to preload reference data:", err);
+        showToast("Failed to load reference data", "danger");
+
     }
 }
 
@@ -279,33 +278,43 @@ document.getElementById("model-search").addEventListener("input", () => {
 // ==============================
 // Dropdowns
 // ==============================
-function loadCategoriesDropdown(extraIds=[]) {
-    let html=`<option value="">Select Category</option>`;
-    allCategories.forEach(c=>html+=`<option value="${c.id}">${c.name}</option>`);
-    ["categoryselect","typeCategory","modelCategory"].concat(extraIds).forEach(id=>{
-        const el=document.getElementById(id);
-        if(el) el.innerHTML=html;
+async function loadCategoriesDropdown(extraIds=[]) {
+    let html = `<option value="">Select Category</option>`;
+    allCategories.forEach(c => html += `<option value="${c.id}">${c.name}</option>`);
+
+    const targets = ["categoryselect","typeCategory","modelCategory"].concat(extraIds);
+    targets.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = html;
     });
+
+    return Promise.resolve();
 }
 
-function loadTypesDropdownByCategory(categoryId, targetIds=[]) {
-    let list = allTypes.filter(t=>t.category==categoryId);
-    let html=`<option value="">Select Type</option>`;
-    list.forEach(t=>html+=`<option value="${t.id}">${t.name}</option>`);
-    ["type-select","modelType"].concat(targetIds).forEach(id=>{
-        const el=document.getElementById(id);
-        if(el){ el.innerHTML=html; el.disabled=false; }
+async function loadTypesDropdownByCategory(categoryId, targetIds=[]) {
+    const list = allTypes.filter(t => t.category == categoryId);
+    let html = `<option value="">Select Type</option>`;
+    list.forEach(t => html += `<option value="${t.id}">${t.name}</option>`);
+
+    ["type-select","modelType"].concat(targetIds).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.innerHTML = html; el.disabled = false; }
     });
+
+    return Promise.resolve();
 }
 
-function loadModelsDropdownByType(typeId, targetIds=[]) {
-    let list = allModels.filter(m=>m.type==typeId);
-    let html=`<option value="">Select Model</option>`;
-    list.forEach(m=>html+=`<option value="${m.id}">${m.name}</option>`);
-    ["model-select"].concat(targetIds).forEach(id=>{
-        const el=document.getElementById(id);
-        if(el){ el.innerHTML=html; el.disabled=false; }
+async function loadModelsDropdownByType(typeId, targetIds=[]) {
+    const list = allModels.filter(m => m.type == typeId);
+    let html = `<option value="">Select Model</option>`;
+    list.forEach(m => html += `<option value="${m.id}">${m.name}</option>`);
+
+    ["model-select"].concat(targetIds).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.innerHTML = html; el.disabled = false; }
     });
+
+    return Promise.resolve();
 }
 
 // ==============================
@@ -332,14 +341,24 @@ function setupFilter(selectId, stateKey, loadDependentDropdown=null){
 // ==============================
 // Init on page load
 // ==============================
-document.addEventListener("DOMContentLoaded", async ()=>{
+document.addEventListener("DOMContentLoaded", async () => {
     await preloadReferenceData();
 
-    setupFilter("mp-filter-category","category",async c=>loadTypesDropdownByCategory(c,["mp-filter-type"]));
-    setupFilter("mp-filter-type","type",async t=>loadModelsDropdownByType(t,["mp-filter-model"]));
-    setupFilter("mp-filter-model","model");
+    if (document.getElementById("categoryselect")) {
+        initAddProductDropdowns(); // editor page
+    }
 
-    loadModularProducts();
+    if (document.getElementById("mp-filter-category")) {
+        setupFilter("mp-filter-category","category",
+            c => loadTypesDropdownByCategory(c,["mp-filter-type"])
+        );
+        setupFilter("mp-filter-type","type",
+            t => loadModelsDropdownByType(t,["mp-filter-model"])
+        );
+        setupFilter("mp-filter-model","model");
+
+        loadModularProducts(); // list page only
+    }
 });
 
 // ==============================
@@ -381,7 +400,7 @@ function saveCategory(event) {
 
     fetch(url, {
         method: method,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",  "X-CSRFToken": window.CSRF_TOKEN },
         body: JSON.stringify({ name })
     })
     .then(res => res.json())
@@ -397,7 +416,12 @@ function deleteCategory(id) {
     if (!confirm("Are you sure you want to delete this category?")) return;
     console.log("Deleting category:", id);
 
-    fetch(api.categories + id + "/", { method: "DELETE" })
+    fetch(api.categories + id + "/", { method: "DELETE" , headers: {
+            "X-CSRFToken": window.CSRF_TOKEN,
+            "Accept": "application/json"
+        },
+        credentials: "same-origin"
+    })
         .then(() => {
             
             preloadReferenceData();
@@ -433,7 +457,7 @@ function saveType(e) {
 
   fetch(id ? api.types + id + "/" : api.types, {
     method: id ? "PUT" : "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" , "X-CSRFToken": window.CSRF_TOKEN },
     body: JSON.stringify(payload)
   }).then(() => {
     bootstrap.Modal.getInstance(document.getElementById("typeModal")).hide();
@@ -444,7 +468,12 @@ function saveType(e) {
 function deleteType(id) {
     if (!confirm("Are you sure you want to delete this Type?")) return;
 
-    fetch(`${api.types}${id}/`, { method: "DELETE" })
+    fetch(`${api.types}${id}/`, { method: "DELETE" , headers: {
+            "X-CSRFToken": window.CSRF_TOKEN,
+            "Accept": "application/json"
+        },
+        credentials: "same-origin"
+     })
         .then((res) => {
             if (!res.ok) {
                 throw new Error(`Failed to delete type. HTTP ${res.status}`);
@@ -487,7 +516,7 @@ async function saveModel(e) {
 
   await fetch(id ? api.models + id + "/" : api.models, {
     method: id ? "PUT" : "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" , "X-CSRFToken": window.CSRF_TOKEN},
     body: JSON.stringify(payload)
   });
 
@@ -502,7 +531,11 @@ async function deleteModel(id) {
     if (!confirm("Are you sure you want to delete this Model?")) return;
 
     try {
-        const res = await fetch(`${api.models}${id}/`, { method: "DELETE" });
+        const res = await fetch(`${api.models}${id}/`, { method: "DELETE" , headers: {
+            "X-CSRFToken": window.CSRF_TOKEN,
+            "Accept": "application/json"
+        },
+        credentials: "same-origin"});
         if (!res.ok) {
             throw new Error(`Failed to delete model. HTTP ${res.status}`);
         }
@@ -514,5 +547,3 @@ async function deleteModel(id) {
         alert("Failed to delete model. Check console for details.");
     }
 }
-
-

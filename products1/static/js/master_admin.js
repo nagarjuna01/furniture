@@ -1,16 +1,14 @@
 
 
 $(function() {
-    // --- Get the CSRF token once ---
-    const csrftoken = $('[name="csrfmiddlewaretoken"]').val();
-
+    
     const api = {
-        products: '/products1/api/products/',
-        types: '/products1/api/product-types/',
-        models: '/products1/api/product-series/',
-        measurementUnits: '/products1/api/measurement-units/',
-        billingUnits: '/products1/api/billing-units/',
-        attributes: '/products1/api/attributes/',
+        products: '/products1/v1/products/',
+        types: '/products1/v1/product-types/',
+        models: '/products1/v1/product-series/',
+        measurementUnits: '/material/v1/measurement-units/',
+        billingUnits: '/material/v1/billing-units/',
+        attributes: '/products1/v1/attributes/',
     };
 
     // --- Utility Functions ---
@@ -23,7 +21,7 @@ $(function() {
     
 
     function ajaxSubmit(form, url, method, data, reloadFn) {
-        $.ajax({ url, method, contentType: 'application/json', data: JSON.stringify(data), headers: { 'X-CSRFToken': csrftoken } })
+        $.ajax({ url, method, contentType: 'application/json', data: JSON.stringify(data), headers: {  'X-CSRFToken': window.CSRF_TOKEN } })
             .done(() => {
                 $(form).closest('.modal').modal('hide');
                 reloadFn();
@@ -37,7 +35,7 @@ $(function() {
 
     function confirmDel(url, reloadFn) {
         if (confirm('Are you sure?')) {
-            $.ajax({ url, method: 'DELETE', headers: { 'X-CSRFToken': csrftoken } })
+            $.ajax({ url, method: 'DELETE', headers: {  'X-CSRFToken': window.CSRF_TOKEN } })
                 .done(() => { reloadFn(); showToast('Deleted successfully', 'success'); })
                 .fail(err => { console.error('AJAX Error:', err.responseJSON || err); showToast('Error deleting', 'danger'); });
         }
@@ -155,7 +153,10 @@ window.loadProducts = loadProducts;
         ajaxSubmit('#form-type', api.types + (id ? id + '/' : ''), id ? 'PUT' : 'POST', {
             name: $('#type-name').val(),
             slug: $('#type-slug').val()
-        }, loadTypes);
+        }, loadTypes,
+    { 'X-CSRFToken': window.CSRF_TOKEN}
+    
+    );
     });
 
     function loadModels(typeId = null) {
@@ -234,7 +235,10 @@ $('#filter-model-type').on('change', function () {
             name: $('#model-name').val(),
             code: $('#model-code').val(),
             product_type_id: $('#model-type-id').val()
-        }, loadModels);
+        }, loadModels,
+    { 'X-CSRFToken': window.CSRF_TOKEN}
+
+);
     });
 
     function loadUnits() {
@@ -266,7 +270,8 @@ $('#filter-model-type').on('change', function () {
         ajaxSubmit('#form-unit', api.measurementUnits + (id ? id + '/' : ''), id ? 'PUT' : 'POST', {
             name: $('#unit-name').val(),
             code: $('#unit-code').val()
-        }, loadUnits);
+        }, loadUnits, {'X-CSRFToken': window.CSRF_TOKEN}
+    );
     });
 
     function loadBilling() {
@@ -298,7 +303,9 @@ $('#filter-model-type').on('change', function () {
         ajaxSubmit('#form-billing', api.billingUnits + (id ? id + '/' : ''), id ? 'PUT' : 'POST', {
             name: $('#billing-name').val(),
             code: $('#billing-code').val()
-        }, loadBilling);
+        }, loadBilling,
+    { 'X-CSRFToken': window.CSRF_TOKEN}
+    );
     });
 
     $('#attribute-type').change(function() {
@@ -355,7 +362,7 @@ $('#filter-model-type').on('change', function () {
                 return showToast('Invalid JSON for choices', 'danger');
             }
         }
-        ajaxSubmit('#form-attribute', api.attributes + (id ? id + '/' : ''), id ? 'PUT' : 'POST', payload, loadAttributes);
+        ajaxSubmit('#form-attribute', api.attributes + (id ? id + '/' : ''), id ? 'PUT' : 'POST', payload, { 'X-CSRFToken': window.CSRF_TOKEN}, loadAttributes);
     });
 
     // --- Initial Load ---

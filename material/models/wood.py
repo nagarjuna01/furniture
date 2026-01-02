@@ -2,20 +2,12 @@ from django.db import models
 from .units import MeasurementUnit, BillingUnit
 from .category import Category, CategoryTypes, CategoryModel
 from .brand import Brand
-# from accounts.models import Tenant
+from accounts.models.base import TenantModel
+from accounts.mixins import TenantSafeMixin
 
 
-class WoodMaterial(models.Model):
-    # tenant = models.ForeignKey(
-    #     "accounts.Tenant",
-    #     on_delete=models.CASCADE,
-    #     related_name="wood_materials"
-    # )
-
-    material_grp = models.ForeignKey(
-        Category,
-        on_delete=models.PROTECT
-    )
+class WoodMaterial(TenantSafeMixin, TenantModel):
+    material_grp = models.ForeignKey(Category, on_delete=models.PROTECT)
     material_type = models.ForeignKey(
         CategoryTypes,
         on_delete=models.PROTECT,
@@ -33,11 +25,12 @@ class WoodMaterial(models.Model):
         on_delete=models.SET_NULL,
         null=True, blank=True
     )
+
     color = models.CharField(
         max_length=50,
         help_text="Surface color / shade (e.g., Walnut, White, Teak)"
     )
-    # Grain orientation (important for cutting & pricing)
+
     GRAIN_CHOICES = [
         ("NONE", "No Grain"),
         ("H", "Horizontal"),
@@ -49,7 +42,6 @@ class WoodMaterial(models.Model):
         default="NONE"
     )
 
-    # -------- Dimensions (Measurement Units ONLY) --------
     length_value = models.DecimalField(max_digits=10, decimal_places=3)
     length_unit = models.ForeignKey(
         MeasurementUnit,
@@ -71,7 +63,6 @@ class WoodMaterial(models.Model):
         related_name="wood_thickness_units"
     )
 
-    # -------- Pricing (Billing Units ONLY) --------
     cost_price = models.DecimalField(max_digits=10, decimal_places=2)
     cost_unit = models.ForeignKey(
         BillingUnit,
@@ -86,10 +77,7 @@ class WoodMaterial(models.Model):
         related_name="wood_sell_units"
     )
 
-    # Used for optimization / nesting
     is_sheet = models.BooleanField(default=True)
-
-    # Admin control
     is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -97,12 +85,12 @@ class WoodMaterial(models.Model):
 
     class Meta:
         unique_together = (
-            #"tenant",
+            "tenant",
             "material_grp",
             "material_type",
             "material_model",
             "name",
-            "brand"
+            "brand",
         )
 
     def __str__(self):

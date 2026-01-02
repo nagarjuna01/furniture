@@ -37,16 +37,6 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="units-tab" data-bs-toggle="tab" data-bs-target="#units-tab-pane" type="button" role="tab" aria-controls="units-tab-pane" aria-selected="false">
-                Measurement Units
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="billing-tab" data-bs-toggle="tab" data-bs-target="#billing-tab-pane" type="button" role="tab" aria-controls="billing-tab-pane" aria-selected="false">
-                Billing Units
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
             <button class="nav-link" id="attributes-tab" data-bs-toggle="tab" data-bs-target="#attributes-tab-pane" type="button" role="tab" aria-controls="attributes-tab-pane" aria-selected="false">
                 Attribute Definitions
             </button>
@@ -104,36 +94,6 @@
                         <th>Name</th>
                         <th>Code</th>
                         <th>Type</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-
-        <!-- Measurement Units Tab -->
-        <div class="tab-pane fade" id="units-tab-pane" role="tabpanel" aria-labelledby="units-tab">
-            <button id="btn-add-unit" class="btn btn-primary mb-2">Add Measurement Unit</button>
-            <table id="table-units" class="table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Code</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-
-        <!-- Billing Units Tab -->
-        <div class="tab-pane fade" id="billing-tab-pane" role="tabpanel" aria-labelledby="billing-tab">
-            <button id="btn-add-billing" class="btn btn-primary mb-2">Add Billing Unit</button>
-            <table id="table-billing" class="table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Code</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -208,25 +168,22 @@
     </form>
   </div>
 </div>
-
-<!-- Product Type Modal -->
-<div class="modal fade" id="typeModal" tabindex="-1" aria-labelledby="typeModalLabel" aria-hidden="true">
+<div class="modal fade" id="typeModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form id="form-type" class="modal-content">
-      {% csrf_token %}
       <div class="modal-header">
-        <h5 id="typeModalLabel" class="modal-title">Product Type</h5>
+        <h5 class="modal-title" id="typeModalLabel">Product Type</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="type-id">
         <div class="mb-3">
-          <label for="type-name" class="form-label">Name</label>
-          <input required id="type-name" class="form-control">
+          <label class="form-label">Name</label>
+          <input required id="type-name" class="form-control" placeholder="Enter type name">
         </div>
         <div class="mb-3">
-          <label for="type-slug" class="form-label">Slug</label>
-          <input required id="type-slug" class="form-control">
+          <label class="form-label">Slug</label>
+          <input required id="type-slug" class="form-control" placeholder="auto-generated-slug">
         </div>
       </div>
       <div class="modal-footer">
@@ -236,28 +193,26 @@
   </div>
 </div>
 
-<!-- Product Model Modal -->
-<div class="modal fade" id="modelModal" tabindex="-1" aria-labelledby="modelModalLabel" aria-hidden="true">
+<div class="modal fade" id="seriesModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form id="form-model" class="modal-content">
-      {% csrf_token %}
+    <form id="form-series" class="modal-content">
       <div class="modal-header">
-        <h5 id="modelModalLabel" class="modal-title">Product Blueprint</h5>
+        <h5 class="modal-title" id="seriesModalLabel">Product Series</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <input type="hidden" id="model-id">
+        <input type="hidden" id="series-id">
         <div class="mb-3">
-          <label for="model-name" class="form-label">Name</label>
-          <input required id="model-name" class="form-control">
+          <label class="form-label">Name</label>
+          <input required id="series-name" class="form-control">
         </div>
         <div class="mb-3">
-          <label for="model-code" class="form-label">Code</label>
-          <input required id="model-code" class="form-control">
+          <label class="form-label">Code</label>
+          <input required id="series-code" class="form-control">
         </div>
         <div class="mb-3">
-          <label for="model-type-id" class="form-label">Type</label>
-          <select id="model-type-id" class="form-select"></select>
+          <label class="form-label">Type</label>
+          <select required id="series-type-id" class="form-select"></select>
         </div>
       </div>
       <div class="modal-footer">
@@ -267,59 +222,7 @@
   </div>
 </div>
 
-<!-- Measurement Unit Modal -->
-<div class="modal fade" id="unitModal" tabindex="-1" aria-labelledby="unitModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <form id="form-unit" class="modal-content">
-      {% csrf_token %}
-      <div class="modal-header">
-        <h5 id="unitModalLabel" class="modal-title">Measurement Unit</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="unit-id">
-        <div class="mb-3">
-          <label for="unit-name" class="form-label">Name</label>
-          <input required id="unit-name" class="form-control">
-        </div>
-        <div class="mb-3">
-          <label for="unit-code" class="form-label">Code</label>
-          <input required id="unit-code" class="form-control">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-primary">Save</button>
-      </div>
-    </form>
-  </div>
-</div>
 
-<!-- Billing Unit Modal -->
-<div class="modal fade" id="billingModal" tabindex="-1" aria-labelledby="billingModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <form id="form-billing" class="modal-content">
-      {% csrf_token %}
-      <div class="modal-header">
-        <h5 id="billingModalLabel" class="modal-title">Billing Unit</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="billing-id">
-        <div class="mb-3">
-          <label for="billing-name" class="form-label">Name</label>
-          <input required id="billing-name" class="form-control">
-        </div>
-        <div class="mb-3">
-          <label for="billing-code" class="form-label">Code</label>
-          <input required id="billing-code" class="form-control">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-primary">Save</button>
-      </div>
-    </form>
-  </div>
-</div>
 
 <!-- Attribute Definition Modal -->
 <div class="modal fade" id="attributeModal" tabindex="-1" aria-labelledby="attributeModalLabel" aria-hidden="true">
@@ -394,11 +297,11 @@
 
           <div class="col-md-6">
             <label for="variant-measurement-unit" class="form-label">Measurement Unit</label>
-            <select id="variant-measurement-unit" name="measurement_unit" class="form-select"></select>
+            <select id="variant-measurement-unit" name="measurement_unit_id" class="form-select"></select>
           </div>
           <div class="col-md-6">
             <label for="variant-billing-unit" class="form-label">Billing Unit</label>
-            <select id="variant-billing-unit" name="billing_unit" class="form-select"></select>
+            <select id="variant-billing-unit" name="billing_unit_id" class="form-select"></select>
           </div>
         </div>
 
@@ -431,25 +334,9 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
 
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
-        }
-      }
-    }
-    return cookieValue;
-  }
-  const csrftoken = getCookie('csrftoken');
-</script>
-<script src="{% static 'js/master_admin.js' %}"></script>
+<script src="{% static 'js/type-seriescrud.js' %}"></script>
+<script src="{% static 'js/attribute.js' %}"></script>
 <script src="{% static 'js/products.js' %}"></script>
 <script src="{% static 'js/variant.js' %}"></script>
 {% endblock %} 

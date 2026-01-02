@@ -1,37 +1,39 @@
 import uuid
 from django.db import models
-
-# Assumed existing in your material app:
-# Material(category, thickness_mm, price_per_sqft, ...)
-# EdgeBand(thickness_mm, cost_price_per_mm, ...)
-# Hardware(name, sku, cost, ...)
+from accounts.models.base import TenantModel, GlobalOrTenantModel
 from material.models.wood import WoodMaterial
 from material.models.edgeband import EdgeBand
 from material.models.hardware import Hardware
 
 
-class ModularProductCategory(models.Model):
+class ModularProductCategory(GlobalOrTenantModel):
     name = models.CharField(max_length=255, unique= True)
+    class Meta:
+        unique_together = ('tenant','name')
+        ordering = ['name']
     def __str__(self):
         return self.name
     
-class ModularProductType(models.Model):
+class ModularProductType(GlobalOrTenantModel):
     name = models.CharField(max_length=255)
     category = models.ForeignKey(ModularProductCategory, on_delete=models.CASCADE)
     class Meta:
-        unique_together = ("category", "name")
+        unique_together = ("tenant","category", "name")
+        ordering =['name']
     def __str__(self):
         return self.name
 
-class ModularProductModel(models.Model):
+class ModularProductModel(GlobalOrTenantModel):
     name = models.CharField(max_length=255)
     type = models.ForeignKey(ModularProductType, on_delete=models.CASCADE)
     class Meta:
-        unique_together = ("type", "name")
+        unique_together = ("tenant","type", "name")
+        ordering = ['name']
     def __str__(self):
         return self.name
 
-class ModularProduct(models.Model):
+class ModularProduct(TenantModel):
+
     """
     Template of a modular product; only expressions & metadata live here.
     """
@@ -70,13 +72,13 @@ class ModularProduct(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("productmodel", "name")
+        unique_together = ("tenant","productmodel", "name")
         ordering = ["name"]
 
     def __str__(self):
         return self.name
 
-class ProductParameter(models.Model):
+class ProductParameter(TenantModel):
     """
     Stores user-defined parameters/variables (name, value) for a specific ModularProduct.
     These are used as inputs to the geometry equations.
@@ -97,7 +99,6 @@ class ProductParameter(models.Model):
     # A short, unique abbreviation for use in UI/documentation (e.g., 'L', 'W')
     abbreviation = models.CharField(
         max_length=10, 
-        blank=True, 
         help_text="A short abbreviation for display (e.g., 'L', 'W', 'H')."
     )
     
@@ -105,8 +106,6 @@ class ProductParameter(models.Model):
     default_value = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
-        null=True, 
-        blank=True,
         help_text="A default value for the parameter."
     )
     
@@ -117,13 +116,13 @@ class ProductParameter(models.Model):
     )
 
     class Meta:
-        unique_together = ("product", "name")
+        unique_together = ("tenant","product", "name")
         ordering = ["product", "name"]
 
     def __str__(self):
         return f"{self.product.name} / {self.name} ({self.abbreviation})"
 
-class PartTemplate(models.Model):
+class PartTemplate(TenantModel):
     """
     LAYER 1: Geometry equations; LAYER 2: thickness/edgebands.
     Admin writes equations in terms of product_* and part_thickness.
@@ -137,7 +136,7 @@ class PartTemplate(models.Model):
     part_qty_equation    = models.CharField(max_length=255, default="1")
 
     # LAYER 2 (Thickness + edge bands)
-    part_thickness_mm = models.DecimalField(max_digits=5, decimal_places=2)  # the driver for material listing
+
     # Default (admin preselected) edge bands – optional per side
     edgeband_top    = models.ForeignKey(EdgeBand, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     edgeband_bottom = models.ForeignKey(EdgeBand, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
@@ -150,14 +149,14 @@ class PartTemplate(models.Model):
     two_d_template_svg = models.TextField(blank=True)
 
     class Meta:
-        unique_together = ("product", "name")
+        unique_together = ("product", "name","tenant")
         ordering = ["product__name", "name"]
 
     def __str__(self):
         return f"{self.product.name} / {self.name}"
 
 
-class PartMaterialWhitelist(models.Model):
+class PartMaterialWhitelist(TenantModel):
     """
     Admin whitelists materials AFTER automatic thickness filtering.
     """
@@ -166,10 +165,10 @@ class PartMaterialWhitelist(models.Model):
     is_default = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ("part_template", "material")
+        unique_together = ("part_template", "material","tenant")
 
 
-class PartEdgeBandWhitelist(models.Model):
+class PartEdgeBandWhitelist(TenantModel):
     SIDE_CHOICES = [
         ("top", "Top"),
         ("bottom", "Bottom"),
@@ -177,28 +176,27 @@ class PartEdgeBandWhitelist(models.Model):
         ("right", "Right"),
     ]
     part_template = models.ForeignKey(PartTemplate, on_delete=models.CASCADE, related_name="edgeband_whitelist")
-    side = models.CharField(max_length=10, choices=SIDE_CHOICES,
-        null=True,
-        blank=True)
+    side = models.CharField(max_length=10, choices=SIDE_CHOICES)
     edgeband = models.ForeignKey(EdgeBand, on_delete=models.CASCADE)
     is_default = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ("part_template","side", "edgeband")
+        unique_together = ("part_template","side", "edgeband","tenant")
 
 
-class ProductHardwareRule(models.Model):
-    product = models.ForeignKey(ModularProduct, on_delete=models.CASCADE, related_name="hardware_rules")
+class ProductHardwareRule(TenantModel):
+    product = models.ForeignKey(
+        ModularProduct, on_delete=models.CASCADE, related_name="hardware_rules"
+    )
     hardware = models.ForeignKey(Hardware, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1)
 
-    class Meta:
-        unique_together = ("product", "hardware")  # avoid duplicates
+    quantity_equation = models.CharField(max_length=255,blank= True,null=True)
 
-    def __str__(self):
-        return f"{self.product} → {self.hardware} x{self.quantity}"
+    applicability_condition = models.CharField(
+        max_length=255, blank=True, default=""
+    )
 
-class PartHardwareRule(models.Model):
+class PartHardwareRule(TenantModel):
     part_template = models.ForeignKey(PartTemplate, on_delete=models.CASCADE, related_name="hardware_rules")
     hardware = models.ForeignKey(Hardware, on_delete=models.CASCADE)
     
@@ -209,4 +207,4 @@ class PartHardwareRule(models.Model):
     applicability_condition = models.TextField(blank=True) 
 
     class Meta:
-        unique_together = ("part_template", "hardware")
+        unique_together = ("part_template", "hardware","tenant")

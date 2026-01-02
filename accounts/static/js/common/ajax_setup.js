@@ -1,14 +1,14 @@
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+
 $.ajaxSetup({
-    beforeSend: function (xhr, settings) {
-        const token = localStorage.getItem("access");
-
-        if (token) {
-            xhr.setRequestHeader(
-                "Authorization",
-                "Bearer " + token
-            );
+    beforeSend: function(xhr, settings) {
+        if (!(/^GET|HEAD|OPTIONS|TRACE$/.test(settings.type))) {
+            xhr.setRequestHeader("X-CSRFToken", getCSRFToken());
         }
-
-        console.log("AJAX:", settings.type, settings.url);
+    },
+    error: function(xhr) {
+        console.error("AJAX Error:", xhr.status, xhr.responseText);
     }
 });

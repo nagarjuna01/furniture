@@ -1,68 +1,50 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework import status
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate, login, logout
+from django.shortcuts import render, redirect
+from rest_framework import viewsets, permissions
+from .models import GlobalVariable
+from .serializers import GlobalVariableSerializer
 
-from .serializers import RegisterSerializer, LoginSerializer
 
-class RegisterView(APIView):
-    permission_classes = [AllowAny]
+class GlobalVariableViewSet(viewsets.ModelViewSet):
+    serializer_class = GlobalVariableSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({"message": "User registered"}, status=201)
+    def get_queryset(self):
+        # Filter variables strictly by the user's tenant
+        return GlobalVariable.objects.filter(tenant=self.request.user.tenant)
 
-class LoginView(APIView): # Use APIView for custom logic
-    permission_classes = [AllowAny]
+    def perform_create(self, serializer):
+        # Automatically assign the tenant from the authenticated user
+        serializer.save(tenant=self.request.user.tenant)
 
-    def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        # Get the user object we attached in the serializer
-        user = serializer.validated_data['user']
-        
-        # Create tokens manually
-        refresh = RefreshToken.for_user(user)
-        
-        return Response({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email
-            }
+def material_login(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+
+        user = authenticate(request, username=username, password=password)
+        if user:
+            login(request, user)
+            return redirect("/material/brand/")  # or dashboard
+
+        return render(request, "pages/login.html", {
+            "error": "Invalid credentials"
         })
 
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    return render(request, "pages/login.html")
 
-    def post(self, request):
-        try:
-            refresh = request.data.get("refresh")
-            token = RefreshToken(refresh)
-            token.blacklist()
-            return Response({"message": "Logged out"})
-        except Exception as e:
-            return Response(
-                {"error": "Invalid token"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
-class ProfileView(APIView):
-    """
-    Simple authenticated test endpoint
-    """
-    permission_classes = [IsAuthenticated]
+def material_logout(request):
+    logout(request)
+    return redirect("material-login")
 
-    def get(self, request):
-        return Response({
-            "id": request.user.id,
-            "username": request.user.username,
-            "email": request.user.email,
-        })
+
+def subscription_expired(request):
+    return render(request, "pages/subscription_expired.html")
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+
+@login_required(login_url="/accounts/login/")
+def brand_list_page(request):
+    return render(request, "brand_list.html")

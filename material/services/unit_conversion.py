@@ -33,10 +33,7 @@ class UnitConversionService:
         Convert value from one MeasurementUnit to another.
         """
 
-        if from_unit.system != to_unit.system:
-            raise UnitConversionError(
-                f"Cross system conversion not allowed: {from_unit.system} → {to_unit.system}"
-            )
+        
 
         value_in_base = UnitConversionService.to_base(value, from_unit)
 

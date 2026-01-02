@@ -1,0 +1,199 @@
+{% extends "base_b.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between mb-2">
+    <h5 id="page-title">billing Units</h5>
+    <button class="btn btn-sm btn-primary" id="btn-add">
+        + Add
+    </button>
+</div>
+
+<table class="table table-sm table-bordered" id="data-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Code</th>
+            <th>Factor</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<nav>
+    <ul class="pagination pagination-sm" id="pagination"></ul>
+</nav>
+
+<div class="modal fade" id="unitModal" tabindex="-1">
+  <div class="modal-dialog modal-md">
+    <form id="unitForm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title">Unit</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" id="unit-id">
+            <div class="mb-2">
+    <label class="form-label">System</label>
+    <select id="system" class="form-select form-select-sm" required>
+        <option value="">-- Select --</option>
+        <option value="SI">SI</option>
+        <option value="IMPERIAL">Imperial</option>
+        <option value="CUSTOM">Custom</option>
+    </select>
+  </div>
+          <div class="mb-2">
+            <label class="form-label">Name</label>
+            <input class="form-control form-control-sm" id="name" required>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Code</label>
+            <input class="form-control form-control-sm" id="code" required>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Factor</label>
+            <input type="number" step="0.0001"
+                   class="form-control form-control-sm"
+                   id="factor" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-sm btn-primary" type="submit">Save</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const API_URL = "/material/v1/billing-units/";
+let currentPage = 1;
+
+function loadData(page = 1) {
+    $.get(API_URL, { page })
+        .done(res => {
+            const tbody = $("#data-table tbody");
+            tbody.empty();
+
+            res.results.forEach(item => {
+                const isGlobal = item.tenant === null;
+                tbody.append(`
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.code}</td>
+                        <td>${item.factor}</td>
+                        <td>
+                            ${
+                                isGlobal
+                                ? `<span class="badge bg-secondary">System</span>`
+                                : `
+                            <button class="btn btn-sm btn-outline-primary edit"
+                                data-id="${item.id}">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger delete"
+                                data-id="${item.id}">Delete</button>
+                          `
+                }
+                        </td>
+                    </tr>
+                `);
+            });
+
+            renderPagination(res);
+        })
+        .fail(err => console.log(err));
+}
+function renderPagination(data) {
+    const ul = $("#pagination");
+    ul.empty();
+
+    if (data.previous) {
+        ul.append(`<li class="page-item">
+            <a class="page-link" data-page="${currentPage - 1}">Prev</a>
+        </li>`);
+    }
+
+    if (data.next) {
+        ul.append(`<li class="page-item">
+            <a class="page-link" data-page="${currentPage + 1}">Next</a>
+        </li>`);
+    }
+}
+$(document).on("click", ".page-link", function () {
+    currentPage = $(this).data("page");
+    loadData(currentPage);
+});
+$("#btn-add").click(() => {
+    $("#unitForm")[0].reset();
+    $("#unit-id").val("");
+    $("#unitModal").modal("show");
+});
+$("#unitForm").submit(function (e) {
+    e.preventDefault();
+
+    const id = $("#unit-id").val();
+    const method = id ? "PUT" : "POST";
+    const url = id ? `${API_URL}${id}/` : API_URL;
+
+    const payload = {
+        name: $("#name").val(),
+        code: $("#code").val(),
+        factor: $("#factor").val(),
+        system: $("#system").val()
+    };
+
+    $.ajax({
+        url,
+        method,
+        headers: { "X-CSRFToken": CSRF_TOKEN },
+        contentType: "application/json",
+        data: JSON.stringify(payload)
+    })
+    .done(() => {
+        $("#unitModal").modal("hide");
+        loadData(currentPage);
+        showToast("Saved successfully");
+    })
+    .fail(err => {
+        console.log(err);
+        showToast("Error saving", "danger");
+    });
+});
+$(document).on("click", ".edit", function () {
+    const id = $(this).data("id");
+
+    $.get(`${API_URL}${id}/`).done(data => {
+        $("#unit-id").val(data.id);
+        $("#name").val(data.name);
+        $("#code").val(data.code);
+        $("#factor").val(data.factor);
+        $("#system").val(data.system);
+        $("#unitModal").modal("show");
+    });
+});
+$(document).on("click", ".delete", function () {
+    if (!confirm("Delete this unit?")) return;
+
+    const id = $(this).data("id");
+
+    $.ajax({
+        url: `${API_URL}${id}/`,
+        method: "DELETE",
+        headers: { "X-CSRFToken": CSRF_TOKEN }
+    })
+    .done(() => {
+        loadData(currentPage);
+        showToast("Deleted");
+    })
+    .fail(err => console.log(err));
+});
+loadData();
+</script>
+
+{% endblock %}

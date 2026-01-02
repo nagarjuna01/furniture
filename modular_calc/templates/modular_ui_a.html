@@ -2,190 +2,186 @@
 {% load static %}
 {% block content %}
 
-<div class="container my-4" style="max-width: 1400px;">
+<div class="container my-3" style="max-width: 1200px;">
 
     <!-- ========= HEADER ========= -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
         <h3 class="fw-bold" id="editor-title">Add Modular Product</h3>
-        <button class="btn btn-secondary" onclick="window.location.href='/modularcalc/mproduct/'">
-    ⬅ Back to Products
-</button>
+        <button class="btn btn-secondary mt-2" onclick="window.location.href='/modularcalc/mproduct/'">
+            ⬅ Back to Products
+        </button>
     </div>
 
     <!-- ========= PRODUCT INFO ========= -->
-    <div class="border rounded p-3 mb-4 bg-light">
-        <h5 class="fw-bold border-bottom pb-2 mb-3">Product Info</h5>
+    <div class="border rounded p-2 mb-3 bg-light">
+        <h5 class="fw-bold border-bottom pb-1 mb-2">Product Info</h5>
 
-        <div class="row g-3">
-            <div class="col-md-3">
+        <div class="row gx-2 gy-2">
+            <div class="col-12 col-md-3">
                 <label class="form-label">Category</label>
                 <select id="categoryselect" class="form-select"></select>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-12 col-md-3">
                 <label class="form-label">Type</label>
                 <select id="type-select" class="form-select" disabled></select>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-12 col-md-3">
                 <label class="form-label">Model</label>
                 <select id="model-select" class="form-select" disabled></select>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-12 col-md-3">
                 <label class="form-label">Product Name</label>
                 <input id="product-name" class="form-control" placeholder="Product name">
             </div>
 
-            <div class="col-md-12">
+            <div class="col-12">
                 <label class="form-label">Validation Expression</label>
                 <textarea id="validation-expr" class="form-control" rows="2" placeholder="Validation expression"></textarea>
             </div>
         </div>
     </div>
 
-    <div class="row g-3">
+    <div class="row gx-2 gy-2">
 
         <!-- ========= LEFT COLUMN ========= -->
-        <div class="col-3">
+        <div class="col-12 col-md-3">
 
             <!-- PARAMETERS -->
-            <div class="border rounded p-3 mb-3 bg-light">
-                <h6 class="fw-bold mb-2">Parameters</h6>
+            <div class="border rounded p-2 mb-2 bg-light">
+                <h6 class="fw-bold mb-1">Parameters</h6>
 
-                <!-- New row -->
-                <table class="table table-sm table-bordered mb-2" id="parameter-input-table">
-                    <thead class="table-light">
-                    <tr>
-                        <th>Name</th>
-                        <th>Abbr</th>
-                        <th>Default</th>
-                        <th>Description</th>
-                        <th style="width:40px"></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr>
-                        <td><input id="param-name" class="form-control form-control-sm" placeholder="Name"></td>
-                        <td><input id="param-abbr" class="form-control form-control-sm" placeholder="A"></td>
-                        <td><input id="param-default" type="number" step="0.01" class="form-control form-control-sm" placeholder="0"></td>
-                        <td><input id="param-desc" class="form-control form-control-sm" placeholder="Description"></td>
-                        <td><button class="btn btn-sm btn-success" id="save-param-btn">✓</button></td>
-                    </tr>
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-1" id="parameter-input-table">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Abbr</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                            <th style="width:35px"></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><input id="param-name" class="form-control form-control-sm" placeholder="Name"></td>
+                            <td><input id="param-abbr" class="form-control form-control-sm" placeholder="A"></td>
+                            <td><input id="param-default" type="number" step="0.01" class="form-control form-control-sm" placeholder="0"></td>
+                            <td><input id="param-desc" class="form-control form-control-sm" placeholder="Description"></td>
+                            <td><button class="btn btn-sm btn-success" id="save-param-btn">✓</button></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
 
-                <!-- Saved -->
-                <table class="table table-sm table-bordered" id="parameter-saved-table">
-                    <thead class="table-light">
-                    <tr>
-                        <th>Name</th>
-                        <th>Abbr</th>
-                        <th>Default</th>
-                        <th>Description</th>
-                        <th style="width:40px"></th>
-                    </tr>
-                    </thead>
-                    <tbody id="parameter-body"></tbody>
-                </table>
-
-                               
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-1" id="parameter-saved-table">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Abbr</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                            <th style="width:35px"></th>
+                        </tr>
+                        </thead>
+                        <tbody id="parameter-body"></tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- ASSETS -->
-            <div class="border rounded p-3 bg-light">
-                <h6 class="fw-bold pb-2">Assets</h6>
+            <div class="border rounded p-2 bg-light mb-2">
+                <h6 class="fw-bold pb-1">Assets</h6>
 
                 <label class="form-label">2D SVG</label>
-                <textarea id="two-d-svg-input" class="form-control mb-2" rows="2" placeholder="<svg>...</svg>"></textarea>
+                <textarea id="two-d-svg-input" class="form-control mb-1" rows="2" placeholder="<svg>...</svg>"></textarea>
 
                 <label class="form-label">3D Model Path</label>
                 <input id="three-d-asset-input" class="form-control" placeholder="/static/models/example.glb">
             </div>
         </div>
 
-
         <!-- ========= MIDDLE COLUMN ========= -->
-        <div class="col-6">
+        <div class="col-12 col-md-6">
 
             <!-- PART TEMPLATES -->
-            <div class="border rounded p-3 mb-3 bg-light">
-                <h5 class="fw-bold mb-3">Part Templates</h5>
+            <div class="border rounded p-2 mb-2 bg-light">
+                <h5 class="fw-bold mb-2">Part Templates</h5>
 
-                <!-- New row -->
-                <table class="table table-sm table-bordered mb-2">
-                    <thead class="table-light">
-                    <tr>
-                        <th>Part Name</th>
-                        <th>Geometry</th>
-                        <th>Materials</th>
-                        <th>Edgebands</th>
-                        <th>Hardware</th>
-                        <th style="width:40px"></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr>
-                        <td><input id="part-name" class="form-control form-control-sm" placeholder="Part Name"></td>
-                        <td><button id="edit-geometry-btn" class="btn btn-sm btn-outline-secondary w-100">Edit</button></td>
-                        <td><button id="select-material-btn" class="btn btn-sm btn-outline-warning w-100">Select</button></td>
-                        <td><button id="set-edgebands-btn" class="btn btn-sm btn-outline-info w-100">Set</button></td>
-                        <td><button id="rules-hardware-btn" class="btn btn-sm btn-outline-dark w-100">Rules</button></td>
-                        <td><button id="save-part-btn" class="btn btn-sm btn-success">✓</button></td>
-                    </tr>
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-1">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Part Name</th>
+                            <th>Geometry</th>
+                            <th>Materials</th>
+                            <th>Edgebands</th>
+                            <th>Hardware</th>
+                            <th style="width:35px"></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><input id="part-name" class="form-control form-control-sm" placeholder="Part Name"></td>
+                            <td><button id="edit-geometry-btn" class="btn btn-sm btn-outline-secondary w-100">Edit</button></td>
+                            <td><button id="select-material-btn" class="btn btn-sm btn-outline-warning w-100">Select</button></td>
+                            <td><button id="set-edgebands-btn" class="btn btn-sm btn-outline-info w-100">Set</button></td>
+                            <td><button id="rules-hardware-btn" class="btn btn-sm btn-outline-dark w-100">Rules</button></td>
+                            <td><button id="save-part-btn" class="btn btn-sm btn-success">✓</button></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
 
-                <!-- Saved parts -->
-                <table class="table table-sm table-bordered">
-                    <thead class="table-light">
-                    <tr>
-                        <th>Part Name</th>
-                        <th>Geometry</th>
-                        <th>Materials</th>
-                        <th>Edgebands</th>
-                        
-                        <th>Hardware</th>
-                        <th style="width:40px"></th>
-                    </tr>
-                    </thead>
-                    <tbody id="part-templates-body"></tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-1">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Part Name</th>
+                            <th>Geometry</th>
+                            <th>Materials</th>
+                            <th>Edgebands</th>
+                            <th>Hardware</th>
+                            <th style="width:35px"></th>
+                        </tr>
+                        </thead>
+                        <tbody id="part-templates-body"></tbody>
+                    </table>
+                </div>
             </div>
-
-            
-
         </div>
 
-
         <!-- ========= RIGHT COLUMN ========= -->
-        <div class="col-3">
+        <div class="col-12 col-md-3">
 
             <!-- Summary -->
-            <div class="border rounded p-3 mb-3 bg-light">
-    <div class="d-flex justify-content-between mb-2">
-        <h6 class="fw-bold mb-0">Product Hardware</h6>
-        <button id="open-product-hardware-modal-btn" class="btn btn-sm btn-primary w-100 mb-2">
-    + Add 
-</button>
-    </div>
-    <div id="product-hardware-summary"></div>
-</div>
+            <div class="border rounded p-2 mb-2 bg-light">
+                <div class="d-flex justify-content-between mb-1">
+                    <h6 class="fw-bold mb-0">Product Hardware</h6>
+                    <button id="open-product-hardware-modal-btn" class="btn btn-sm btn-primary w-100 mb-1">
+                        + Add
+                    </button>
+                </div>
+                <div id="product-hardware-summary"></div>
+            </div>
 
-            <div class="border rounded p-3 mb-3 bg-light">
-                <h6 class="fw-bold">Material Calculation</h6>
+            <div class="border rounded p-2 mb-2 bg-light">
+                <h6 class="fw-bold mb-1">Material Calculation</h6>
                 <div id="material-calc-summary"></div>
             </div>
 
-            <div class="border rounded p-3 mb-3 bg-light">
-                <h6 class="fw-bold">CNC / Cutlist</h6>
+            <div class="border rounded p-2 mb-2 bg-light">
+                <h6 class="fw-bold mb-1">CNC / Cutlist</h6>
                 <div id="cutlist-container"></div>
             </div>
 
             <!-- Buttons -->
-            <div class="border rounded p-3 bg-light">
-                <h6 class="fw-bold">Quotation</h6>
-                <button id="save-product-btn" class="btn btn-success w-100 mb-2">💾 Save Product</button>
+            <div class="border rounded p-2 bg-light">
+                <h6 class="fw-bold mb-1">Quotation</h6>
+                <button id="save-product-btn" class="btn btn-success w-100 mb-1">💾 Save Product</button>
                 <button id="open-quotation-modal-btn" class="btn btn-primary w-100">📄 Generate Quote</button>
             </div>
         </div>
@@ -199,388 +195,394 @@
 
 {% endblock %}
 
+
 {% block extra_js %}
+
+
 <script src="{% static 'JS/intitalfill.js' %}"></script>
-<script src="{% static 'JS/dataloader.js' %}"></script>
+<!-- <script src="{% static 'JS/dataloader.js' %}"></script> -->
 <script src="{% static 'JS/geometry.js' %}"></script>
 <script src="{% static 'JS/mproductmaterial.js' %}"></script>
 <script src="{% static 'JS/mproductedgeband.js' %}"></script>
-<script src="{% static 'JS/mp_parts&productshardware.js' %}"></script>
+<script src="{% static 'JS/mp_parts_productshardware.js' %}"></script>
+<script scr="{% static 'JS/reference_data.js' %}"></script>
+
+
+
 
 <script>
-/* =====================================================================
-   1. MODAL UTILITIES (Must be defined before usage)
-   ===================================================================== */
-window._modalDebug = true; 
+    
+/* ============================================================
+   1. MODAL UTILITIES
+   ============================================================ */
+window._modalDebug = true;
 
-function logModal(...msg) {
-    if (window._modalDebug) console.log("%c[MODAL-DEBUG]", "color:#0a7;font-weight:bold;", ...msg);
-}
-
-// Unified Show Modal Function
+// function logModal(...msg) {
+//     if (window._modalDebug) {
+//         console.log("%c[MODAL]", "color:#0a7;font-weight:bold;", ...msg);
+//     }
+// }
+// const DRAFT_KEY = "product_draft_v1";
 window.showModal = function (id) {
-    logModal("showModal() called for:", id);
     const el = document.getElementById(id);
-    if (!el) {
-        console.error("❌ ERROR — Modal element not found:", id);
-        return null;
-    }
+    if (!el) return console.error("Modal not found:", id);
 
     let modal = bootstrap.Modal.getInstance(el);
-    if (!modal) {
-        modal = new bootstrap.Modal(el);
-    }
+    if (!modal) modal = new bootstrap.Modal(el);
 
     modal.show();
-    
-    // Accessibility Enhancements
-    el.setAttribute('aria-hidden', 'false');
-    el.removeAttribute('inert');
-    
-    // Auto-focus first input
-    const focusable = el.querySelector('button, input, select, textarea');
-    if (focusable) focusable.focus();
-
-    return modal;
 };
 
-// Unified Hide Modal Function
 window.hideModal = function (id) {
     const el = document.getElementById(id);
-    if (!el) return;
-
-    const modal = bootstrap.Modal.getInstance(el);
-    if (modal) modal.hide();
-
-    // Accessibility Reset
-    el.setAttribute('aria-hidden', 'true');
-    el.setAttribute('inert', 'true');
+    bootstrap.Modal.getInstance(el)?.hide();
 };
 
-/* =====================================================================
-   2. MAIN LOGIC
-   ===================================================================== */
-document.addEventListener("DOMContentLoaded", function () {
-
-    // --- GLOBAL STATE ---
-    const currentProduct = { parts: [] };
-    
-    // Temporary bucket for the part currently being edited
-    window.currentPartState = {
-        geometry: {},
-        materials: { whitelist: [], defaultMaterialId: null },
-        edgebands: {}, 
-        partHardware: {}
-    };
-
-    function getCSRFToken() {
-        return document.querySelector('[name=csrfmiddlewaretoken]').value;
-    }
-
-    /* ---------------------------------------------------------------------
-       DATA BRIDGES: Capture data when "Save" is clicked INSIDE Modals
-       --------------------------------------------------------------------- */
-    
-    // 1. GEOMETRY BRIDGE
-    const geomSaveBtn = document.getElementById("save-geometry-btn");
-    if (geomSaveBtn) {
-        geomSaveBtn.addEventListener("click", function() {
-            window.currentPartState.geometry = {
-                lengthEq: document.getElementById("geom-length-eq")?.value || "",
-                widthEq: document.getElementById("geom-width-eq")?.value || "",
-                qtyEq: document.getElementById("geom-qty-eq")?.value || "",
-                svg: window._uploadedSVG || "" 
-            };
-            console.log("[BRIDGE] Geometry captured:", window.currentPartState.geometry);
-            // geometry.js usually handles closing, but we ensure it here if needed:
-            // window.hideModal('geometryModal');
-        });
-    }
-
-    // 2. MATERIALS BRIDGE
-    const matSaveBtn = document.getElementById("save-material-btn");
-    if (matSaveBtn) {
-        matSaveBtn.addEventListener("click", function() {
-            const whitelist = [];
-            // Scrape checked boxes
-            document.querySelectorAll('.material-whitelist:checked').forEach(cb => {
-                const row = cb.closest('tr');
-                const name = row ? row.cells[0].innerText.trim() : "Material " + cb.dataset.id;
-                whitelist.push({ id: cb.dataset.id, display_name: name });
-            });
-
-            window.currentPartState.materials.whitelist = whitelist;
-            // Add default logic here if you have a default selector radio
-            
-            console.log("[BRIDGE] Materials captured:", window.currentPartState.materials);
-            window.hideModal('materialModal');
-        });
-    }
-
-    // 3. EDGEBANDS BRIDGE
-    const ebSaveBtn = document.getElementById("save-edgeband-btn");
-    if (ebSaveBtn) {
-        ebSaveBtn.addEventListener("click", function() {
-            const ebData = { top: {}, right: {}, bottom: {}, left: {} };
-            
-            document.querySelectorAll('.edgeband-whitelist:checked').forEach(cb => {
-                const side = cb.dataset.side; 
-                const id = cb.dataset.id;
-                if (side && ebData[side]) {
-                    ebData[side].default = id; // simplistic approach: last checked is default
-                }
-            });
-
-            window.currentPartState.edgebands = ebData;
-            console.log("[BRIDGE] Edgebands captured:", window.currentPartState.edgebands);
-            window.hideModal('edgebandModal');
-        });
-    }
-
-    // 4. HARDWARE BRIDGE
-    const hwSaveBtn = document.getElementById("save-part-hardware-btn");
-    if (hwSaveBtn) {
-        hwSaveBtn.addEventListener("click", function() {
-            const hwData = {};
-            document.querySelectorAll('.part-select:checked').forEach(cb => {
-                const id = cb.dataset.id;
-                const row = cb.closest('tr');
-                const qty = row.querySelector('.part-qty')?.value || "1";
-                const cond = row.querySelector('.part-cond')?.value || "";
-                
-                hwData[id] = { qty, cond };
-            });
-
-            window.currentPartState.partHardware = hwData;
-            console.log("[BRIDGE] Hardware captured:", window.currentPartState.partHardware);
-            window.hideModal('hardwareModal');
-        });
-    }
-
-    /* ---------------------------------------------------------------------
-       SAVE PART TEMPLATE (Main "Checkmark" Button)
-       --------------------------------------------------------------------- */
-    const partTemplatesBody = document.getElementById("part-templates-body");
-    const savePartBtn = document.getElementById("save-part-btn");
-
-    savePartBtn.addEventListener("click", () => {
-        const partName = document.getElementById("part-name").value.trim();
-        if (!partName) return alert("Part name is required");
-
-        // Simple validation: Ensure Geometry was captured
-        if (!window.currentPartState.geometry.lengthEq && !window.currentPartState.geometry.widthEq) {
-            return alert("Please define and save Geometry (Edit) before saving the part.");
+function safeFetch(url, options = {}) {
+    return fetch(url, {
+        credentials: "same-origin",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": window.CSRF_TOKEN,
+            ...(options.headers || {})
+        },
+        ...options
+    }).then(async res => {
+        if (!res.ok) {
+            const txt = await res.text();
+            console.error("[API ERROR]", res.status, txt);
+            throw new Error(txt);
         }
-
-        // Create Part Object using the captured state
-        const part = {
-            id: Date.now(),
-            name: partName,
-            geometry: { ...window.currentPartState.geometry },
-            materials: { ...window.currentPartState.materials },
-            edgebands: { ...window.currentPartState.edgebands },
-            partHardware: { ...window.currentPartState.partHardware }
-        };
-
-        // Add to global product object
-        currentProduct.parts.push(part);
-        addPartRow(part);
-
-        // Reset State for next part
-        resetPartState();
-
-        console.log("[MAIN] Part Saved:", part);
+        return res.status === 204 ? null : res.json();
     });
+}
+/* ============================================================
+   2. MAIN LOGIC
+   ============================================================ */
+document.addEventListener("DOMContentLoaded", () => {
 
-    function resetPartState() {
+    /* ---------------------------
+       GLOBAL PRODUCT STATE
+       --------------------------- */
+    window.productState = { parts: [], hardware_rules:[] };
+    console.log("🧠 Product state initialized", window.productState);
+    let editingPartId = null;
 
-    // 1. RESET JS STATE OBJECT
-    window.currentPartState = {
+    const blankPartState = () => ({
         geometry: {},
         materials: { whitelist: [], defaultMaterialId: null },
         edgebands: { top:{}, right:{}, bottom:{}, left:{} },
         partHardware: {}
-    };
+    });
 
-    // 2. CLEAR PART NAME
-    document.getElementById("part-name").value = "";
+    window.currentPartState = blankPartState();
 
-    // =====================================
-    // 3. CLEAR GEOMETRY MODAL UI
-    // =====================================
-    document.getElementById("geom-length-eq").value = "";
-    document.getElementById("geom-width-eq").value = "";
-    document.getElementById("geom-qty-eq").value = "";
+    const partTable = document.getElementById("part-templates-body");
 
-    window._uploadedSVG = null;
-    const svgPreview = document.getElementById("svg-preview");
-    if (svgPreview) svgPreview.innerHTML = "";
+document.getElementById("save-geometry-btn")?.addEventListener("click", () => {
+    currentPartState.geometry = {
+            lengthEq: document.getElementById("geom-length-eq")?.value || "",
+            widthEq: document.getElementById("geom-width-eq")?.value || "",
+            qtyEq: document.getElementById("geom-qty-eq")?.value || "",
+            svg: window._uploadedSVG || ""
+        };
+        console.log("[GEOMETRY]", currentPartState.geometry);
+        hideModal("geometryModal");
+    });
 
-    // =====================================
-    // 4. CLEAR MATERIAL MODAL UI
-    // =====================================
-    document.querySelectorAll('.material-whitelist').forEach(cb => cb.checked = false);
-    document.querySelectorAll('.material-default').forEach(rb => rb.checked = false);
+    // MATERIALS
+     document.getElementById("save-material-btn")?.addEventListener("click", () => {
+        currentPartState.materials = JSON.parse(JSON.stringify(
+            window.currentPartState.materials
+        ));
+        console.log("🪵 Materials saved", currentPartState.materials);
+        hideModal("materialModal");
+    });
 
-    // internal module state
-    if (window.materialSelectedWhitelist) window.materialSelectedWhitelist = [];
-    if (window.renderMaterialTable) window.renderMaterialTable();
+    // EDGEBANDS
+    document.getElementById("save-edgeband-btn")?.addEventListener("click", () => {
+        const eb = { top:{}, right:{}, bottom:{}, left:{} };
+        document.querySelectorAll(".edgeband-whitelist:checked").forEach(cb => {
+            if (eb[cb.dataset.side]) eb[cb.dataset.side].default = cb.dataset.id;
+        });
+        currentPartState.edgebands = eb;
+        console.log("Edgeband Saved", currentPartState.edgebands);
+        hideModal("edgebandModal");
+    });
 
-    // =====================================
-    // 5. CLEAR EDGEBAND MODAL UI
-    // =====================================
-    document.querySelectorAll('.edgeband-whitelist').forEach(cb => cb.checked = false);
+    // PART HARDWARE
+    document.getElementById("save-part-hardware-btn")?.addEventListener("click", () => {
+        const hw = {};
+        document.querySelectorAll(".part-select:checked").forEach(cb => {
+            const row = cb.closest("tr");
+            hw[cb.dataset.id] = {
+                qty:  row?.querySelector(".part-qty")?.value || "1",
+                cond: row?.querySelector(".part-cond")?.value || ""
+            };
+        });
+        currentPartState.partHardware = hw;
+        console.log("part hardware saved",currentPartState.partHardware);
+        hideModal("hardwareModal");
+    });
 
-    if (window.selectedEdgebands)
-        window.selectedEdgebands = { top:{}, right:{}, bottom:{}, left:{} };
 
-    if (window.renderEdgebandTable) window.renderEdgebandTable();
+    /* ============================================================
+       SAVE / UPDATE PART
+       ============================================================ */
+    document.getElementById("save-part-btn")?.addEventListener("click", () => {
 
-    // =====================================
-    // 6. CLEAR HARDWARE MODAL UI
-    // =====================================
-    document.querySelectorAll('.part-select').forEach(cb => cb.checked = false);
-    document.querySelectorAll('.part-qty').forEach(i => i.value = "");
-    document.querySelectorAll('.part-cond').forEach(i => i.value = "");
+        const name = document.getElementById("part-name").value.trim();
+        if (!name) return alert("Part name required");
+        if (!currentPartState.geometry.lengthEq) {
+            return alert("Geometry must be defined");
+        }
 
-    if (window.selectedHardware) window.selectedHardware = {};
+        const payload = {
+            id: editingPartId || Date.now(),
+            name,
+            ...JSON.parse(JSON.stringify(currentPartState))
+        };
 
-    if (window.renderHardwareTable) window.renderHardwareTable();
+        // UPDATE
+        if (editingPartId) {
+            const idx = productState.parts.findIndex(p => p.id === editingPartId);
+            productState.parts[idx] = payload;
 
-    // =====================================
-    // 7. CLEAR SEARCH FIELDS IN MODALS
-    // =====================================
-    document.querySelectorAll('.modal input[type="search"]').forEach(e => e.value = "");
+            partTable.querySelector(`tr[data-id="${editingPartId}"]`)?.remove();
+            renderPartRow(payload);
 
-    console.log("[RESET] All modals and state reset completely.");
-}
+            console.log("[PART UPDATED]", payload);
+            editingPartId = null;
+        }
+        // CREATE
+        else {
+            productState.parts.push(payload);
+            console.log("[PART CREATED]", payload);
+        }
+        renderPartRow(payload);
+        resetPartState();
+    });
 
-    function addPartRow(part) {
+
+    /* ============================================================
+       PART TABLE RENDERING
+       ============================================================ */
+    function renderPartRow(part) {
+
         const tr = document.createElement("tr");
         tr.dataset.id = part.id;
-        
-        // Display helpers
-        const matText = part.materials.whitelist.map(m => m.display_name).join(", ") || "-";
-        
-        // Simple Edgeband Text
-        const renderEb = (s) => (part.edgebands[s]?.default ? "Yes" : "-");
-        const ebText = `T:${renderEb('top')} R:${renderEb('right')} B:${renderEb('bottom')} L:${renderEb('left')}`;
-        
-        // Hardware Text
-        const hwText = Object.keys(part.partHardware).length > 0 ? `${Object.keys(part.partHardware).length} items` : "-";
+
+        const mat = part.materials.whitelist.length
+            ? part.materials.whitelist.map(m =>
+                `<span class="badge bg-secondary me-1">${m.display_name}</span>`
+              ).join("")
+            : "-";
+
+        const eb = Object.entries(part.edgebands)
+            .map(([side, obj]) => {
+                if (!obj || !obj.whitelist?.length) return null;
+                return `<span class="badge bg-info me-1">${side}</span>`;
+            })
+            .filter(Boolean)
+            .join("") || "-";
+
+        const hw = Object.keys(part.partHardware || {}).length
+            ? Object.values(part.partHardware).map(h =>
+                `<span class="badge bg-dark me-1">${h.qty || 1}</span>`
+              ).join("")
+            : "-";
 
         tr.innerHTML = `
             <td>${part.name}</td>
-            <td class="text-center small">${part.geometry.lengthEq} x ${part.geometry.widthEq}</td>
-            <td class="text-center small">${matText}</td>
-            <td class="text-center small">${ebText}</td>
-            <td class="text-center small">${hwText}</td>
-            <td class="text-center"><button class="btn btn-danger btn-sm remove-part-btn">🗑️</button></td>
+            <td class="small">${part.geometry.lengthEq} × ${part.geometry.widthEq}</td>
+            <td>${mat}</td>
+            <td>${eb}</td>
+            <td>${hw}</td>
+            <td class="text-center">
+                <button class="btn btn-warning btn-sm edit-part">✏️</button>
+                <button class="btn btn-danger btn-sm remove-part">🗑</button>
+            </td>
         `;
-        partTemplatesBody.appendChild(tr);
+
+        partTable.appendChild(tr);
     }
 
-    partTemplatesBody.addEventListener("click", (e) => {
-        if (e.target.classList.contains("remove-part-btn")) {
-            const tr = e.target.closest("tr");
-            const id = parseInt(tr.dataset.id);
-            currentProduct.parts = currentProduct.parts.filter(p => p.id !== id);
+    partTable?.addEventListener("click", e => {
+        const tr = e.target.closest("tr");
+        if (!tr) return;
+
+        const id = Number(tr.dataset.id);
+        const part = productState.parts.find(p => p.id === id);
+
+        // EDIT
+        if (e.target.classList.contains("edit-part")) {
+            editingPartId = id;
+            window.currentPartState = JSON.parse(JSON.stringify(part));
+            document.getElementById("part-name").value = part.name;
+            // showModal("geometryModal");
+        }
+
+        // DELETE
+        if (e.target.classList.contains("remove-part")) {
+            if (!confirm("Remove this part?")) return;
+            productState.parts = productState.parts.filter(p => p.id !== id);
             tr.remove();
         }
     });
 
-    /* ---------------------------------------------------------------------
-       BUTTON LISTENERS (Opening Modals)
-       --------------------------------------------------------------------- */
-    document.getElementById("edit-geometry-btn").addEventListener("click", () => window.showModal("geometryModal"));
-    document.getElementById("select-material-btn").addEventListener("click", () => window.showModal("materialModal"));
-    document.getElementById("set-edgebands-btn").addEventListener("click", () => window.showModal("edgebandModal"));
-    document.getElementById("rules-hardware-btn").addEventListener("click", () => window.showModal("hardwareModal"));
-    
-    const prodHwBtn = document.getElementById("open-product-hardware-modal-btn");
-    if(prodHwBtn) prodHwBtn.addEventListener("click", () => window.showModal("productHardwareModal"));
 
-    /* ---------------------------------------------------------------------
-       PARAMETERS (Existing Logic)
-       --------------------------------------------------------------------- */
+    /* ============================================================
+       RESET PART STATE
+       ============================================================ */
+    function resetPartState() {
+        window.currentPartState = blankPartState();
+        document.getElementById("part-name").value = "";
+
+        document.querySelectorAll(".modal input, .modal select").forEach(el => el.value = "");
+        document.querySelectorAll(".modal input[type=checkbox], .modal input[type=radio]")
+            .forEach(el => el.checked = false);
+    }
+
+
+    /* ============================================================
+       MODAL OPEN BUTTONS
+       ============================================================ */
+    const btn = document.getElementById("edit-geometry-btn");
+        if (btn) {
+    btn.addEventListener("click", () => showModal("geometryModal"));
+}
+    const materialBtn = document.getElementById("select-material-btn");
+if (materialBtn) {
+    materialBtn.addEventListener("click", () => showModal("materialModal"));
+}
+
+const edgebandBtn = document.getElementById("set-edgebands-btn");
+if (edgebandBtn) {
+    edgebandBtn.addEventListener("click", () => showModal("edgebandModal"));
+}
+
+const hardwareBtn = document.getElementById("rules-hardware-btn");
+if (hardwareBtn) {
+    hardwareBtn.addEventListener("click", () => {
+        console.log("🟢 Opening PART hardware modal");
+        openHardwareModal();   // ✅ IMPORTANT
+    });
+}
+
+const productHwBtn = document.getElementById("open-product-hardware-modal-btn");
+if (productHwBtn) {
+    productHwBtn.addEventListener("click", () => {
+        console.log("🟢 Opening PRODUCT hardware modal");
+        openProductHardwareModal(); // ✅ IMPORTANT
+    });
+}
+
+
+
+    /* ============================================================
+       PARAMETERS
+       ============================================================ */
     const parameterBody = document.getElementById("parameter-body");
-    document.getElementById("save-param-btn").addEventListener("click", function () {
+
+    document.getElementById("save-param-btn")?.addEventListener("click", () => {
         const name = document.getElementById("param-name").value.trim();
-        if (!name) return alert("Parameter name is required");
+        if (!name) return alert("Parameter name required");
+        const abbr    = document.getElementById("param-abbr").value;
+        const defVal  = document.getElementById("param-default").value;
+        const desc    = document.getElementById("param-desc").value;
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${name}</td>
-                        <td>${document.getElementById("param-abbr").value}</td>
-                        <td>${document.getElementById("param-default").value}</td>
-                        <td>${document.getElementById("param-desc").value}</td>
-                        <td class="text-center"><button class="btn btn-danger btn-sm remove-param-btn">🗑️</button></td>`;
+        tr.innerHTML = `
+            <td>${name}</td>
+            <td>${abbr}</td>
+            <td>${defVal} </td>
+            <td>${desc}</td>
+            <td><button class="btn btn-danger btn-sm remove-param-btn">🗑</button></td>
+        `;
         parameterBody.appendChild(tr);
         document.getElementById("param-name").value = "";
+        document.getElementById("param-abbr").value = "";
+        document.getElementById("param-default").value = "";
+        document.getElementById("param-desc").value = "";
     });
-    parameterBody.addEventListener("click", function (e) {
-        if (e.target.classList.contains("remove-param-btn")) e.target.closest("tr").remove();
-    });
 
-    /* ---------------------------------------------------------------------
-       FINAL SAVE PRODUCT
-       --------------------------------------------------------------------- */
-    document.getElementById("save-product-btn").addEventListener("click", async function () {
-        const productName = document.getElementById("product-name").value.trim();
-        if (!productName) return alert("Product name is required");
-
-        // Collect Parameters
-        const parameters = [];
-        parameterBody.querySelectorAll("tr").forEach(tr => {
-            const tds = tr.querySelectorAll("td");
-            parameters.push({
-                name: tds[0].innerText,
-                abbr: tds[1].innerText,
-                default: tds[2].innerText,
-                description: tds[3].innerText
-            });
-        });
-
-        // Collect Product Hardware Rules
-        const hwRules = []; // Add logic here if you have a container for general hw rules
-
-        const data = {
-            product_name: productName,
-            category: document.getElementById("categoryselect").value,
-            type: document.getElementById("type-select").value,
-            model: document.getElementById("model-select").value,
-            parameters,
-            parts: currentProduct.parts, // The main payload!
-            hardware_rules: hwRules
-        };
-
-        // Network Request
-        try {
-            const productId = this.dataset.productId;
-            const method = productId ? "PUT" : "POST";
-            const url = productId ? `/modularcalc/api/products/${productId}/` : "/modularcalc/api/products/";
-
-            const response = await fetch(url, {
-                method: method,
-                headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) throw new Error("Failed to save product");
-            alert("Product saved successfully!");
-            if (!productId) {
-                 location.reload(); // Simple reset
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Error saving product.");
+    parameterBody?.addEventListener("click", e => {
+        if (e.target.classList.contains("remove-param-btn")) {
+            e.target.closest("tr").remove();
         }
     });
 
-    // Initialize dropdowns (if you have this function)
-    if(typeof preloadAllData === 'function') preloadAllData();
+
+    /* ============================================================
+       FINAL SAVE PRODUCT
+       ============================================================ */
+    document.getElementById("save-product-btn")?.addEventListener("click", async function () {
+
+        const payload = {
+            product_name: document.getElementById("product-name").value.trim(),
+            category: document.getElementById("categoryselect").value,
+            type: document.getElementById("type-select").value,
+            model: document.getElementById("model-select").value,
+            parameters: collectParameters(),
+            parts: productState.parts,
+            hardware_rules: []
+        };
+
+        console.log("[PRODUCT PAYLOAD]", payload);
+
+        try {
+            const productId = this.dataset.productId;
+            const res = await fetch(
+                productId
+                    ? `/modularcalc/api/products/${productId}/`
+                    : `/modularcalc/api/products/`,
+                {
+                    method: productId ? "PUT" : "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": window.CSRF_TOKEN
+                    },
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            if (!res.ok) throw new Error("Save failed");
+            alert("Product saved");
+            if (!productId) location.reload();
+
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save product");
+        }
+    });
+
+    function collectParameters() {
+        return [...document.querySelectorAll("#parameter-body tr")].map(tr => {
+            const td = tr.querySelectorAll("td");
+            return {
+                name: td[0].innerText,
+                abbr: td[1].innerText,
+                default: td[2].innerText,
+                description: td[3].innerText
+            };
+        });
+    }
 
 });
-</script>
+/* ============================================================
+   HARDWARE EVENT BRIDGES
+   ============================================================ */
 
+document.addEventListener("partHardwareSaved", e => {
+    
+    currentPartState.partHardware = e.detail;
+});
+
+document.addEventListener("productHardwareSaved", e => {
+    
+    productState.hardware_rules = e.detail;
+});
+
+</script>
 
 {% endblock %}
 

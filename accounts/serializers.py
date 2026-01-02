@@ -1,41 +1,35 @@
+from accounts.mixins import TenantSafeMixin
 from rest_framework import serializers
-from django.contrib.auth import authenticate
-from .models import User
 
-# -------------------------
-# Register Serializer
-# -------------------------
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
 
+class TenantSafeMixin(serializers.Serializer):
+    tenant_field_map = {}
+
+    def validate(self, data):
+        tenant = self.context.get("tenant")
+        if not tenant:
+            return data
+
+        for field, model in self.tenant_field_map.items():
+            obj = data.get(field)
+            if obj and getattr(obj, "tenant", None) != tenant:
+                raise serializers.ValidationError({
+                    field: "Invalid tenant reference"
+                })
+        return data
+
+
+from .models import GlobalVariable
+
+class GlobalVariableSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
-        fields = ["username", "email", "password"]
+        model = GlobalVariable
+        fields = ['id', 'name', 'abbr', 'value', 'category', 'description']
+        read_only_fields = ['id']
 
-    def create(self, validated_data):
-        user = User(
-            username=validated_data["username"],
-            email=validated_data.get("email", "")
-        )
-        user.set_password(validated_data["password"])
-        user.save()
-        return user
+    def validate_abbr(self, value):
+        if not value.startswith('@'):
+            raise serializers.ValidationError("Abbreviations must start with '@' (e.g., @ST).")
+        return value
 
-# -------------------------
-# Login Serializer
-# -------------------------
-class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
 
-    def validate(self, attrs):
-        user = authenticate(
-            username=attrs.get("username"),
-            password=attrs.get("password")
-        )
-        if not user:
-            raise serializers.ValidationError("Invalid credentials")
-        
-        # This line is REQUIRED for the View to find the user
-        attrs["user"] = user 
-        return attrs

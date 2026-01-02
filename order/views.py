@@ -5,12 +5,13 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from accounts.mixins import TenantSafeViewSetMixin
 from .models import Order, OrderProduct
 from .serializers import OrderSerializer, OrderProductSerializer
 from products.models import Product,Coupon
 from django.http import JsonResponse
 
-class OrderViewSet(viewsets.ModelViewSet):
+class OrderViewSet(TenantSafeViewSetMixin,viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated] 

@@ -1,0 +1,252 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Product & Variant Management</title>
+
+<!-- Bootstrap 5 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+
+<style>
+.table img { cursor:pointer; width:50px; height:50px; object-fit:cover; }
+.editablePrice, .editableAttr, .editableText { cursor:text; }
+.drag-drop { border: 2px dashed #ccc; padding: 10px; text-align: center; cursor:pointer; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<div class="container mt-4">
+<h1 class="mb-4">Product & Variant Management</h1>
+
+<!-- Filters & Actions -->
+<div class="row mb-3">
+  <div class="col-md-3"><input type="text" id="searchProduct" class="form-control" placeholder="Search products..."></div>
+  <div class="col-md-3"><select id="filterType" class="form-select select2"><option value="">All Types</option></select></div>
+  <div class="col-md-3"><select id="filterSeries" class="form-select select2"><option value="">All Series</option></select></div>
+  <div class="col-md-3 text-end">
+    <button class="btn btn-primary" id="bulkUploadBtn">Bulk Upload Variants</button>
+    <button class="btn btn-success" id="addProductBtn">Add Product</button>
+  </div>
+</div>
+
+<!-- Products Table -->
+<table class="table table-hover" id="productTable">
+  <thead>
+    <tr><th>Image</th><th>Name</th><th>SKU</th><th>Type</th><th>Series</th><th>Variants</th><th>Actions</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+<nav><ul class="pagination" id="productPagination"></ul></nav>
+
+<!-- Product Types Table -->
+<h3 class="mt-5">Product Types</h3>
+<button class="btn btn-success mb-2" id="addTypeBtn">Add Type</button>
+<table class="table table-bordered" id="productTypeTable">
+  <thead><tr><th>Name</th><th>Slug</th><th>Actions</th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<!-- Product Series Table -->
+<h3 class="mt-5">Product Series</h3>
+<button class="btn btn-success mb-2" id="addSeriesBtn">Add Series</button>
+<table class="table table-bordered" id="productSeriesTable">
+  <thead><tr><th>Name</th><th>Code</th><th>Type</th><th>Actions</th></tr></thead>
+  <tbody></tbody>
+</table>
+</div>
+
+<!-- ================== Modals ================== -->
+<div id="modalContainer"></div>
+
+<!-- Variant Modal -->
+<div class="modal fade" id="variantModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Variants for <span id="variantProductName"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <button class="btn btn-sm btn-success mb-2" id="addVariantBtn">Add Variant</button>
+        <table class="table table-sm" id="variantTable">
+          <thead><tr><th>Image</th><th>SKU</th><th>Dimensions</th><th>Price</th><th>Attributes</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <nav><ul class="pagination" id="variantPagination"></ul></nav>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Attribute Modal -->
+<div class="modal fade" id="attributeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Edit Variant Attributes</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <table class="table table-sm" id="attributeTable">
+          <thead><tr><th>Attribute</th><th>Value</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <button class="btn btn-sm btn-success" id="addAttributeBtn">Add Attribute</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Variant Image Upload Modal -->
+<div class="modal fade" id="variantImageModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Upload Variant Image</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="drag-drop" id="variantDropZone">Drag & Drop Image Here or Click to Select</div>
+        <input type="file" id="variantImageInput" style="display:none" accept="image/*">
+        <div id="variantImageMessage" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Upload Modal -->
+<div class="modal fade" id="bulkUploadModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Bulk Upload Variants</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <form id="bulkUploadForm" enctype="multipart/form-data">
+          <div class="mb-3"><input type="file" name="file" class="form-control" accept=".csv" required></div>
+          <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================== JS ================== -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+$(document).ready(function(){
+  const API_BASE="/products1/v1/";
+  $(".select2").select2({width:"100%"});
+
+  let currentProductId=null;
+  let currentVariantId=null;
+
+  // ---------------- Filters ----------------
+  function loadFilters(){
+    $.get(API_BASE+"product-types/").done(r=>{
+        r.results.forEach(t => $("#filterType").append(`<option value="${t.id}">${t.name}</option>`));
+    }).fail(err=>console.log("Product types load failed", err));
+
+    $.get(API_BASE+"product-series/").done(r=>{
+        r.results.forEach(s => $("#filterSeries").append(`<option value="${s.id}">${s.name}</option>`));
+    }).fail(err=>console.log("Product series load failed", err));
+  }
+
+  // ---------------- Products ----------------
+  function loadProducts(query="", type="", series="", page=1){
+    let params={page};
+    if(query) params.search=query;
+    if(type) params.product_type=type;
+    if(series) params.product_series=series;
+
+    $.get(API_BASE+"products/", params)
+    .done(res=>{
+      let tbody="";
+      res.results.forEach(p=>{
+        const img=p.images?.[0]?.image_url||"/static/img/placeholder.png";
+        tbody+=`<tr>
+          <td><img src="${img}" width="50"/></td>
+          <td>${p.name}</td>
+          <td>${p.sku||"—"}</td>
+          <td>${p.product_type?.name||"—"}</td>
+          <td>${p.product_series?.name||"—"}</td>
+          <td><button class="btn btn-sm btn-primary viewVariantsBtn" data-id="${p.id}" data-name="${p.name}">View</button></td>
+          <td>
+            <button class="btn btn-sm btn-success addProductImageBtn" data-id="${p.id}">Add Image</button>
+            <button class="btn btn-sm btn-info aiPriceBtn" data-id="${p.id}">AI Price</button>
+          </td>
+        </tr>`;
+      });
+      $("#productTable tbody").html(tbody);
+    }).fail(err=>console.log("Products load failed", err));
+  }
+
+  // ---------------- Variants ----------------
+  function loadVariants(productId){
+    currentProductId=productId;
+    $.get(API_BASE+"product-variants/", {product_id:productId})
+    .done(res=>{
+      let tbody="";
+      res.results.forEach(v=>{
+        const img=v.images?.[0]?.image_url||"/static/img/placeholder.png";
+        tbody+=`<tr data-id="${v.id}">
+          <td><img src="${img}" class="variantImg" data-id="${v.id}"></td>
+          <td>${v.sku}</td>
+          <td>${v.length||0}x${v.width||0}x${v.height||0}</td>
+          <td contenteditable="true" class="editablePrice" data-id="${v.id}">${v.selling_price}</td>
+          <td><button class="btn btn-sm btn-secondary editAttrBtn" data-id="${v.id}">Attributes</button></td>
+          <td><button class="btn btn-sm btn-success uploadVariantImageBtn" data-id="${v.id}">Upload Image</button></td>
+        </tr>`;
+      });
+      $("#variantTable tbody").html(tbody);
+      new bootstrap.Modal(document.getElementById('variantModal')).show();
+    }).fail(err=>console.log("Variants load failed", err));
+  }
+
+  // Inline Price Update
+  $(document).on("blur",".editablePrice",function(){
+    const variantId=$(this).data("id");
+    const val=$(this).text();
+    $.ajax({url:API_BASE+"product-variants/"+variantId+"/", type:"PATCH", data:{selling_price:val}})
+      .fail(err=>console.log("Price update failed", err));
+  });
+
+  // Variant Attributes Modal
+  $(document).on("click",".editAttrBtn",function(){
+    currentVariantId=$(this).data("id");
+    $.get(API_BASE+"variant-attributes/", {variant_id:currentVariantId})
+    .done(res=>{
+      let tbody="";
+      res.forEach(a=>{tbody+=`<tr data-id="${a.id}"><td>${a.attribute_name}</td><td contenteditable="true" class="editableAttr" data-id="${a.id}">${a.value}</td><td><button class="btn btn-sm btn-danger deleteAttrBtn" data-id="${a.id}">Delete</button></td></tr>`;});
+      $("#attributeTable tbody").html(tbody);
+      new bootstrap.Modal(document.getElementById('attributeModal')).show();
+    }).fail(err=>console.log("Attributes load failed", err));
+  });
+
+  // Variant Image Upload
+  $(document).on("click",".uploadVariantImageBtn",function(){
+    currentVariantId=$(this).data("id");
+    new bootstrap.Modal(document.getElementById('variantImageModal')).show();
+  });
+
+  $("#variantDropZone").click(()=>$("#variantImageInput").click());
+  $("#variantImageInput").on("change",function(){
+    const file=this.files[0];
+    const formData=new FormData(); formData.append("image",file); formData.append("variant",currentVariantId);
+    $.ajax({url:API_BASE+"variant-images/", type:"POST", data:formData, contentType:false, processData:false})
+      .done(()=>alert("Image uploaded"))
+      .fail(err=>console.log("Variant image upload failed", err));
+  });
+
+  // View Variants
+  $(document).on("click",".viewVariantsBtn",function(){loadVariants($(this).data("id"));});
+
+  // Filters
+  $("#searchProduct").on("input",()=>loadProducts($("#searchProduct").val(), $("#filterType").val(), $("#filterSeries").val()));
+  $("#filterType,#filterSeries").change(()=>loadProducts($("#searchProduct").val(), $("#filterType").val(), $("#filterSeries").val()));
+
+  // Initial load
+  loadFilters();
+  loadProducts();
+});
+</script>
+</body>
+</html>

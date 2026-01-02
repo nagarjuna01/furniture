@@ -1,34 +1,34 @@
 // ---------------- API MAP --------------------
 const variantApi = {
-    list: productId => `/products1/api/variants/?product=${productId}`,
-    detail: id => `/products1/api/variants/${id}/`,
-    attributes: '/products1/api/attributes/',
+    list: (productId) => `/products1/v1/product-variants/?product=${productId}`,
+    create: '/products1/v1/product-variants/', 
+    detail: (id) => `/products1/v1/product-variants/${id}/`,
+    attributes: '/products1/v1/attributes/',
 };
 
-console.debug('master_admin.js initialized');
-console.debug('showToast loaded:', typeof showToast);
+console.debug('[variant.js] initialized');
+console.debug('[variant.js] variantApi:', variantApi);
 
 
 let attributeDefinitions = [];
 
 function loadAttributes() {
+    console.debug('[variant.js] loadAttributes() called');
     return $.get(variantApi.attributes)
         .done(data => {
             attributeDefinitions = data.results || [];
             console.debug('Loaded attributes:', attributeDefinitions);
         })
         .fail(err => console.error('Failed to load attributes:', err));
+        
 }
 
-// Call loadAttributes when the script loads, and make sure any modal opening
-// waits for it if it's not guaranteed to be finished.
-// For now, assume it completes quickly enough before edit button clicks.
 loadAttributes();
 
 // ---------------- DROPDOWN LOADERS --------------
 function loadMeasurementUnits() {
     return $.ajax({
-        url: '/products1/api/measurement-units/',
+        url: '/material/v1/measurement-units/',
         method: 'GET',
     }).done(data => {
         const $select = $('#variant-measurement-unit');
@@ -41,7 +41,7 @@ function loadMeasurementUnits() {
 
 function loadBillingUnits() {
     return $.ajax({
-        url: '/products1/api/billing-units/',
+        url: '/material/v1/billing-units/',
         method: 'GET',
     }).done(data => {
         const $select = $('#variant-billing-unit');
@@ -52,24 +52,28 @@ function loadBillingUnits() {
     });
 }
 function loadVariants(productId) {
-    console.debug('Loading variants for product:', productId);
+    $.get(`/products1/v1/product-variants/?product=${productId}`)
+        .done(response => {
+            // DRF usually returns an array in .results
+            const data = response.results || response; 
+            const html = renderVariantSection(data);
+            
+            const $container = $(`#variant-section-${productId}`);
+            
+            if ($container.length) {
+                // 1. Use .html() so the div with the ID stays on the page
+                $container.html(html);
 
-    $.get(`/products1/api/products/${productId}/`)
-        .done(product => {
-            console.debug('Product with variants loaded:', product);
-
-            const html = renderVariantSection(product);
-            $(`#variant-section-${productId}`).replaceWith(html);
-
-            // Auto-open the variants section
-            $(`#variant-section-${productId}`).collapse('show');
+                // 2. Re-initialize the Bootstrap Collapse instance
+                const bsCollapse = bootstrap.Collapse.getOrCreateInstance($container[0]);
+                bsCollapse.show();
+            }
         })
         .fail(err => {
             console.error('Failed to load variants', err);
-            showToast('Failed to reload variants', 'danger');
+            showToast('Failed to reload variants', 'error');
         });
 }
-
 // ----------------- VALUE INPUT RENDER ----------------
 function renderValueInput(type, choices, val = '') {
     switch (type) {
@@ -149,8 +153,9 @@ function addAttributeRow(selectedAttrId = '', value = '') {
 
 // ---------------- OPEN MODAL --------------------
 function openVariantModal(productId, variant = null) {
+    
     $('#variantForm')[0].reset();
-    $('#variantForm').data('variant-id', null);
+    $('#variantForm').data('variant-id', variant ? variant.id : null);
     $('#variant-image-preview').empty();
     $('#variant-attribute-container').empty();
     $('#variant-product-id').val(productId);
@@ -162,7 +167,7 @@ function openVariantModal(productId, variant = null) {
         loadBillingUnits()
     ]).then(() => {
         if (variant) {
-            console.log("Opening modal for variant:", variant);
+            console.log("editing for variant:", variant);
 
             $('#variantForm').data('variant-id', variant.id);
             $('#variant-length').val(variant.length);
@@ -210,37 +215,94 @@ function openVariantModal(productId, variant = null) {
             });
 
             (variant.images || []).forEach(img => {
-                $('#variant-image-preview').append(`
-                    <div class="variant-image-wrapper d-inline-block position-relative me-2 mb-2">
-                        <img src="${img.image}" class="img-thumbnail" style="height: 80px;">
-                        <button type="button" class="btn btn-sm btn-danger btn-delete-image position-absolute top-0 end-0"
-                                data-id="${img.id}" title="Delete image">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
-                `);
-            });
+    const isPrimary = img.is_primary; // Ensure your backend/serializer sends this
+    const imgUrl = window.resolveImageUrl(img.image);
+
+    $('#variant-image-preview').append(`
+        <div class="variant-image-wrapper d-inline-block position-relative me-2 mb-2 p-1 border ${isPrimary ? 'border-primary shadow-sm' : ''}" 
+             data-id="${img.id}" style="width: 100px;">
+            <img src="${imgUrl}" class="img-thumbnail" style="height: 80px; width: 100%; object-fit: cover;">
+            
+            <div class="d-flex justify-content-between mt-1">
+                <button type="button" class="btn btn-xs ${isPrimary ? 'btn-primary' : 'btn-outline-secondary'} btn-set-primary" 
+                        data-id="${img.id}" title="Set as primary">
+                    <i class="bi ${isPrimary ? 'bi-star-fill' : 'bi-star'}"></i>
+                </button>
+                
+                <button type="button" class="btn btn-xs btn-outline-danger btn-delete-image"
+                        data-id="${img.id}" title="Delete image">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    `);
+});
         } else {
             console.log('No variant data provided, opening modal for new variant.');
             addAttributeRow(); // Add one empty row for new variant
         }
         $('#variantModal').modal('show');
+        
     }).catch(error => {
         console.error('Failed to load initial data for variant modal:', error);
         showToast('Failed to load initial form data', 'danger');
     });
 }
+// --- DELETE IMAGE ---
+$(document).on('click', '.btn-delete-image', function() {
+    const btn = $(this);
+    const imageId = btn.data('id');
+    
+    if (confirm('Delete this image permanently?')) {
+        $.ajax({
+            url: `/products1/v1/variant-images/${imageId}/`,
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        }).done(() => {
+            btn.closest('.variant-image-wrapper').remove();
+            showToast('Image removed', 'success');
+        });
+    }
+});
 
+// --- SET PRIMARY IMAGE ---
+$(document).on('click', '.btn-set-primary', function() {
+    const imageId = $(this).data('id');
+    const variantId = $('#variantForm').data('variant-id');
+
+    $.ajax({
+        url: `/products1/v1/variant-images/${imageId}/`,
+        method: 'PATCH',
+        headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+        data: JSON.stringify({ is_primary: true }),
+        contentType: 'application/json'
+    }).done(() => {
+        showToast('Primary image updated', 'success');
+        // Refresh the modal content to show the new star status
+        // You can fetch variant data again or manually toggle classes
+        loadVariants($('#variant-product-id').val()); 
+        $('#variantModal').modal('hide'); // Closing/reopening is easiest to refresh UI
+    });
+});
+window.resolveImageUrl = function(url) {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('/media/')) return url;
+    return `/media/${url}`;
+};
 // ------------------ FORM SUBMIT --------------------
 $('#variantForm').on('submit', function (e) {
     e.preventDefault();
 
-    const variantId = $(this).data('variant-id');
+    // 1. DECLARE ALL VARIABLES FIRST
+    const variantId = $(this).data('variant-id'); // Ensure the open modal function sets this
     const productId = $('#variant-product-id').val();
-    const method = variantId ? 'PUT' : 'POST';
-    const url = variantId ? variantApi.detail(variantId) : variantApi.list(productId);
-    const csrftoken = $('[name="csrfmiddlewaretoken"]').val();
 
+    // 2. DEFINE THE URL AND METHOD
+    const method = variantId ? 'PUT' : 'POST';
+    const targetUrl = variantId ? variantApi.detail(variantId) : variantApi.create;
+
+    // 3. CONSTRUCT THE PAYLOAD
     const payload = {
         product_id: productId,
         length: parseFloat($('#variant-length').val()) || 0,
@@ -253,6 +315,7 @@ $('#variantForm').on('submit', function (e) {
         attributes: []
     };
 
+    // Collect Attributes
     $('.attr-row').each(function () {
         const attrSelect = $(this).find('select[name="attribute_definition"]');
         const attrId = attrSelect.val();
@@ -267,12 +330,16 @@ $('#variantForm').on('submit', function (e) {
         }
     });
 
-    console.log("Submitting payload:", payload);
+    // 4. NOW YOU CAN LOG SAFELY
+    console.log('variantId:', variantId);
+    console.log('POST URL:', targetUrl,);
+    console.log('Submitting payload:', payload);
 
+    // 5. THE AJAX CALL
     $.ajax({
-        url,
-        method,
-        headers: { 'X-CSRFToken': csrftoken },
+        url: targetUrl,
+        method: method,
+        headers: { 'X-CSRFToken': window.CSRF_TOKEN || $('[name=csrfmiddlewaretoken]').val() },
         contentType: 'application/json',
         data: JSON.stringify(payload),
         success: function (variant) {
@@ -287,79 +354,64 @@ $('#variantForm').on('submit', function (e) {
                     $('#variantModal').modal('hide');
                     showToast('Variant saved successfully', 'success');
                     if (typeof loadVariants === 'function') loadVariants(productId);
-                    else window.loadProducts?.();
+                    else if (window.loadProducts) window.loadProducts();
                 })
                 .catch(() => {
                     $('#variantModal').modal('hide');
                     showToast('Variant saved, but some images failed to upload', 'warning');
                     if (typeof loadVariants === 'function') loadVariants(productId);
-                    else window.loadProducts?.();
+                    else if (window.loadProducts) window.loadProducts();
                 });
         },
         error: function (xhr) {
             console.error('Variant save failed:', xhr.responseJSON || xhr.responseText);
             let errorMessage = 'Failed to save variant';
             if (xhr.responseJSON) {
-                try {
-                    const errors = xhr.responseJSON;
-                    if (errors.non_field_errors) errorMessage += `: ${errors.non_field_errors.join(', ')}`;
-                    else if (errors.detail) errorMessage += `: ${errors.detail}`;
-                    else Object.keys(errors).forEach(f => errorMessage += `\n${f}: ${errors[f].join(', ')}`);
-                } catch (e) {
-                    console.error("Error parsing response:", e);
+                const errors = xhr.responseJSON;
+                if (errors.non_field_errors) errorMessage += `: ${errors.non_field_errors.join(', ')}`;
+                else if (errors.detail) errorMessage += `: ${errors.detail}`;
+                else {
+                    // Summarize specific field errors (e.g., "product_id: This field is required")
+                    Object.keys(errors).forEach(f => {
+                        errorMessage += `\n${f}: ${Array.isArray(errors[f]) ? errors[f].join(', ') : errors[f]}`;
+                    });
                 }
             }
             showToast(errorMessage, 'danger');
         }
     });
 });
-
-// ---------------- IMAGE UPLOAD ----------------------
 function uploadVariantImages(variantId, files) {
-    const csrftoken = $('[name="csrfmiddlewaretoken"]').val();
-    const formData = new FormData();
+    const csrftoken = $('[name="csrfmiddlewaretoken"]').val() || window.CSRF_TOKEN;
+    
+    // Create an array of upload requests (one for each image)
+    const uploadPromises = Array.from(files).map(file => {
+        const formData = new FormData();
+        // 'variant' is the FK field name in your VariantImage model
+        // 'image' is the FileField name in your VariantImage model
+        formData.append("variant_id", variantId); 
+        formData.append("image", file);
 
-    // IMPORTANT: append all images under the SAME key
-    for (let file of files) {
-        formData.append("images", file);
-    }
-
-    return $.ajax({
-        url: `/products1/api/variants/${variantId}/upload-images/`,
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrftoken },
-        processData: false,
-        contentType: false,
-        data: formData
-    })
-    .done(() => {
-        console.log("Images uploaded successfully for variant:", variantId);
-    })
-    .fail(xhr => {
-        console.error(
-            "Image upload failed:",
-            xhr.responseJSON || xhr.responseText
-        );
-        throw xhr;
+        return $.ajax({
+            url: '/products1/v1/variant-images/', // Correct router endpoint
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken },
+            processData: false,
+            contentType: false,
+            data: formData
+        });
     });
+
+    // Promise.all ensures we wait for ALL images to finish
+    return Promise.all(uploadPromises)
+        .then(() => {
+            console.log("All images uploaded successfully");
+        })
+        .catch(xhr => {
+            console.error("One or more images failed to upload");
+            throw xhr; 
+        });
 }
-function resolveImageUrl(url) {
-    if (!url) return '';
-
-    // Absolute URL → return as-is
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-        return url;
-    }
-
-    // Media-relative path
-    if (url.startsWith('/media/')) {
-        return url;
-    }
-
-    // Fallback (relative media)
-    return `/media/${url}`;
-}
-
 
 // ---------------- DELETE VARIANT ----------------------
 $(document).on('click', '.btn-delete-variant', function () {
@@ -370,9 +422,9 @@ $(document).on('click', '.btn-delete-variant', function () {
     if (!confirm("Are you sure you want to delete this variant?")) return;
 
     $.ajax({
-        url: `/products1/api/variants/${variantId}/`,
+        url: `/products1/v1/product-variants/${variantId}/`,
         type: 'DELETE',
-        headers: { 'X-CSRFToken': csrftoken },
+        headers: {  'X-CSRFToken': window.CSRF_TOKEN },
         success: function () {
             showToast('Variant deleted', 'success');
             if (typeof loadVariants === 'function') {
@@ -433,7 +485,7 @@ $(document).on('click', '.btn-delete-image', function () {
     $.ajax({
         url: `/products1/api/variants/${variantId}/delete-image/${imageId}/`,
         method: 'DELETE',
-        headers: { 'X-CSRFToken': csrftoken },
+        headers: {  'X-CSRFToken': window.CSRF_TOKEN },
     })
     .done(() => {
         showToast('Image deleted', 'success');
@@ -443,4 +495,30 @@ $(document).on('click', '.btn-delete-image', function () {
         console.error('Failed to delete image', xhr.responseText);
         showToast('Delete failed', 'danger');
     });
+    function renderVariantImages(images) {
+    if (!images || images.length === 0) {
+        return '<div class="text-muted p-3">No images uploaded for this variant.</div>';
+    }
+
+    return `
+    <div class="d-flex flex-wrap gap-3">
+        ${images.map(img => {
+            const imgUrl = window.resolveImageUrl(img.image);
+            const isPrimary = img.is_primary; // Ensure your serializer includes this field
+            
+            return `
+            <div class="image-item border rounded p-1 text-center" style="width: 120px;" data-id="${img.id}">
+                <img src="${imgUrl}" class="img-fluid rounded mb-1" style="height: 80px; width: 100%; object-fit: cover;">
+                <div class="d-flex justify-content-between px-1">
+                    <button type="button" class="btn btn-sm ${isPrimary ? 'btn-warning' : 'btn-outline-secondary'} btn-set-primary" title="Set Primary">
+                        <i class="bi ${isPrimary ? 'bi-star-fill' : 'bi-star'}"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-delete-image" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
 });
