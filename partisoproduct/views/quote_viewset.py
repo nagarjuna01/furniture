@@ -2,11 +2,11 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from partisoproduct.models import QuoteRequest
+from partisoproduct.models import MvpQuoteRequest
 from partisoproduct.serializers.quote_serializers import HybridQuoteRequestSerializer
 
-class QuoteRequestViewSet(viewsets.ModelViewSet):
-    queryset = QuoteRequest.objects.all()
+class MvpQuoteRequestViewSet(viewsets.ModelViewSet):
+    queryset = MvpQuoteRequest.objects.all()
     serializer_class = HybridQuoteRequestSerializer
 
     @action(detail=False, methods=['post'], url_path='calculate_quote')

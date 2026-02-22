@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ClientViewSet, LeadViewSet, OpportunityViewSet, SupportTicketViewSet, InteractionViewSet
+from .views import ClientViewSet, LeadViewSet, OpportunityViewSet, SupportTicketViewSet, InteractionViewSet,MarketplaceCustomerViewSet,MarketplaceViewSet
 from . import views
 
 router = DefaultRouter()
@@ -9,6 +9,8 @@ router.register(r'leads', LeadViewSet, basename='lead')
 router.register(r'opportunities', OpportunityViewSet, basename='opportunity')
 router.register(r'support-tickets', SupportTicketViewSet, basename='supportticket')
 router.register(r'interactions', InteractionViewSet, basename='interaction')
+router.register(r'marketplaces', MarketplaceViewSet)
+router.register(r'marketplace-customers', MarketplaceCustomerViewSet)
 
 urlpatterns = [
     path('v1/', include(router.urls)),

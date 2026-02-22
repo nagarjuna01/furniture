@@ -3,6 +3,7 @@ from material.models.edgeband import EdgeBand
 from material.models.category import Category,CategoryModel,CategoryTypes
 from material.models.wood import WoodMaterial
 from .modular import Modular1
+from accounts.models.base import TenantModel
 
 GRAIN_CHOICES = [
     ('none', 'None'),
@@ -10,7 +11,7 @@ GRAIN_CHOICES = [
     ('vertical', 'Vertical'),
 ]
 
-class Part1(models.Model):
+class Part1(TenantModel):
     name = models.CharField(max_length=255)
     modular_product = models.ForeignKey(Modular1, on_delete=models.CASCADE, related_name='parts')
 

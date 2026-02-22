@@ -1,0 +1,209 @@
+{
+    "timestamp": "2026-02-17 16:36:13.353651+00:00",
+    "analysis": [
+        {
+            "product_id": "b942d7ee-6152-4996-8f79-1f46eb925191",
+            "product_name": "1108PM",
+            "validation_logic": "product_height>500 and product_length>700 and product_width > 600",
+            "parts": [
+                {
+                    "part_name": "1",
+                    "part_id": "17",
+                    "equations": {
+                        "L": "product_length",
+                        "W": "product_height",
+                        "Q": "1"
+                    },
+                    "variables_demanded_by_db": [
+                        "product_length",
+                        "product_height"
+                    ],
+                    "missing_from_engine_context": [],
+                    "status": "WIRED_CORRECTLY"
+                }
+            ]
+        },
+        {
+            "product_id": "b2705423-525a-4b4a-8426-b7944f2a71d1",
+            "product_name": "1146PM (COPY - 2026-02-14 20:22)",
+            "validation_logic": "product_length >= 1000 and product_length <=3000 and product_width <= product_height and product_width >=800 and product_width <= 1600 and product_height >=500 and product_height <=800",
+            "parts": [
+                {
+                    "part_name": "TOP",
+                    "part_id": "7",
+                    "equations": {
+                        "L": "product_length",
+                        "W": "product_width",
+                        "Q": "1"
+                    },
+                    "variables_demanded_by_db": [
+                        "product_width",
+                        "product_length"
+                    ],
+                    "missing_from_engine_context": [],
+                    "status": "WIRED_CORRECTLY"
+                }
+            ]
+        },
+        {
+            "product_id": "4cbd5732-0ed6-43d7-87fe-0da1b7c9bc1e",
+            "product_name": "1230PM",
+            "validation_logic": "product_length >= 1000 and product_length <=3000 and product_width >=800 and product_width <= 1600 and product_height >=500 and product_height <=800",
+            "parts": [
+                {
+                    "part_name": "TOP",
+                    "part_id": "6",
+                    "equations": {
+                        "L": "product_length",
+                        "W": "product_width",
+                        "Q": "1"
+                    },
+                    "variables_demanded_by_db": [
+                        "product_width",
+                        "product_length"
+                    ],
+                    "missing_from_engine_context": [],
+                    "status": "WIRED_CORRECTLY"
+                }
+            ]
+        },
+        {
+            "product_id": "c9260912-78cc-40ae-8f14-050f662ab624",
+            "product_name": "14PM",
+            "validation_logic": "product_length >= 1000 and product_length <=3000 and product_width <= product_height and product_width >=800 and product_width <= 1600 and product_height >=500 and product_height <=800",
+            "parts": [
+                {
+                    "part_name": "TOP",
+                    "part_id": "4",
+                    "equations": {
+                        "L": "product_length",
+                        "W": "product_width",
+                        "Q": "1"
+                    },
+                    "variables_demanded_by_db": [
+                        "product_width",
+                        "product_length"
+                    ],
+                    "missing_from_engine_context": [],
+                    "status": "WIRED_CORRECTLY"
+                }
+            ]
+        },
+        {
+            "product_id": "2e3c6eb8-c07a-4b92-9f9a-aec924c6ce4e",
+            "product_name": "14PM (COPY - 2026-02-14 20:22)",
+            "validation_logic": "product_length >= 1000 and product_length <=3000 and product_width <= product_height and product_width >=800 and product_width <= 1600 and product_height >=500 and product_height <=800",
+            "parts": [
+                {
+                    "part_name": "TOP",
+                    "part_id": "8",
+                    "equations": {
+                        "L": "product_length",
+                        "W": "product_width",
+                        "Q": "1"
+                    },
+                    "variables_demanded_by_db": [
+                        "product_width",
+                        "product_length"
+                    ],
+                    "missing_from_engine_context": [],
+                    "status": "WIRED_CORRECTLY"
+                }
+            ]
+        },
+        {
+            "product_id": "8ac8f61f-2dcc-47d9-92d9-a8324d6376d0",
+            "product_name": "153AM",
+            "validation_logic": "product_length >= 1000 and product_length <=3000 and product_width <= product_height and product_width >=800 and product_width <= 1600 and product_height >=500 and product_height <=800",
+            "parts": [
+                {
+                    "part_name": "BOTTOM",
+                    "part_id": "11",
+                    "equations": {
+                        "L": "product_width - 2*(side_thickness)",
+                        "W": "product_height - rdfacia_thickness",
+                        "Q": "1"
+                    },
+                    "variables_demanded_by_db": [
+                        "product_width",
+                        "side_thickness",
+                        "product_height",
+                        "rdfacia_thickness"
+                    ],
+                    "missing_from_engine_context": [
+                        "side_thickness",
+                        "rdfacia_thickness"
+                    ],
+                    "status": "CRITICAL_MISSING_WIRE"
+                },
+                {
+                    "part_name": "RDFACIA",
+                    "part_id": "13",
+                    "equations": {
+                        "L": "product_length",
+                        "W": "D1FH",
+                        "Q": "1"
+                    },
+                    "variables_demanded_by_db": [
+                        "product_length",
+                        "D1FH"
+                    ],
+                    "missing_from_engine_context": [],
+                    "status": "WIRED_CORRECTLY"
+                },
+                {
+                    "part_name": "SIDE",
+                    "part_id": "10",
+                    "equations": {
+                        "L": "product_width - top_thickness",
+                        "W": "product_height",
+                        "Q": "2"
+                    },
+                    "variables_demanded_by_db": [
+                        "product_width",
+                        "product_height",
+                        "top_thickness"
+                    ],
+                    "missing_from_engine_context": [
+                        "top_thickness"
+                    ],
+                    "status": "CRITICAL_MISSING_WIRE"
+                },
+                {
+                    "part_name": "SKIRTING",
+                    "part_id": "12",
+                    "equations": {
+                        "L": "product_width - 2* (side_thickness)",
+                        "W": "product_height - D1FH",
+                        "Q": "1"
+                    },
+                    "variables_demanded_by_db": [
+                        "product_width",
+                        "side_thickness",
+                        "D1FH",
+                        "product_height"
+                    ],
+                    "missing_from_engine_context": [
+                        "side_thickness"
+                    ],
+                    "status": "CRITICAL_MISSING_WIRE"
+                },
+                {
+                    "part_name": "TOP",
+                    "part_id": "9",
+                    "equations": {
+                        "L": "product_length",
+                        "W": "product_width",
+                        "Q": "1"
+                    },
+                    "variables_demanded_by_db": [
+                        "product_width",
+                        "product_length"
+                    ],
+                    "missing_from_engine_context": [],
+                    "status": "WIRED_CORRECTLY"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,35 @@
+<div class="modal fade" :class="{ 'show d-block': hardwareOverride.isOpen }" tabindex="-1">
+  <div class="modal-dialog modal-lg shadow">
+    <div class="modal-content border-0">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">Override: <span x-text="hardwareOverride.current.name"></span></h5>
+        <button type="button" class="btn-close btn-close-white" @click="hardwareOverride.isOpen = false"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Quantity</label>
+            <input type="number" step="1" x-model="hardwareOverride.current.qty" class="form-control form-control-lg">
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Rate Override</label>
+            <div class="input-group">
+                <span class="input-group-text">₹</span>
+                <input type="number" step="0.01" x-model="hardwareOverride.current.rate" class="form-control form-control-lg">
+            </div>
+          </div>
+        </div>
+        <div class="small text-muted italic">
+            * Note: This override affects only this specific line item.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-light" @click="hardwareOverride.isOpen = false">Cancel</button>
+        <button class="btn btn-primary px-5" @click="hardwareOverride.save()">Save Hardware DNA</button>
+      </div>
+    </div>
+  </div>
+</div>

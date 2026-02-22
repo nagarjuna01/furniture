@@ -1,0 +1,43 @@
+<div class="modal fade" :class="partOverride.isOpen ? 'show d-block' : ''" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fw-bold">Override Part: <span x-text="partOverride.data.name"></span></h5>
+        <button type="button" class="btn-close" @click="partOverride.isOpen = false"></button>
+      </div>
+
+      <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Material</label>
+            <select x-model="partOverride.data.material_id" class="form-select">
+                <template x-for="mat in materials" :key="mat.id">
+                    <option :value="mat.id" x-text="mat.name"></option>
+                </template>
+            </select>
+          </div>
+
+          <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Quantity</label>
+                <input type="number" step="0.01" x-model="partOverride.data.quantity" class="form-control">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Rate Override (per unit)</label>
+                <input type="number" step="0.01" x-model="partOverride.data.rate" class="form-control">
+              </div>
+          </div>
+          <div class="alert alert-warning py-2 small">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              Manual overrides prevent the Engine from auto-calculating this part.
+          </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-light" @click="partOverride.isOpen = false">Cancel</button>
+        <button class="btn btn-primary px-4" @click="partOverride.save()">
+          Apply Override
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

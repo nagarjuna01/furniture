@@ -52,3 +52,20 @@ footer {
 .category-type-link:hover {
     text-decoration: underline;
 }
+.sticky-top {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1);
+}
+
+.table-primary-subtle {
+    background-color: #e7f1ff !important;
+}
+
+#product-hardware-body input:disabled {
+    background-color: transparent;
+    border-color: transparent;
+    color: #ced4da;
+    cursor: not-allowed;
+}

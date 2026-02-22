@@ -3,19 +3,18 @@ from django.shortcuts import render, redirect
 from rest_framework import viewsets, permissions
 from .models import GlobalVariable
 from .serializers import GlobalVariableSerializer
+from .mixins import TenantSafeViewSetMixin
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.db.models import Count, Sum
+from .models import Tenant
+from .mixins import TenantSafeViewSetMixin
+from rest_framework.views import APIView
 
-
-class GlobalVariableViewSet(viewsets.ModelViewSet):
+class GlobalVariableViewSet(TenantSafeViewSetMixin, viewsets.ModelViewSet):
     serializer_class = GlobalVariableSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        # Filter variables strictly by the user's tenant
-        return GlobalVariable.objects.filter(tenant=self.request.user.tenant)
-
-    def perform_create(self, serializer):
-        # Automatically assign the tenant from the authenticated user
-        serializer.save(tenant=self.request.user.tenant)
+    queryset = GlobalVariable.objects.all()
 
 def material_login(request):
     if request.method == "POST":
@@ -23,9 +22,9 @@ def material_login(request):
         password = request.POST.get("password")
 
         user = authenticate(request, username=username, password=password)
-        if user:
+        if user is not None:
             login(request, user)
-            return redirect("/material/brand/")  # or dashboard
+            return redirect("/material/brand/")
 
         return render(request, "pages/login.html", {
             "error": "Invalid credentials"
@@ -42,9 +41,36 @@ def material_logout(request):
 def subscription_expired(request):
     return render(request, "pages/subscription_expired.html")
 
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+# accounts/views.py
+class GlobalCommandCenterView(APIView):
+    def get(self, request):
+        if not request.user.is_superuser:
+            return Response({"detail": "Forbidden"}, status=403)
+            
+        # Get data across ALL factories [cite: 4, 18]
+        tenants = Tenant.objects.annotate(
+            user_count=Count('users'),
+            # We can link this to your Quote models later
+            total_revenue=Sum('quoterequest_set__total_sp') 
+        ).values('name', 'status', 'user_count', 'total_revenue')
+        
+        return Response(tenants)
 
-@login_required(login_url="/accounts/login/")
-def brand_list_page(request):
-    return render(request, "brand_list.html")
+class SuperAdminDashboardViewSet(TenantSafeViewSetMixin, viewsets.ReadOnlyModelViewSet):
+    """
+    Global Command Center for the 15-site rollout.
+    """
+    queryset = Tenant.objects.all()
+    permission_classes = [permissions.IsAdminUser] # Strictly Superusers
+
+    @action(detail=False, methods=['get'])
+    def global_stats(self, request):
+        # Aggregate data across all 15 sites
+        total_tenants = self.get_queryset().count()
+        status_breakdown = self.get_queryset().values('status').annotate(count=Count('id'))
+        
+        return Response({
+            "total_factories": total_tenants,
+            "status_distribution": {s['status']: s['count'] for s in status_breakdown},
+            # Note: total_revenue logic depends on your QuoteRequest relationship
+        })

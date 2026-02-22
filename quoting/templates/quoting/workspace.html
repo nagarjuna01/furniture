@@ -1,0 +1,699 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    [x-cloak] { display: none !important; }
+    .spin { animation: rotation 2s infinite linear; }
+    @keyframes rotation { from { transform: rotate(0deg); } to { transform: rotate(359deg); } }
+    .transition-all { transition: all 0.2s ease-in-out; }
+    
+    /* Ensure the dots are visible and clickable */
+    .dropdown-trigger { 
+        opacity: 0.8 !important; 
+        cursor: pointer;
+        padding: 5px;
+        z-index: 10;
+    }
+    
+    /* Prevent the sidebar from clipping the dropdown menu */
+    .dropdown-menu {
+        position: fixed !important; 
+        z-index: 2000 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+
+<div class="container-fluid vh-100 d-flex flex-column bg-light" 
+     x-data="quoteWorkspace('{{ quote_id }}')" 
+     x-init="init()"
+     id="quote-app"
+     x-cloak>
+    
+    <div class="d-flex justify-content-between align-items-center py-2 px-3 bg-white border-bottom shadow-sm">
+        <div class="d-flex align-items-center">
+            <span class="badge bg-dark me-2">ID: <span x-text="quote.id"></span></span>
+            <span class="badge bg-primary me-2">Quote #<span x-text="quote.quote_number"></span></span>
+            <strong class="text-dark" x-text="quote.client_detail ? quote.client_detail.name : 'Loading Client...'"></strong>
+            <span class="text-muted mx-2">|</span>
+            <small :class="saveStatus.includes('Error') ? 'text-danger' : 'text-success'" class="fw-bold">
+                <i class="bi" :class="saveStatus === 'Syncing...' ? 'bi-arrow-repeat spin' : 'bi-check-circle'"></i>
+                <span x-text="saveStatus"></span>
+            </small>
+        </div>
+
+        <div class="d-flex gap-2">
+            <template x-if="quote.client_detail?.tax_id">
+                <span class="badge bg-light text-dark border align-self-center">GST: <span x-text="quote.client_detail.tax_id"></span></span>
+            </template>
+            <button class="btn btn-outline-dark btn-sm" @click="exportPDF()"><i class="bi bi-file-pdf"></i> Print</button>
+            <button class="btn btn-success btn-sm fw-bold" @click="fetchQuote()" :disabled="loading">REFRESH ENGINE</button>
+        </div>
+    </div> 
+
+    <div class="row flex-grow-1 g-0 overflow-hidden">
+        
+        <div class="col-md-2 border-end bg-white overflow-auto p-3 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold small text-uppercase m-0 text-muted border-bottom pb-1">Solutions</h6>
+                <button class="btn btn-xs btn-primary rounded-circle" @click="addSolution()">+</button>
+            </div>
+            
+            <template x-for="sol in solutions" :key="sol.id">
+                <div class="card mb-2 border-0 shadow-sm transition-all sidebar-item" 
+                     :class="activeSolutionId === sol.id ? 'border-start border-4 border-primary bg-light' : ''"
+                     @click="activeSolutionId = sol.id" style="cursor: pointer;">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="small fw-bold text-truncate" x-text="sol.name" style="max-width: 80%;"></div>
+                            <div class="dropdown" @click.stop>
+                                <button class="btn btn-link btn-xs p-0 text-muted dropdown-trigger" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu shadow border-0 small">
+                                    <li><a class="dropdown-item" href="#" @click.prevent="renameSolution(sol)">Rename Zone</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" @click.prevent="deleteSolution(sol.id)">Delete Zone</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="text-primary fw-bold small" x-text="formatCurrency(sol.total_sp)"></div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <div class="col-md-7 bg-white d-flex flex-column overflow-hidden border-end">
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="m-0 fw-bold" x-text="activeSolution ? activeSolution.name : 'Select a Zone'"></h5>
+                <button x-show="activeSolution" class="btn btn-sm btn-primary" @click="openCatalog()">
+                    <i class="bi bi-plus-lg"></i> Add Product
+                </button>
+            </div>
+            
+            <div class="table-responsive flex-grow-1">
+                <table class="table table-hover align-middle m-0">
+                    <thead class="bg-light sticky-top">
+                        <tr class="small text-uppercase text-muted">
+                            <th>Item Description</th>
+                            <th class="text-center">Dimensions (L×W×H)</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-end">Total (en-IN)</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="item in activeSolution?.items" :key="item.id">
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-dark" x-text="item.product_name"></div>
+                                    <div class="small text-muted" x-text="item.product_template_sku"></div>
+                                    <div class="mt-1">
+                                        <button class="btn btn-link p-0 btn-xs text-decoration-none" @click="openOverride(item, 'BOM')">BOM</button>
+                                        <span class="text-muted mx-1">|</span>
+                                        <button class="btn btn-link p-0 btn-xs text-decoration-none" @click="openOverride(item, 'HARDWARE')">Hardware</button>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <input type="number" class="form-control form-control-sm text-center" style="width: 65px" x-model.number="item.l" @input.debounce.600ms="evaluateItem(item)">
+                                        <input type="number" class="form-control form-control-sm text-center" style="width: 65px" x-model.number="item.w" @input.debounce.600ms="evaluateItem(item)">
+                                        <input type="number" class="form-control form-control-sm text-center" style="width: 65px" x-model.number="item.h" @input.debounce.600ms="evaluateItem(item)">
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <input type="number" class="form-control form-control-sm text-center mx-auto" style="width: 50px" x-model.number="item.quantity" @input.debounce.600ms="evaluateItem(item)">
+                                </td>
+                                <td class="text-end fw-bold" x-text="formatCurrency(item.total_sp)"></td>
+                                <td>
+                                    <button class="btn btn-link text-danger p-0" @click="removeItem(item.id)"><i class="bi bi-trash"></i></button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-md-3 bg-white p-4 overflow-auto border-start shadow-sm">
+            <h6 class="fw-bold small text-uppercase mb-4">Commercial Summary</h6>
+            <div class="card border-0 bg-light mb-4 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Subtotal</span>
+                        <span x-text="formatCurrency(quote.total_sp)"></span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">GST (18%)</span>
+                        <span x-text="formatCurrency(quote.tax_amount)"></span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">Grand Total</span>
+                        <span class="h4 fw-bold text-success m-0" x-text="formatCurrency(quote.grand_total)"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <template x-if="modal.active === 'CATALOG'">
+    <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="bg-white rounded shadow-lg w-90 h-90 d-flex flex-column" style="max-width: 1200px; max-height: 90vh; overflow: hidden;">
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
+                <h5 class="m-0 fw-bold">Advanced Product Catalog</h5>
+                <button class="btn-close" @click="closeModal()"></button>
+            </div>
+
+            <div class="p-3 border-bottom bg-white shadow-sm">
+                <div class="row g-2">
+                    <div class="col-md-2">
+                        <label class="small fw-bold">Mode</label>
+                        <select class="form-select form-select-sm" x-model="filters.mode" @change="resetFilters(); fetchCatalog()">
+                            <option value="standard">Standard Product</option>
+                            <option value="modular">Modular Engine</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="small fw-bold">Category</label>
+                        <select class="form-select form-select-sm" x-model="filters.category" @change="filters.tier2=''; filters.tier3=''; fetchCatalog()">
+                            <option value="">All Categories</option>
+                            <template x-for="cat in categoryOptions" :key="cat.id">
+                                <option :value="cat.id" x-text="cat.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="small fw-bold" x-text="filters.mode === 'modular' ? 'Product Type' : 'Product Series'"></label>
+                        <select class="form-select form-select-sm" x-model="filters.tier2" @change="filters.tier3=''; fetchCatalog()">
+                            <option value="">Select Option...</option>
+                            <template x-for="t in tier2Options" :key="t.id">
+                                <option :value="t.id" x-text="t.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                     <div class="col-md-2">
+                        <label class="small fw-bold">Model</label>
+                        <select class="form-select form-select-sm"
+                                x-model="filters.tier3"
+                                @change="fetchCatalog()">
+                            <option value="">All Models</option>
+                            <template x-for="m in tier3Options" :key="m.id">
+                                <option :value="m.id" x-text="m.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="small fw-bold">Search SKU/Name</label>
+                        <input type="text" class="form-control form-control-sm" placeholder="Type to filter..." x-model="catalogSearch" @input.debounce.300ms="fetchCatalog()">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-grow-1 overflow-auto p-0" style="min-height: 0;">
+                <table class="table table-sm table-hover align-middle border-top m-0">
+                    <thead class="bg-light sticky-top" style="top: -1px; z-index: 10;">
+                        <tr class="small">
+                            <th width="30%">Item Details</th>
+                            <th width="50%">Configuration (L × B × H × Q | Materials)</th>
+                            <th width="20%" class="text-end px-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="item in catalog" :key="item.variant_id || item.id">
+                            <tr>
+                                <td class="p-2">
+                                    <div class="fw-bold text-primary" x-text="item.display_name"></div>
+                                    <div class="text-muted font-mono" style="font-size: 0.7rem;" x-text="item.sku"></div>
+                                </td>
+                                <td class="p-2">
+                                    <template x-if="item.is_modular">
+                                        <div class="d-flex flex-wrap gap-1 align-items-center">
+                                            <div class="input-group input-group-sm" style="width: 240px;">
+                                                <input type="number" class="form-control" x-model="item.l" placeholder="L">
+                                                <input type="number" class="form-control" x-model="item.w" placeholder="B">
+                                                <input type="number" class="form-control" x-model="item.h" placeholder="H">
+                                                <input type="number" class="form-control" x-model="item.quantity" placeholder="Q">
+                                            </div>
+                                            <select class="form-select form-select-sm" style="width: 140px;" x-model="item.wood_id"@change="item.eb_id='';">
+                                            <option value="">Wood...</option>
+                                            <template x-for="m in item.materials" :key="m.id">
+                                                <option :value="m.id" x-text="m.name"></option>
+                                                    </template>
+                                                </select>
+                                            <select class="form-select form-select-sm" style="width: 140px;"x-model="item.eb_id">
+                                                <option value="">Edgeband...</option>
+                                                <template x-for="e in (item.materials.find(m => m.id == item.wood_id)?.edgebands || [])" :key="e.id">
+                                                    <option :value="e.id" x-text="e.name"></option>
+                                                        </template>
+                                                    </select>
+                                                </div>
+                                    </template>
+                                    <template x-if="!item.is_modular">
+                                        <div class="text-muted small">Standard Variant: <span x-text="item.l"></span>×<span x-text="item.w"></span>×<span x-text="item.h"></span></div>
+                                    </template>
+                                </td>
+                                <td class="p-2 text-end px-3">
+                                    <template x-if="item.is_modular">
+                                        <div class="d-flex flex-column align-items-end">
+                                            <span class="fw-bold text-success mb-1" x-text="item.calc_price ? formatCurrency(item.calc_price) : '₹ --'"></span>
+                                            <button @click="calculateModular(item)" class="btn btn-xs btn-outline-primary mb-1">Calculate</button>
+                                            <button @click="addProductToZone(item)" :disabled="!item.calc_price" class="btn btn-sm btn-success">Add to Quote</button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!item.is_modular">
+                                        <div class="d-flex align-items-center justify-content-end gap-3">
+                                            <span class="fw-bold" x-text="formatCurrency(item.base_price)"></span>
+                                            <div class="d-flex align-items-center justify-content-end gap-3">
+        <div class="input-group input-group-sm" style="width: 100px;">
+            <span class="input-group-text">Qty</span>
+            <input type="number" class="form-control" x-model="item.quantity" min="1">
+        </div>
+                                            <button @click="addProductToZone(item)" class="btn btn-sm btn-primary">Add</button>
+                                        </div>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</template>
+
+    <template x-if="modal.active === 'OVERRIDE'">
+        <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(0,0,0,0.6); z-index: 1100;">
+            <div class="bg-white rounded shadow-lg w-50 d-flex flex-column">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-dark text-white rounded-top">
+                    <div>
+                        <h6 class="m-0 fw-bold" x-text="modal.title"></h6>
+                        <small class="text-info" x-text="modal.currentItem?.product_name"></small>
+                    </div>
+                    <button class="btn-close btn-close-white" @click="closeModal()"></button>
+                </div>
+                <div class="p-3">
+                    <table class="table table-sm border">
+                        <thead>
+                            <tr class="small text-muted">
+                                <th>Component</th>
+                                <th class="text-end">Rate</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="line in modal.data" :key="line.id">
+                                <tr>
+                                    <td x-text="line.part_name || line.hardware_name"></td>
+                                    <td class="text-end" x-text="formatCurrency(line.unit_price)"></td>
+                                    <td class="text-end fw-bold" x-text="formatCurrency(line.total_price)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </template>
+
+</div>
+
+<script>
+function quoteWorkspace(quoteId) {
+    return {
+        quoteId: quoteId,
+        quote: { id: quoteId, total_sp: 0, tax_amount: 0, grand_total: 0 },
+        solutions: [],
+        catalog: [],
+        activeSolutionId: null,
+        catalogSearch: '',
+        saveStatus: 'Synced',
+        loading: false,
+        filters: {
+            mode: 'standard',
+            category: '',
+            tier2: '',
+            tier3: ''
+        },
+        meta: {
+            categories: [], // Populate this in init()
+            tiers: [],
+            woods: [],
+            edgebands: []
+        },
+        modal: {
+            active: null,
+            title: '',
+            currentItem: null,
+            data: []
+        },
+
+        async init() {
+            await this.fetchQuote();
+            await this.fetchMeta();
+            if (this.solutions.length > 0) this.activeSolutionId = this.solutions[0].id;
+        },
+        async fetchMeta() {
+            try {
+                const res = await fetch(`/quoting/api/quotes/catalog-meta/`);
+                if (res.ok) {
+                    this.meta = await res.json();
+                }
+            } catch (e) { console.error("Meta Load Failed", e); }
+        },
+
+        resetFilters() {
+            this.filters.category = '';
+            this.filters.tier2 = '';
+            this.filters.tier3 = '';
+            this.catalog = [];
+        },
+        async fetchQuote() {
+            this.saveStatus = 'Syncing...';
+            try {
+                const res = await fetch(`/quoting/api/quotes/${this.quoteId}/workspace/`);
+                this.quote = await res.json();
+                this.solutions = this.quote.solutions;
+                this.saveStatus = 'Synced';
+            } catch (e) { this.saveStatus = 'Connection Error'; }
+        },
+
+        async evaluateItem(item) {
+            this.saveStatus = 'Calculating...';
+            try {
+                const res = await fetch(`/quoting/api/quotes/${this.quoteId}/evaluate-product/${item.id}/`, {
+                    method: 'PATCH',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': window.CSRF_TOKEN
+                    },
+                    body: JSON.stringify({ l: item.l, w: item.w, h: item.h, qty: item.quantity })
+                });
+                if (res.status === 422) {
+                    alert("Validation Error: Dimensions out of bounds.");
+                    return await this.fetchQuote();
+                }
+                if (res.ok) {
+                    const data = await res.json();
+                    this.quote = data; 
+                    this.solutions = data.solutions;
+                    this.saveStatus = 'Synced';
+                }
+            } catch (e) { this.saveStatus = 'Sync Error'; }
+        },
+get activeMeta() {
+    return this.meta[this.filters.mode] || {};
+},
+
+get categoryOptions() {
+    return this.activeMeta.categories || [];
+},
+
+get tier2Options() {
+    if (!this.filters.category) return [];
+    return (this.activeMeta.tier2 || []).filter(
+        t => t.category_id == this.filters.category ||
+             t.product_type_id == this.filters.category
+    );
+},
+
+get tier3Options() {
+    if (!this.filters.tier2) return [];
+    return (this.activeMeta.tier3 || []).filter(
+        m => m.type_id == this.filters.tier2
+    );
+},
+        async addSolution() {
+    const name = prompt("Enter Zone Name (e.g., Kitchen, Master Bedroom):");
+    if (!name) return;
+    
+    const res = await fetch(`/quoting/api/quotes/${this.quoteId}/add_solution/`, {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-CSRFToken': window.CSRF_TOKEN 
+        },
+        body: JSON.stringify({ name: name })
+    });
+    
+    if (res.ok) {
+        const newSol = await res.json();
+        await this.fetchQuote();
+        this.activeSolutionId = newSol.id; // Auto-focus new zone
+    }
+},
+
+async renameSolution(solution) {
+    const newName = prompt("Update Zone Name:", solution.name);
+    if (!newName || newName === solution.name) return;
+    
+    const res = await fetch(`/quoting/api/solutions/${solution.id}/`, {
+        method: 'PATCH',
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-CSRFToken': window.CSRF_TOKEN 
+        },
+        body: JSON.stringify({ name: newName })
+    });
+    
+    if (res.ok) {
+        solution.name = newName; // Instant UI feedback
+    } else {
+        alert("Failed to update name. Check server logs.");
+    }
+},
+
+async deleteSolution(solId) {
+    if (!confirm("CRITICAL: Deleting this zone will remove all items and custom BOM overrides. Proceed?")) return;
+    
+    const res = await fetch(`/quoting/api/solutions/${solId}/`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+    });
+    
+    if (res.ok) {
+        // If we deleted the active zone, reset the focus
+        if (this.activeSolutionId === solId) {
+            this.activeSolutionId = null;
+        }
+        await this.fetchQuote();
+        // Auto-select first remaining zone
+        if (!this.activeSolutionId && this.solutions.length > 0) {
+            this.activeSolutionId = this.solutions[0].id;
+        }
+    }
+},
+        openCatalog() {
+            this.modal.active = 'CATALOG';
+            this.fetchCatalog();
+        },
+
+        async fetchCatalog() {
+    this.loading = true;
+    const { mode, category, tier2, tier3 } = this.filters || {};
+    
+    const params = new URLSearchParams({
+        q: this.catalogSearch || '',
+        mode: mode || 'standard',
+        category: category || '',
+        tier2: tier2 || '',
+        tier3: tier3 || ''
+    });
+
+    try {
+        const res = await fetch(`/quoting/api/quotes/catalog-search/?${params.toString()}`);
+        if (res.ok) {
+            const data = await res.json();
+            
+            this.catalog = data.map(item => {
+                // Determine initial wood/eb from whitelists
+                const defaultWood = item.allowed_woods?.length > 0 ? item.allowed_woods[0].id : null;
+                const defaultEB = item.allowed_ebs?.length > 0 ? item.allowed_ebs[0].id : null;
+
+                return {
+                    ...item,
+                    // Inputs: Use backend defaults if available, else 0
+                    l: item.l || 0,
+                    w: item.w || 0,
+                    h: item.h || 0,
+                    quantity: 1,
+                    // Pricing State
+                    calc_price: item.is_modular ? null : item.base_price,
+                    // Material Selection State
+                    wood_id: defaultWood,
+                    eb_id: defaultEB,
+                    // UI State
+                    is_calculating: false
+                };
+            });
+        }
+    } catch (e) {
+        console.error("Catalog Fetch Handshake Failed:", e);
+    } finally {
+        this.loading = false;
+    }
+},
+        async addProductToZone(item) {
+    this.saveStatus = 'Adding...';
+    
+    // Base payload common to both
+    const payload = {
+        solution: this.activeSolutionId,
+        quantity: item.quantity || 1,
+        l: item.l,
+        w: item.w,
+        h: item.h,
+        config_snapshot: item.bom_snapshot || null
+    };
+
+    // Branching Logic for Data Integrity
+    if (item.is_modular) {
+        // Validation: No Silent Killers - stop if materials are missing
+        if (!item.wood_id || !item.eb_id) {
+            alert("Error: Wood and Edgeband must be selected for modular items.");
+            this.saveStatus = 'Incomplete';
+            return;
+        }
+        payload.modular_product = item.id; // UUID
+        payload.wood_material = item.wood_id; // FK to Material
+        payload.edgeband_material = item.eb_id; // FK to Edgeband
+        payload.unit_price = item.calc_price; // The price returned by your calc engine
+        payload.unit_cost = item.calc_cost;
+    } else {
+        payload.product_template = item.product_id;
+        payload.product_variant = item.variant_id;
+        payload.unit_price = item.base_price; // Standard fixed price
+        if (!payload.product_template) {
+            console.error("Data Integrity Failure: product_id missing from item", item);
+            this.saveStatus = 'Data Error';
+            return;
+        }
+    }
+
+    try {
+        const res = await fetch(`/quoting/api/quote-products/`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': window.CSRF_TOKEN 
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            this.closeModal();
+            await this.fetchQuote(); // Refresh the global quoteState
+            this.saveStatus = 'Synced';
+        } else {
+            const errorData = await res.json();
+            // Using 422 for validation errors as per specs
+            console.error("422 Validation Error:", errorData);
+            alert(`Save Failed: ${JSON.stringify(errorData)}`);
+            this.saveStatus = 'Error';
+        }
+    } catch (e) {
+        console.error("Network Handshake Failed:", e);
+        this.saveStatus = 'Offline';
+    }
+},
+
+        async openOverride(item, type) {
+            this.modal.currentItem = item;
+            this.modal.title = type === 'BOM' ? 'Bill of Materials' : 'Hardware Fittings';
+            this.modal.active = 'OVERRIDE';
+            const endpoint = type === 'BOM' ? 'parts' : 'hardware';
+            const res = await fetch(`/quoting/api/quote-products/${item.id}/${endpoint}/`);
+            this.modal.data = await res.json();
+        },
+
+        closeModal() { this.modal.active = null; this.modal.data = []; },
+
+        async removeItem(itemId) {
+            if(!confirm("Remove item?")) return;
+            await fetch(`/quoting/api/quote-products/${itemId}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': document.getElementById('csrf-token').value }
+            });
+            await this.fetchQuote();
+        },
+
+        formatCurrency(val) {
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
+        },
+    async calculateModular(item) {
+    if (!item.l || !item.w || !item.h || !item.wood_id) {
+        alert("Integrity Error: L, B, H and Material are mandatory for modular items.");
+        return;
+    }
+
+    this.saveStatus = 'Calculating...';
+    try {
+        const res = await fetch(`/quoting/api/modular/calculate/`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': window.CSRF_TOKEN
+            },
+            body: JSON.stringify({
+                product_id: item.id,
+                l: item.l, w: item.w, h: item.h,
+                wood_id: item.wood_id, eb_id: item.eb_id,
+                quantity: item.quantity || 1
+            })
+        });
+
+        if (res.status === 422) {
+            const err = await res.json();
+            alert(`Validation Error: ${err.detail || 'Dimensions out of range'}`);
+            return;
+        }
+
+        if (res.ok) {
+    const data = await res.json();
+    
+    // In your dryrun, the engine returns the whole result at the top level
+    // We must check 'data.pricing' or 'data.engine_output.pricing'
+    const result = data.engine_output || data; 
+
+    // 1. Map Price: Drilling down to the correct key
+    if (result.pricing && result.pricing.final_selling_price !== undefined) {
+        // Handle potential string-to-decimal conversion
+        item.calc_price = parseFloat(result.pricing.final_selling_price);
+        item.calc_cost = parseFloat(result.pricing.total_cost_price || 0);
+    } else if (result.total_sp) {
+        item.calc_price = parseFloat(result.total_sp);
+        item.calc_cost = parseFloat(result.total_cp || 0);
+    } else {
+        // NO SILENT KILLERS: Alert the user if calculation returned no value
+        console.error("Pricing Data Missing in Engine Output:", result);
+        this.saveStatus = 'Price Error';
+        alert("Integrity Error: Engine returned 0 or missing price keys.");
+        return; 
+    }
+                    
+    // 2. Map BOM (This is already working based on your "Parts: 5" log)
+    const bomSource = result.bom || result;
+    item.parts = bomSource.parts || [];
+    item.hardware = bomSource.hardware || [];
+
+    // 3. Store snapshot for addProductToZone Handshake
+    item.bom_snapshot = result; 
+    
+    this.saveStatus = 'Synced';
+    console.log(`[UI_FIXED] Price: ${item.calc_price} | Parts: ${item.parts.length}`);
+}
+ 
+    } catch (e) {
+        this.saveStatus = 'Calc Error';
+    }
+},
+
+        get activeSolution() {
+            return this.solutions.find(s => s.id === this.activeSolutionId);
+        }
+    }
+}
+</script>
+{% endblock %}

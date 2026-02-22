@@ -1,4 +1,4 @@
-{% extends "base_b.html" %}
+{% extends "base.html" %}
 {% load static %}
 {% block content %}
 
@@ -188,6 +188,34 @@
 
     </div>
 
+</div>
+<button
+  class="btn btn-outline-primary"
+  data-bs-toggle="modal"
+  data-bs-target="#expressionTemplateModal">
+  Insert Template
+</button>
+<div class="modal fade" id="expressionTemplateModal">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Expression Template</h5>
+      </div>
+
+      <div class="modal-body">
+        <select id="templateSelect" class="form-select"></select>
+        <div id="templateFields" class="mt-3"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="insertTemplateBtn">
+          Insert
+        </button>
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <!-- ===== MODALS (EDGEBAND, MATERIAL, HARDWARE, GEOMETRY, ETC.) ===== -->
@@ -414,6 +442,72 @@ document.getElementById("save-part-hardware-btn")?.addEventListener("click", () 
     currentPartState.partHardware = hw;
     renderPartRow(currentPartState);
     hideModal("hardwareModal");
+});
+let TEMPLATES = {};
+
+$.get("/api/expression-templates/", function (res) {
+  TEMPLATES = res;
+
+  Object.entries(res).forEach(([key, tpl]) => {
+    $("#templateSelect").append(
+      `<option value="${key}">${tpl.label}</option>`
+    );
+  });
+});
+$("#templateSelect").on("change", function () {
+  const tpl = TEMPLATES[this.value];
+  const container = $("#templateFields").empty();
+
+  tpl.fields.forEach(field => {
+    container.append(`
+      <div class="mb-2">
+        <label class="form-label">${field}</label>
+        <input class="form-control template-field" data-name="${field}">
+      </div>
+    `);
+  });
+});
+if (expr.includes("{}")) {
+  console.error("Template not fully resolved", expr);
+}
+function highlightToken(textarea, token) {
+  const text = textarea.value;
+  const index = text.indexOf(token);
+  if (index === -1) return;
+
+  textarea.focus();
+  textarea.setSelectionRange(index, index + token.length);
+}
+.fail(function (xhr) {
+  const err = xhr.responseJSON;
+  if (err.token) {
+    highlightToken(
+      document.getElementById("expressionTextarea"),
+      err.token
+    );
+  }
+});
+const TOOLTIP_DATA = {};
+
+$.get(`/api/products/${productId}/expression-context/`, function (res) {
+  Object.assign(TOOLTIP_DATA, res);
+});
+$("#expressionTextarea").on("mousemove", function (e) {
+  const token = getTokenUnderCursor(this, e);
+  if (!TOOLTIP_DATA[token]) return;
+
+  bootstrap.Tooltip.getOrCreateInstance(this, {
+    title: formatTooltip(TOOLTIP_DATA[token]),
+    trigger: "manual"
+  }).show();
+});
+$("#suggestBtn").on("click", function () {
+  $.post("/api/expression-suggest/", {
+    intent: $("#intentInput").val(),
+    product_id: productId
+  }).done(res => {
+    $("#expressionTextarea").val(res.suggestion).trigger("input");
+  });
 });
 
 /* ============================================================

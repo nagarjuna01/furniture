@@ -4,6 +4,7 @@
 // ==============================
 const mpState = {
     page: 1,
+    limit: 16,    
     lastPage: 1,
     category: "",
     type: "",
@@ -91,47 +92,54 @@ async function apiGet(url, params = {}) {
 async function loadModularProducts() {
     const data = await apiGet(api.products, {
         page: mpState.page,
+        page_size: mpState.pageSize,
         category: mpState.category,
         type: mpState.type,
         model: mpState.model,
         search: mpState.search
     });
 
-    mpState.lastPage = Math.ceil(data.count / 10);
+    mpState.lastPage = Math.ceil(data.count / mpState.pageSize);
     renderProducts(data.results);
 }
-
 function renderProducts(products) {
     const container = document.getElementById("product-list-container");
-    if (!products.length) {
-        container.innerHTML = "<p class='text-center'>No products found</p>";
+    if (!products || !products.length) {
+        container.innerHTML = "<div class='col-12 text-center p-5'>No products found.</div>";
         return;
     }
 
     container.innerHTML = products.map(product => `
-        <div class="col-md-4 mb-3" data-product-id="${product.id}">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">${product.name}</h5>
-                    <p class="card-text">${product.description || 'No description available'}</p>
-                    <p><strong>Price:</strong> $${product.price ?? 0}</p>
-                    <button class="btn btn-primary view-btn" data-id="${product.id}">View</button>
-                    <button class="btn btn-warning btn-sm edit-btn" data-id="${product.id}">Edit</button>
-                    <button class="btn btn-danger btn-sm delete-btn" data-id="${product.id}">Delete</button>
+    <div class="col-xl-3 col-lg-4 col-md-6 mb-4"> <div class="card h-100 shadow-sm border-0">
+            <div class="card-body d-flex flex-column p-3">
+                <h6 class="card-title fw-bold text-dark mb-1 text-truncate" title="${product.name}">
+                    ${product.name}
+                </h6>
+                
+                <p class="mb-3">
+                    <small class="text-muted" style="font-size: 0.7rem;">
+                        <span class="text-primary">${product.category_name || 'Cat'}</span> | 
+                        ${product.type_name || 'Type'} | 
+                        ${product.productmodel_name || 'Mod'}
+                    </small>
+                </p>
+                
+                <div class="mt-auto pt-2 border-top">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                         <a href="/modularcalc/output/?product_id=${product.id}" class="btn btn-success btn-sm w-100 fw-bold py-1"> GET QUOTE</a>
+                    </div>
+                    <div class="btn-group w-100 shadow-sm">
+                        <button class="btn btn-outline-info btn-sm view-btn" data-id="${product.id}"><i class="fas fa-eye"></i></button>
+                        <button class="btn btn-outline-secondary btn-sm edit-btn" data-id="${product.id}"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-outline-secondary btn-sm duplicate-btn" data-id="${product.id}"><i class="fas fa-copy"></i></button>
+                        <button class="btn btn-outline-danger btn-sm delete-btn" data-id="${product.id}"><i class="fas fa-trash"></i></button>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
     `).join("");
 }
-
-// Product buttons
-document.addEventListener("click", async e => {
-    const id = e.target.dataset.id;
-    if (!id) return;
-    if (e.target.classList.contains("view-btn")) viewProductDetails(id);
-    if (e.target.classList.contains("edit-btn")) editProduct(id);
-    if (e.target.classList.contains("delete-btn")) deleteProduct(id);
-});
 
 // Pagination buttons
 document.getElementById("mp-next-page").addEventListener("click", () => {
@@ -140,6 +148,36 @@ document.getElementById("mp-next-page").addEventListener("click", () => {
 document.getElementById("mp-prev-page").addEventListener("click", () => {
     if (mpState.page > 1) { mpState.page--; loadModularProducts(); }
 });
+// Step 1: Open Input Modal
+document.addEventListener('click', async function(e) {
+    if (e.target.closest('.open-calc-modal')) {
+        const btn = e.target.closest('.open-calc-modal');
+        const productId = btn.dataset.id;
+        
+        document.getElementById('modal-product-id').value = productId;
+        document.getElementById('target-product-name').innerText = btn.dataset.name;
+
+        const res = await fetch(`/modularcalc/api/products/${productId}/`);
+        const product = await res.json();
+        const materialSelect = document.getElementById('m-material-select');
+        
+        // CONTEXT FIX: In your JSON, whitelist is inside part_templates[0]
+        if (materialSelect && product.part_templates && product.part_templates.length > 0) {
+            const whitelist = product.part_templates[0].material_whitelist;
+            
+            materialSelect.innerHTML = '<option value="" selected disabled>-- Choose Material --</option>' + 
+                whitelist.map(m => `
+                    <option value="${m.material}">
+                        ${m.material_details.name} (${m.material_details.thickness_mm}mm)
+                    </option>
+                `).join('');
+        }
+
+        new bootstrap.Modal(document.getElementById('inputModal')).show();
+    }
+});
+
+// MProduct.js -> Inside the 'run-engine-btn' click listener
 
 // Search input
 document.getElementById("mp-search").addEventListener("input", e => {
@@ -148,8 +186,196 @@ document.getElementById("mp-search").addEventListener("input", e => {
     loadModularProducts();
 });
 document.getElementById("show-add-product-btn").addEventListener("click", () => {
-    window.location.href = "/modularcalc/addproduct/";
+    window.location.href = "/modularcalc/addparts/";
 });
+async function viewProductDetails(productId) {
+    try {
+        const res = await fetch(`/modularcalc/api/products/${productId}/`);
+        const product = await res.json();
+
+        // Populate Modal Fields
+        document.getElementById("showcase-title").innerText = product.name || "Unnamed";
+        document.getElementById("showcase-category").innerText = product.category_name || "N/A";
+        document.getElementById("showcase-type").innerText = product.type_name || "N/A";
+        document.getElementById("showcase-model").innerText = product.productmodel || "N/A";
+        document.getElementById("showcase-validation").innerText = product.product_validation_expression || "None";
+
+        // Parameters Table
+        document.getElementById("showcase-params-body").innerHTML = (product.parameters || []).map(p => `
+            <tr><td>${p.name}</td><td>${p.abbreviation}</td><td>${p.default_value}</td><td>${p.description || ""}</td></tr>
+        `).join("");
+
+        // Parts Table
+        document.getElementById("showcase-parts-body").innerHTML = (product.part_templates || []).map(pt => `
+            <tr>
+                <td><strong>${pt.name}</strong></td>
+                <td><code>${pt.part_length_equation}</code></td>
+                <td><code>${pt.part_width_equation}</code></td>
+                <td>${pt.part_qty_equation}</td>
+            </tr>
+        `).join("");
+
+        const modal = new bootstrap.Modal(document.getElementById('productShowcaseModal'));
+        modal.show();
+    } catch (err) {
+        console.error("View Error:", err);
+    }
+}
+/**
+ * Maps incoming API data back to UI-friendly format for the Editor
+ */
+function applyDraftToUI(product) {
+    console.log("Loading product into UI:", product);
+
+    // 1. Basic Info
+    const nameField = document.getElementById("product-name"); // Adjust IDs based on your actual HTML
+    if (nameField) nameField.value = product.name || "";
+
+    const descField = document.getElementById("product-description");
+    if (descField) descField.value = product.description || "";
+
+    // 2. Dimensions (The Cylinder Math)
+    // Make sure these match your HTML input IDs
+    if (document.getElementById("length_mm")) document.getElementById("length_mm").value = product.length_mm || 0;
+    if (document.getElementById("width_mm")) document.getElementById("width_mm").value = product.width_mm || 0;
+    if (document.getElementById("height_mm")) document.getElementById("height_mm").value = product.height_mm || 0;
+
+    // 3. Dropdowns (Category/Type/Model)
+    if (product.category) {
+        const catSelect = document.getElementById("categoryselect");
+        if (catSelect) {
+            catSelect.value = product.category;
+            // Trigger change to load dependent "Types"
+            catSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+    // 4. Validation Expression
+    const validationField = document.getElementById("product-validation");
+    if (validationField) validationField.value = product.product_validation_expression || "";
+
+    showToast(`Loaded ${product.name} for editing`, "info");
+}
+// 2. EDIT: Load into Main Editor
+function editProduct(productId) {
+    if (!productId) {
+        showToast("Invalid Product ID", "danger");
+        return;
+    }
+    // Redirect to the builder page and pass the ID as a query parameter
+    window.location.href = `/modularcalc/addparts/?edit_id=${productId}`;
+}
+
+// Ensure it is globally accessible for your click listeners
+window.editProduct = editProduct;
+
+document.addEventListener("click", async e => {
+    // Find the closest button to handle clicks on the icon inside the button
+    const target = e.target.closest('button');
+    if (!target) return;
+
+    const id = target.dataset.id;
+    if (!id) return;
+
+    // Route the action
+    if (target.classList.contains("view-btn")) {
+        viewProductDetails(id); // Opens your Showcase Modal
+    } else if (target.classList.contains("edit-btn")) {
+        editProduct(id); // Redirects to Builder
+    } else if (target.classList.contains("delete-btn")) {
+        deleteProduct(id); // Fires DELETE API
+    } else if (target.classList.contains("duplicate-btn")) {
+        duplicateProduct(id); // Fires Duplicate API
+    }
+});
+
+// Ensure the function is global
+window.viewProductDetails = viewProductDetails;
+// ==============================
+// Delete Product Logic
+// ==============================
+async function deleteProduct(id) {
+    if (!confirm("🚨 Are you sure? Deleting this product will remove all its parts, rules, and configurations permanently.")) return;
+
+    try {
+        const res = await fetch(`${api.products}${id}/`, {
+            method: "DELETE",
+            headers: {
+                "X-CSRFToken": window.CSRF_TOKEN,
+                "Accept": "application/json"
+            },
+            credentials: "same-origin"
+        });
+
+        if (res.ok) {
+            showToast("Product deleted successfully", "success");
+            loadModularProducts(); // Refresh the grid
+        } else {
+            const data = await res.json();
+            throw new Error(data.detail || "Delete failed");
+        }
+    } catch (err) {
+        console.error("Delete Error:", err);
+        showToast(err.message, "danger");
+    }
+}
+// Expose to window for the HTML onclick/listeners
+window.deleteProduct = deleteProduct;
+/**
+ * Maps incoming API data (snake_case) back to UI-friendly format
+ */
+/**
+ * Main function to load a product into the editor for viewing/editing
+ */
+
+// Update your duplicateProduct function to catch the error body
+async function duplicateProduct(productId) {
+    try {
+        const response = await fetch(`/modularcalc/api/products/${productId}/duplicate/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.CSRF_TOKEN 
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            // Log the specific validation errors (e.g., "duplicate key value violates unique constraint")
+            console.error("Server Validation Errors:", data);
+            
+            // If the error is a dictionary (DRF style), flatten it for the alert/error
+            let errorMessage = data.error || "Duplication failed";
+            if (typeof data === 'object' && !data.error) {
+                errorMessage = Object.entries(data)
+                    .map(([key, val]) => `${key}: ${val}`)
+                    .join(', ');
+            }
+            
+            throw new Error(errorMessage);
+        }
+
+        console.log("Duplication Successful:", data);
+        return data;
+    } catch (error) {
+        console.error("Duplicate Product Error:", error);
+        throw error;
+    }
+}
+
+async function getCalculatedMeasurements(productId, length, width, height) {
+    const response = await fetch('/modularcalc/api/products/dry-run/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN },
+        body: JSON.stringify({
+            product_dims: { product_length: length, product_width: width, product_height: height },
+            part_templates: [] // You fetch these from the product first
+        })
+    });
+    const data = await response.json();
+    console.log("Calculated Parts:", data.preview);
+}
 // ==============================
 // Sorting Utility
 // ==============================

@@ -23,6 +23,8 @@ from .models import (
     VariantImage,
     AttributeDefinition,
     VariantAttributeValue,
+    ProductBundle,
+    ProductTemplate,
 )
 
 from .serializers import (
@@ -35,6 +37,7 @@ from .serializers import (
     VariantImageSerializer,
     AttributeDefinitionSerializer,
     VariantAttributeValueSerializer,
+    ProductWriteSerializer,ProductTemplateSerializer
 )
 
 # -------------------------------------------------------------------
@@ -75,9 +78,11 @@ class ProductViewSet(TenantSafeViewSetMixin, ModelViewSet):
         ).prefetch_related("variants")
 
     def get_serializer_class(self):
-        if self.action == "retrieve":
+        if self.action == "list":
+            return ProductListSerializer
+        elif self.action == "retrieve":
             return ProductDetailSerializer
-        return ProductListSerializer
+        return ProductWriteSerializer
 
 class ProductVariantViewSet(TenantSafeViewSetMixin, ModelViewSet):
     queryset = ProductVariant.objects.all()
@@ -152,7 +157,31 @@ class VariantImageViewSet(TenantSafeViewSetMixin, ModelViewSet):
         return super().get_queryset().select_related("variant")
 
 
+# products1/views.py
+from rest_framework import viewsets, filters
+from products1.serializers import ProductBundleSerializer
+ 
+class ProductBundleViewSet(viewsets.ModelViewSet):
+    queryset = ProductBundle.objects.all()
+    serializer_class = ProductBundleSerializer
+    
+    # ADD THESE TWO LINES:
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'description'] # Fields you want to search
 
+# catalog/views.py
+from rest_framework import filters
+
+class ProductTemplateViewSet(viewsets.ModelViewSet):
+    queryset = ProductTemplate.objects.all()
+    serializer_class = ProductTemplateSerializer
+    
+    # CRITICAL: Without these, ?search= won't work!
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'sku', 'description']
+    def get_queryset(self):
+    # Ensure templates are filtered by the active site/tenant
+        return ProductTemplate.objects.filter(tenant=self.request.user.tenant)
 
 # -------------------------------------------------------------------
 # FRONTEND VIEWS

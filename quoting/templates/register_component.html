@@ -1,0 +1,52 @@
+<div class="card shadow-sm border-0" x-show="addingProduct">
+    <div class="card-header bg-white py-3">
+        <div class="row g-2">
+            <div class="col-md-4">
+                <div class="btn-group w-100">
+                    <button type="button" class="btn" 
+                            :class="registry.mode === 'modular' ? 'btn-primary' : 'btn-outline-primary'"
+                            @click="registry.mode = 'modular'">Modular DNA</button>
+                    <button type="button" class="btn"
+                            :class="registry.mode === 'standard' ? 'btn-primary' : 'btn-outline-primary'"
+                            @click="registry.mode = 'standard'">Standard Catalog</button>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <input type="text" x-model="registry.search" class="form-control" placeholder="Search...">
+            </div>
+        </div>
+
+        <div class="row g-2 mt-2">
+            <div class="col-md-3">
+                <select x-model="registry.filters.l1" class="form-select small">
+                    <option value="">Category (L1)</option>
+                    <template x-for="cat in categories" :key="cat">
+                        <option :value="cat" x-text="cat"></option>
+                    </template>
+                </select>
+            </div>
+            </div>
+    </div>
+
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <tbody id="registry-body">
+                <template x-for="item in registry.filteredItems" :key="item.id">
+                    <tr>
+                        <td>
+                            <div class="fw-bold" x-text="item.name"></div>
+                            <small class="text-muted" x-text="item.code"></small>
+                        </td>
+                        <td x-text="item.path"></td>
+                        <td><span class="badge bg-light text-dark" x-text="item.factory"></span></td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-primary" @click="registry.selectProduct(item)">
+                                Configure
+                            </button>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+</div>

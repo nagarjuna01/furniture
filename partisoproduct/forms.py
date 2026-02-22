@@ -4,8 +4,7 @@ from .models import Part1
 from material.models.wood import WoodMaterial
 from material.models.edgeband import EdgeBand
 from material.models.hardware import Hardware
-import logging
-logger = logging.getLogger(__name__)
+
 
 class ConstraintForm(forms.Form):
     abbreviation = forms.CharField(max_length=20)

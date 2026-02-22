@@ -18,6 +18,31 @@ class Client(TenantModel):
     def __str__(self):
         return self.name
 
+class Marketplace(TenantModel):
+    """
+    External marketplace/platform.
+    """
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=50, unique=True)
+    api_enabled = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+class MarketplaceCustomer(TenantModel):
+    
+    marketplace = models.ForeignKey(Marketplace,on_delete=models.CASCADE,related_name="customers")
+
+    external_customer_id = models.CharField(max_length=255)
+    display_name = models.CharField(max_length=255, blank=True, null=True)
+    raw_payload = models.JSONField(help_text="Original marketplace customer payload")
+
+    class Meta:
+        unique_together = ("tenant", "marketplace", "external_customer_id")
+
+    def __str__(self):
+        return f"{self.marketplace.name} - {self.display_name or self.external_customer_id}"
+
 class Lead(TenantModel):
     SOURCE_CHOICES = [
         ("website", "Website"),
@@ -121,7 +146,13 @@ class SupportTicket(TenantModel):
         null=True,
         blank=True
     )
-
+    marketplace_customer = models.ForeignKey(
+        MarketplaceCustomer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tickets"
+    )
     subject = models.CharField(max_length=255)
     description = models.TextField()
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="open")
@@ -152,7 +183,13 @@ class Interaction(TenantModel):
         null=True,
         blank=True
     )
-
+    marketplace_customer = models.ForeignKey(
+        MarketplaceCustomer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="interactions"
+    )
     interaction_type = models.CharField(max_length=50, choices=INTERACTION_TYPE_CHOICES)
     subject = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)

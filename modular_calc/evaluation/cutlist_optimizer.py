@@ -1,212 +1,172 @@
-# evaluation/cutlist_optimizer.py
-
+# cutlist_optimizer_tier5.py
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Optional, Tuple
 from decimal import Decimal
+# import matplotlib.pyplot as plt
 
-
-# -------------------------------------------------------------------------
-# DATA CLASSES
-# -------------------------------------------------------------------------
 @dataclass
 class PartRect:
-    width: Decimal       # mm
-    height: Decimal      # mm
+    width: Decimal
+    height: Decimal
     quantity: int
     name: str
-    grain: str           # "vertical", "horizontal", "none"
+    grain: str
+    material_id: int
+    sheet_width: Decimal
+    sheet_height: Decimal
+    trim_mm: Decimal = Decimal("10.0")
 
 
 @dataclass
 class Sheet:
     width: Decimal
     height: Decimal
+    material_id: int
     parts: List[Dict]
     used_area: Decimal = Decimal("0")
+    raw_width: Decimal = Decimal("0")
+    raw_height: Decimal = Decimal("0")
 
     def remaining_area(self) -> Decimal:
         return (self.width * self.height) - self.used_area
 
 
-# -------------------------------------------------------------------------
-# CUTLIST OPTIMIZER (SKYLINE + GRAIN + KERF)
-# -------------------------------------------------------------------------
 class CutlistOptimizer:
 
-    def __init__(self, sheet_width_mm=2440, sheet_height_mm=1220, kerf_mm=3):
-        self.sheet_width = Decimal(str(sheet_width_mm))
-        self.sheet_height = Decimal(str(sheet_height_mm))
+    def __init__(self, kerf_mm: float = 3.0):
         self.kerf = Decimal(str(kerf_mm))
+        self.sheets: List[Sheet] = []
 
-    # ---------------------------------------------------------------------
-    # PUBLIC ENTRY
-    # ---------------------------------------------------------------------
-    def optimize(self, parts: List[PartRect]) -> Dict:
-        sheets: List[Sheet] = []
-
-        # Expand quantity → individual rectangles
+    def optimize(self, parts: List[PartRect], visualize: bool = True) -> Dict:
+        """Main guillotine-based placement"""
         rects = []
         for p in parts:
-            for _ in range(p.quantity):
+            for _ in range(int(p.quantity)):
                 rects.append({
                     "name": p.name,
-                    "width": p.width,
-                    "height": p.height,
-                    "grain": p.grain
+                    "w": p.width,
+                    "h": p.height,
+                    "grain": p.grain,
+                    "material_id": p.material_id,
+                    "raw_w": p.sheet_width,
+                    "raw_h": p.sheet_height,
+                    "trim": p.trim_mm
                 })
 
-        # Sort largest-first
-        rects.sort(key=lambda r: (r["width"] * r["height"]), reverse=True)
+        # Sort descending by area for better guillotine packing
+        rects.sort(key=lambda r: r["w"] * r["h"], reverse=True)
 
-        # Place rectangles
         for rect in rects:
             placed = False
-            for sheet in sheets:
-                if self._place_part(sheet, rect):
-                    placed = True
-                    break
+            for sheet in self.sheets:
+                if sheet.material_id == rect["material_id"]:
+                    pos = self._guillotine_place(sheet, rect)
+                    if pos:
+                        placed = True
+                        break
 
             if not placed:
-                new_sheet = Sheet(self.sheet_width, self.sheet_height, parts=[])
-                self._place_part(new_sheet, rect)
-                sheets.append(new_sheet)
+                # Create a new sheet if needed
+                new_sheet = Sheet(
+                    width=rect["raw_w"] - 2 * rect["trim"],
+                    height=rect["raw_h"] - 2 * rect["trim"],
+                    material_id=rect["material_id"],
+                    raw_width=rect["raw_w"],
+                    raw_height=rect["raw_h"],
+                    parts=[]
+                )
+                if not self._guillotine_place(new_sheet, rect):
+                    raise ValueError(f"Part {rect['name']} too large for sheet")
+                self.sheets.append(new_sheet)
 
-        # Compute sheet waste
-        total_area = len(sheets) * (self.sheet_width * self.sheet_height)
-        used_area = sum(s.used_area for s in sheets)
-        waste = (1 - (used_area / total_area)) * Decimal("100")
+        # Build material report
+        report = self._build_report()
+        # if visualize:
+        #     self._draw_sheets()
+        return report
 
+    def _allowed_orientations(self, rect):
+        if rect["grain"] == "none":
+            return [(rect["w"], rect["h"]), (rect["h"], rect["w"])]
+        elif rect["grain"] == "vertical":
+            return [(rect["w"], rect["h"])]
+        elif rect["grain"] == "horizontal":
+            return [(rect["h"], rect["w"])]
+        return [(rect["w"], rect["h"])]
+
+    def _guillotine_place(self, sheet: Sheet, rect: Dict) -> Optional[Tuple[Decimal, Decimal]]:
+        """Basic guillotine placement: top-left first"""
+        # empty sheet
+        if not sheet.parts:
+            sheet.parts.append({
+                "name": rect["name"], "x": Decimal(0), "y": Decimal(0),
+                "w": rect["w"], "h": rect["h"], "grain": rect["grain"]
+            })
+            sheet.used_area += rect["w"] * rect["h"]
+            return 0, 0
+
+        # try existing free spaces (simplified)
+        free_rects = self._compute_free_rects(sheet)
+        for fx, fy, fw, fh in free_rects:
+            for ow, oh in self._allowed_orientations(rect):
+                if ow <= fw and oh <= fh:
+                    sheet.parts.append({
+                        "name": rect["name"], "x": fx, "y": fy,
+                        "w": ow, "h": oh, "grain": rect["grain"]
+                    })
+                    sheet.used_area += ow * oh
+                    return fx, fy
+        return None
+
+    def _compute_free_rects(self, sheet: Sheet) -> List[Tuple[Decimal, Decimal, Decimal, Decimal]]:
+        """Compute available rectangles on sheet (simplified guillotine)"""
+        free = [(Decimal(0), Decimal(0), sheet.width, sheet.height)]
+        for p in sheet.parts:
+            new_free = []
+            for fx, fy, fw, fh in free:
+                # subtract occupied rectangle (p)
+                if not (p["x"] >= fx+fw or p["x"]+p["w"] <= fx or
+                        p["y"] >= fy+fh or p["y"]+p["h"] <= fy):
+                    # Split free rect into up to 2 (right and bottom)
+                    right_w = fx+fw - (p["x"]+p["w"])
+                    if right_w > 0:
+                        new_free.append((p["x"]+p["w"], fy, right_w, fh))
+                    bottom_h = fy+fh - (p["y"]+p["h"])
+                    if bottom_h > 0:
+                        new_free.append((fx, p["y"]+p["h"], fw, bottom_h))
+                else:
+                    new_free.append((fx, fy, fw, fh))
+            free = new_free
+        return free
+
+    def _build_report(self) -> Dict:
+        total_used = sum(s.used_area for s in self.sheets)
+        total_raw = sum(s.raw_width*s.raw_height for s in self.sheets)
         return {
-            "sheets": [
-                {
-                    "sheet_index": i + 1,
-                    "width": s.width,
-                    "height": s.height,
-                    "used_area": s.used_area,
-                    "remaining_area": s.remaining_area(),
-                    "waste_percent": ((1 - (s.used_area / (s.width * s.height))) * 100).quantize(Decimal("1.00")),
-                    "cuts": s.parts,
-                }
-                for i, s in enumerate(sheets)
-            ],
-            "total_sheets": len(sheets),
-            "total_waste_percent": waste.quantize(Decimal("1.00")),
+            "sheets": [{
+                "material_id": s.material_id,
+                "raw_dims": {"w": float(s.raw_width), "h": float(s.raw_height)},
+                "usable_dims": {"w": float(s.width), "h": float(s.height)},
+                "used_area": float(s.used_area),
+                "waste_percent": float(((1 - s.used_area/(s.raw_width*s.raw_height))*100).quantize(Decimal("0.01"))),
+                "parts": s.parts
+            } for s in self.sheets],
+            "total_sheets": len(self.sheets),
+            "total_waste_avg": float(((1 - total_used/total_raw)*100).quantize(Decimal("0.01"))) if total_raw else 0
         }
 
-    # ---------------------------------------------------------------------
-    # PLACE PART WITH SKYLINE LOGIC
-    # ---------------------------------------------------------------------
-    def _place_part(self, sheet: Sheet, rect: Dict) -> bool:
-
-        w = rect["width"]
-        h = rect["height"]
-
-        # Grain -> allowed orientations
-        orientations = self._allowed_orientations(rect["grain"], w, h)
-
-        # Try each orientation
-        for (ow, oh) in orientations:
-            pos = self._find_space_on_sheet(sheet, ow, oh)
-            if pos:
-                x, y = pos
-                sheet.parts.append({
-                    "name": rect["name"],
-                    "x": x,
-                    "y": y,
-                    "width": ow,
-                    "height": oh,
-                    "grain": rect["grain"]
-                })
-                sheet.used_area += (ow * oh)
-                return True
-
-        return False
-
-    # ---------------------------------------------------------------------
-    # ALLOWED ORIENTATIONS BY GRAIN
-    # ---------------------------------------------------------------------
-    def _allowed_orientations(self, grain: str, w: Decimal, h: Decimal):
-        if grain == "none":
-            return [(w, h), (h, w)]  # rotation allowed
-        if grain == "vertical":
-            return [(w, h)]          # height must stay vertical
-        if grain == "horizontal":
-            return [(w, h)]          # width must stay horizontal
-        return [(w, h)]
-
-    # ---------------------------------------------------------------------
-    # FIND POSITION USING SIMPLE ROW-BASED SKYLINE
-    # ---------------------------------------------------------------------
-    def _find_space_on_sheet(self, sheet: Sheet, w: Decimal, h: Decimal) -> Optional[Tuple[Decimal, Decimal]]:
-
-        # If sheet is empty
-        if not sheet.parts:
-            if w <= sheet.width and h <= sheet.height:
-                return Decimal("0"), Decimal("0")
-            return None
-
-        # Try placing in existing rows
-        rows = self._build_rows(sheet)
-
-        for row_y, row_height in rows:
-            x = self._find_space_in_row(sheet, row_y, row_height, w, h)
-            if x is not None:
-                return x, row_y
-
-        # Try starting a new row
-        used_height = sum(r[1] + self.kerf for r in rows)
-        new_row_y = used_height
-
-        if new_row_y + h <= sheet.height:
-            return Decimal("0"), new_row_y
-
-        return None
-
-    # ---------------------------------------------------------------------
-    # BUILD ROWS FROM ALREADY-PLACED PARTS
-    # ---------------------------------------------------------------------
-    def _build_rows(self, sheet: Sheet):
-        if not sheet.parts:
-            return []
-
-        rows = {}
-        for p in sheet.parts:
-            y = p["y"]
-            rows.setdefault(y, Decimal("0"))
-            rows[y] = max(rows[y], p["height"])
-
-        # Convert to sorted list [(y, row_height), ...]
-        return sorted([(y, rows[y]) for y in rows], key=lambda x: x[0])
-
-    # ---------------------------------------------------------------------
-    # FIND SPACE IN A SPECIFIC ROW
-    # ---------------------------------------------------------------------
-    def _find_space_in_row(self, sheet: Sheet, row_y: Decimal, row_height: Decimal,
-                           w: Decimal, h: Decimal) -> Optional[Decimal]:
-        """Try to place part in a row by scanning X axis."""
-
-        if h > row_height:  
-            return None  # too tall for this row
-
-        # Scan x axis
-        x = Decimal("0")
-        while x + w <= sheet.width:
-            if not self._overlaps(sheet, x, row_y, w, h):
-                return x
-            x += self.kerf + Decimal("1")  # small step to avoid infinite loop
-
-        return None
-
-    # ---------------------------------------------------------------------
-    # OVERLAP CHECK
-    # ---------------------------------------------------------------------
-    def _overlaps(self, sheet: Sheet, x: Decimal, y: Decimal, w: Decimal, h: Decimal) -> bool:
-        for p in sheet.parts:
-            if (
-                x < p["x"] + p["width"] and
-                x + w > p["x"] and
-                y < p["y"] + p["height"] and
-                y + h > p["y"]
-            ):
-                return True
-        return False
+    # def _draw_sheets(self):
+    #     """Draw each sheet with parts using matplotlib"""
+    #     for i, s in enumerate(self.sheets):
+    #         fig, ax = plt.subplots()
+    #         ax.set_title(f"Sheet {i+1} - Material {s.material_id}")
+    #         ax.set_xlim(0, float(s.width))
+    #         ax.set_ylim(0, float(s.height))
+    #         for p in s.parts:
+    #             rect = plt.Rectangle((float(p["x"]), float(p["y"])), float(p["w"]), float(p["h"]),
+    #                                  edgecolor="black", facecolor="lightblue" if p["grain"]=="none" else "lightgreen")
+    #             ax.add_patch(rect)
+    #             ax.text(float(p["x"]+p["w"]/2), float(p["y"]+p["h"]/2), p["name"],
+    #                     ha="center", va="center", fontsize=8)
+    #         plt.gca().invert_yaxis()
+    #         plt.show()

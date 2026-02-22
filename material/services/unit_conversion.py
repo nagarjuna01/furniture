@@ -32,9 +32,6 @@ class UnitConversionService:
         """
         Convert value from one MeasurementUnit to another.
         """
-
-        
-
         value_in_base = UnitConversionService.to_base(value, from_unit)
 
         if to_unit.factor is None or to_unit.factor == 0:

@@ -15,6 +15,7 @@ class Part1ViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name']
 
     def get_queryset(self):
+        
         queryset = Part1.objects.all()
         product_id = self.request.query_params.get('modular_product')
         if product_id:

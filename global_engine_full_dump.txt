@@ -1,0 +1,33 @@
+=== GLOBAL ENGINE SYSTEM INTEGRITY DUMP ===
+Timestamp: 2026-02-12 13:58:58.433669+00:00
+Strategy: Gold Fish / 15-Site Rollout Audit
+=============================================
+
+--- 1. MODULAR PRODUCT LOGIC (The Brain) ---
+
+[PRODUCT: 1146PM] (ID: b97ece44-d6f6-420f-9d38-c119dae878b2)
+   - Validation Expr: product_length >= 1000 and product_length <=3000 and product_width <= product_height and product_width >=800 and product_width <= 1600 and product_height >=500 and product_height <=800
+   - Part Templates (1):
+     * TOP
+       L_EQ: product_length
+       W_EQ: product_width
+       Material: 18MM THK OSL
+
+[PRODUCT: 1230PM] (ID: 4cbd5732-0ed6-43d7-87fe-0da1b7c9bc1e)
+   - Validation Expr: product_length >= 1000 and product_length <=3000 and product_width >=800 and product_width <= 1600 and product_height >=500 and product_height <=800
+   - Part Templates (1):
+     * TOP
+       L_EQ: product_length
+       W_EQ: product_width
+       Material: 18MM THK OSL
+
+[PRODUCT: 14PM] (ID: c9260912-78cc-40ae-8f14-050f662ab624)
+   - Validation Expr: product_length >= 1000 and product_length <=3000 and product_width <= product_height and product_width >=800 and product_width <= 1600 and product_height >=500 and product_height <=800
+   - Part Templates (1):
+     * TOP
+       L_EQ: product_length
+       W_EQ: product_width
+       Material: 18MM THK OSL
+
+
+--- 2. QUOTE HIERARCHY (The Bridge) ---

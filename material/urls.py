@@ -44,6 +44,7 @@ urlpatterns = [
     # # Hardware, Edgeband, Wooden
     path('hardware-inventory/', views.hardware_view, name='hardware-inventory'),
     path('edgebands-page/', views.edgeband_list, name='edgeband-list-page'),
+    path('brandalpine/',views.brand_list_alpine, name='brandalpine'),
 
     # JSON-only endpoint (Select Filter)
     #path('filter-categories/', views.filter_categories_by_select, name='filter-categories'),

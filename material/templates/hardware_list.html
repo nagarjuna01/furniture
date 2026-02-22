@@ -1,4 +1,4 @@
-{% extends "base_b.html" %}
+{% extends "base.html" %}
 
 {% block title %}Hardware Inventory{% endblock %}
 
@@ -12,15 +12,17 @@
             + Add Hardware
         </button>
     </div>
-<div class="row mb-3">
-    <div class="col-md-4">
-        <input
-            type="text"
-            id="hardwareSearch"
-            class="form-control form-control-sm"
-            placeholder="Search hardware, brand, group…">
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <input
+                type="text"
+                id="hardwareSearch"
+                class="form-control form-control-sm"
+                placeholder="Search hardware, brand, group…">
+        </div>
     </div>
-</div>
+
     <div class="table-responsive">
         <table class="table table-sm table-bordered align-middle">
             <thead class="table-light">
@@ -112,41 +114,25 @@
                     </div>
 
                     <div class="col-md-6">
-    <label class="form-label">Billing Unit</label>
-    <div class="input-group">
-        <select id="billing_unit" class="form-select" required></select>
-        <button type="button"
-                class="btn btn-outline-secondary"
-                id="showNewBillingUnitInput">add billing unit</button>
-    </div>
+                        <label class="form-label">Billing Unit</label>
+                        <div class="input-group">
+                            <select id="billing_unit" class="form-select" required></select>
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    id="showNewBillingUnitInput">Add Billing Unit</button>
+                        </div>
 
-    <div id="newBillingUnitWrapper" class="mt-2 d-none">
-        <input id="newBillingUnitName"
-               class="form-control mb-1"
-               placeholder="Unit name (e.g. Meter)">
-        <input id="newBillingUnitCode"
-               class="form-control mb-1"
-               placeholder="Code (e.g. m)">
-        <input id="newBillingUnitFactor"
-               type="number"
-               step="0.0001"
-               class="form-control mb-2"
-               placeholder="Factor (e.g. 1.0)">
+                        <div id="newBillingUnitWrapper" class="mt-2 d-none">
+                            <input id="newBillingUnitName" class="form-control mb-1" placeholder="Unit name">
+                            <input id="newBillingUnitCode" class="form-control mb-1" placeholder="Code">
+                            <input id="newBillingUnitFactor" type="number" step="0.0001" class="form-control mb-2" placeholder="Factor">
 
-        <div class="d-flex gap-2">
-            <button type="button"
-                    class="btn btn-sm btn-primary"
-                    id="addNewBillingUnitBtn">
-                Add
-            </button>
-            <button type="button"
-                    class="btn btn-sm btn-secondary"
-                    id="cancelNewBillingUnitBtn">
-                Cancel
-            </button>
-        </div>
-    </div>
-</div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-primary" id="addNewBillingUnitBtn">Add</button>
+                                <button type="button" class="btn btn-sm btn-secondary" id="cancelNewBillingUnitBtn">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- PRICES -->
@@ -170,6 +156,15 @@
         </form>
     </div>
 </div>
+
+<!-- ================= UNDO TOAST ================= -->
+<div id="undoToast" class="toast position-fixed bottom-0 end-0 m-3" data-bs-delay="5000">
+    <div class="toast-body d-flex justify-content-between align-items-center">
+        <span>Hardware deleted</span>
+        <button class="btn btn-sm btn-warning" id="undoDeleteBtn">Undo</button>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -183,6 +178,8 @@ $(function () {
 
     let editingId = null;
     let currentPageUrl = HARDWARE_API;
+    let lastDeleted = null;
+    let undoTimer = null;
 
     /* =================== SELECT2 =================== */
     $('#h_group, #brand, #billing_unit').select2({
@@ -190,61 +187,17 @@ $(function () {
         width: '100%'
     });
 
-    /* =================== LOAD TABLE =================== */
-    function loadHardware(url = HARDWARE_API) {
-        currentPageUrl = url;
-        console.log('🔗 Fetch hardware:', url);
-
-        $.get(url).done(res => {
-            const tbody = $('#hardwareTableBody').empty();
-
-            (res.results || []).forEach(h => {
-                tbody.append(`
-                    <tr data-id="${h.id}">
-                        <td>${h.h_group_label || '-'}</td>
-                        <td>${h.h_name}</td>
-                        <td>${h.brand_label || '-'}</td>
-                        <td>${Number(h.cost_price).toFixed(2)}</td>
-                        <td>${Number(h.sell_price).toFixed(2)}</td>
-                        <td>${h.billing_unit_code || '-'}</td>
-                        <td>
-                            <button class="btn btn-sm btn-info edit-btn">✏️</button>
-                            <button class="btn btn-sm btn-danger delete-btn">🗑️</button>
-                        </td>
-                    </tr>
-                `);
-            });
-
-            renderPagination(res);
-        });
+    /* =================== ERROR HELPER =================== */
+    function extractErrorMessage(xhr) {
+        try {
+            const res = JSON.parse(xhr.responseText);
+            if (res.name?.length) return res.name[0];
+            if (res.detail) return res.detail;
+        } catch {}
+        return 'Operation failed';
     }
 
-    /* =================== PAGINATION =================== */
-    function renderPagination(res){
-        const p = $('#paginationControls').empty();
-
-        if(res.previous){
-            p.append(`
-                <li class="page-item">
-                    <a class="page-link" data-url="${res.previous}">Prev</a>
-                </li>
-            `);
-        }
-        if(res.next){
-            p.append(`
-                <li class="page-item">
-                    <a class="page-link" data-url="${res.next}">Next</a>
-                </li>
-            `);
-        }
-    }
-
-    $('#paginationControls').on('click', 'a', function(e){
-        e.preventDefault();
-        loadHardware($(this).data('url'));
-    });
-
-    /* =================== DROPDOWNS =================== */
+    /* =================== LOAD DROPDOWNS =================== */
     function loadGroups(selected=null){
         return $.get(GROUP_API).done(res=>{
             const s=$('#h_group').empty().append('<option></option>');
@@ -254,7 +207,6 @@ $(function () {
             if(selected) s.val(String(selected)).trigger('change');
         });
     }
-
     function loadBrands(selected=null){
         return $.get(BRAND_API).done(res=>{
             const s=$('#brand').empty().append('<option></option>');
@@ -264,7 +216,6 @@ $(function () {
             if(selected) s.val(String(selected)).trigger('change');
         });
     }
-
     function loadBillingUnits(selected=null){
         return $.get(BILLING_UNIT_API).done(res=>{
             const s=$('#billing_unit').empty().append('<option></option>');
@@ -275,120 +226,212 @@ $(function () {
         });
     }
 
-    let searchTimer = null;
+    /* =================== OPTIMISTIC CREATE HELPER =================== */
+    function optimisticCreate({ api, name, select, extraData = {}, wrapper, input, button }) {
+        const tempId = `tmp-${Date.now()}`;
+        const opt = new Option(`${name} (saving…)`, tempId, true, true);
+        select.append(opt).trigger('change');
+        button.prop('disabled', true);
+        input.removeClass('is-invalid').next('.invalid-feedback').remove();
 
-$('#hardwareSearch').on('input', function () {
-    clearTimeout(searchTimer);
+        $.ajax({
+            url: api,
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+            contentType: 'application/json',
+            data: JSON.stringify({ name, ...extraData })
+        })
+        .done(res => {
+            select.find(`option[value="${tempId}"]`).remove();
+            select.append(new Option(res.name, res.id, true, true)).trigger('change');
+            wrapper.addClass('d-none');
+            input.val('');
+        })
+        .fail(xhr => {
+            select.find(`option[value="${tempId}"]`).remove().trigger('change');
+            const msg = extractErrorMessage(xhr);
+            input.addClass('is-invalid')
+                 .after(`<div class="invalid-feedback">${msg}</div>`);
+        })
+        .always(()=>button.prop('disabled', false));
+    }
 
-    searchTimer = setTimeout(() => {
-        const q = $(this).val().trim();
-
-        const url = q
-            ? `${HARDWARE_API}?search=${encodeURIComponent(q)}`
-            : HARDWARE_API;
-
-        loadHardware(url);
-    }, 300);
-});
-
-    /* =================== ADD HARDWARE =================== */
-    $('#addHardwareBtn').click(()=>{
-        editingId = null;
-        $('#hardwareForm')[0].reset();
-        $('#h_group,#brand,#billing_unit').val(null).trigger('change');
-        $('#hardwareModalLabel').text('Add Hardware');
+    /* =================== ADD NEW GROUP / BRAND / UNIT =================== */
+    $('#showNewGroupInput').click(()=>$('#newGroupWrapper').removeClass('d-none'));
+    $('#cancelNewGroupBtn').click(()=>$('#newGroupWrapper').addClass('d-none'));
+    $('#addNewGroupBtn').click(function(){
+        const input = $('#newGroupName');
+        const name = input.val().trim();
+        if(!name) return input.addClass('is-invalid');
+        optimisticCreate({ api: GROUP_API, name, select: $('#h_group'), wrapper: $('#newGroupWrapper'), input, button: $(this) });
     });
 
+    $('#showNewBrandInput').click(()=>$('#newBrandWrapper').removeClass('d-none'));
+    $('#cancelNewBrandBtn').click(()=>$('#newBrandWrapper').addClass('d-none'));
+    $('#addNewBrandBtn').click(function(){
+        const input = $('#newBrandName');
+        const name = input.val().trim();
+        if(!name) return input.addClass('is-invalid');
+        optimisticCreate({ api: BRAND_API, name, select: $('#brand'), wrapper: $('#newBrandWrapper'), input, button: $(this) });
+    });
+
+    $('#showNewBillingUnitInput').click(()=>$('#newBillingUnitWrapper').removeClass('d-none'));
+    $('#cancelNewBillingUnitBtn').click(()=>$('#newBillingUnitWrapper').addClass('d-none'));
+    $('#addNewBillingUnitBtn').click(function(){
+        const name = $('#newBillingUnitName').val().trim();
+        const code = $('#newBillingUnitCode').val().trim();
+        const factor = $('#newBillingUnitFactor').val();
+        if(!name || !code || !factor) return alert('All fields required');
+        optimisticCreate({ api: BILLING_UNIT_API, name, extraData: { code, factor }, select: $('#billing_unit'), wrapper: $('#newBillingUnitWrapper'), input: $('#newBillingUnitName'), button: $(this) });
+    });
+
+    /* =================== LOAD HARDWARE =================== */
+    function loadHardware(url = HARDWARE_API) {
+        currentPageUrl = url;
+        $.get(url).done(res => {
+            const tbody = $('#hardwareTableBody').empty();
+            (res.results||[]).forEach(h=>{
+                tbody.append(`
+                    <tr data-id="${h.id}">
+                        <td>${h.h_group_label||'-'}</td>
+                        <td>${h.h_name}</td>
+                        <td>${h.brand_label||'-'}</td>
+                        <td>${Number(h.cost_price).toFixed(2)}</td>
+                        <td>${Number(h.sell_price).toFixed(2)}</td>
+                        <td>${h.billing_unit_code||'-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-info edit-btn">✏️</button>
+                            <button class="btn btn-sm btn-danger delete-btn">🗑️</button>
+                        </td>
+                    </tr>
+                `);
+            });
+            renderPagination(res);
+        });
+    }
+
     /* =================== EDIT =================== */
-    $('#hardwareTableBody').on('click','.edit-btn',function(){
+    $('#hardwareTableBody').on('click', '.edit-btn', function () {
         const id = $(this).closest('tr').data('id');
         editingId = id;
 
         $.get(`${HARDWARE_API}${id}/`).done(h=>{
             $('#hardwareModalLabel').text('Edit Hardware');
-
             $('#h_name').val(h.h_name);
             $('#p_price').val(h.cost_price);
             $('#s_price').val(h.sell_price);
-
-            $.when(
-                loadGroups(h.h_group),
-                loadBrands(h.brand),
-                loadBillingUnits(h.billing_unit)
-            ).done(()=>{
-                $('#hardwareModal').modal('show');
-            });
+            $.when(loadGroups(h.h_group), loadBrands(h.brand), loadBillingUnits(h.billing_unit))
+             .done(()=>$('#hardwareModal').modal('show'));
         });
     });
 
-    /* =================== DELETE (SOFT) =================== */
-    $('#hardwareTableBody').on('click','.delete-btn',function(){
-        const id = $(this).closest('tr').data('id');
+    /* =================== DELETE + UNDO =================== */
+    $('#hardwareTableBody').on('click', '.delete-btn', function () {
+        const row = $(this).closest('tr');
+        const id = row.data('id');
         if(!confirm('Deactivate this hardware item?')) return;
+
+        lastDeleted = { id };
+        clearTimeout(undoTimer);
+        row.fadeOut(200);
 
         $.ajax({
             url: `${HARDWARE_API}${id}/`,
             method: 'PATCH',
-            headers:{'X-CSRFToken':window.CSRF_TOKEN},
-            contentType:'application/json',
-            data: JSON.stringify({is_active:false})
-        }).done(()=>loadHardware(currentPageUrl));
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+            contentType: 'application/json',
+            data: JSON.stringify({ is_active: false })
+        }).done(()=>{
+            showUndoToast();
+            undoTimer = setTimeout(()=>lastDeleted=null, 5000);
+        }).fail(()=>{ row.show(); lastDeleted=null; alert('Delete failed'); });
     });
 
-    /* =================== SAVE =================== */
+    $('#undoDeleteBtn').click(function () {
+        if(!lastDeleted) return;
+        $.ajax({
+            url: `${HARDWARE_API}${lastDeleted.id}/`,
+            method: 'PATCH',
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+            contentType: 'application/json',
+            data: JSON.stringify({ is_active: true })
+        }).done(()=>{ loadHardware(currentPageUrl); lastDeleted=null; hideUndoToast(); })
+          .fail(()=>alert('Undo failed'));
+    });
+
+    function showUndoToast() {
+        const toastEl = document.getElementById('undoToast');
+        const toast = bootstrap.Toast.getOrCreateInstance(toastEl);
+        toast.show();
+    }
+    function hideUndoToast() {
+        const toastEl = document.getElementById('undoToast');
+        const toast = bootstrap.Toast.getOrCreateInstance(toastEl);
+        toast.hide();
+    }
+
+    /* =================== SAVE HARDWARE =================== */
     $('#hardwareForm').submit(function(e){
         e.preventDefault();
-
         const payload = {
             h_group: Number($('#h_group').val()),
             h_name: $('#h_name').val(),
-            brand: Number($('#brand').val() || null),
+            brand: Number($('#brand').val()||null),
             billing_unit: Number($('#billing_unit').val()),
             cost_price: $('#p_price').val(),
             sell_price: $('#s_price').val()
         };
-
-        const url = editingId ? `${HARDWARE_API}${editingId}/` : HARDWARE_API;
-        const method = editingId ? 'PUT' : 'POST';
-
         $.ajax({
-            url, method,
-            contentType:'application/json',
+            url: editingId ? `${HARDWARE_API}${editingId}/` : HARDWARE_API,
+            method: editingId ? 'PUT' : 'POST',
             headers:{'X-CSRFToken':window.CSRF_TOKEN},
+            contentType:'application/json',
             data: JSON.stringify(payload)
         }).done(()=>{
             $('#hardwareModal').modal('hide');
             loadHardware(currentPageUrl);
-            editingId = null;
+            editingId=null;
         });
     });
 
-    /* =================== SERVER FILTERING =================== */
-    $('#h_group, #brand').on('change', function(){
+    /* =================== SEARCH =================== */
+    let searchTimer=null;
+    $('#hardwareSearch').on('input', function(){
+        clearTimeout(searchTimer);
+        searchTimer=setTimeout(()=>{
+            const q=$(this).val().trim();
+            const url=q?`${HARDWARE_API}?search=${encodeURIComponent(q)}`:HARDWARE_API;
+            loadHardware(url);
+        }, 300);
+    });
+
+    /* =================== FILTERS =================== */
+    $('#h_group,#brand').on('change', function(){
         const params = new URLSearchParams();
         if($('#h_group').val()) params.append('h_group', $('#h_group').val());
         if($('#brand').val()) params.append('brand', $('#brand').val());
-
         loadHardware(`${HARDWARE_API}?${params.toString()}`);
     });
 
-    /* =================== CLIENT FILTER =================== */
-    $('#h_name').on('input', function(){
-        const v = $(this).val().toLowerCase();
-        $('#hardwareTableBody tr').each(function(){
-            $(this).toggle($(this).text().toLowerCase().includes(v));
-        });
+    /* =================== PAGINATION =================== */
+    function renderPagination(res){
+        const p=$('#paginationControls').empty();
+        if(res.previous) p.append(`<li class="page-item"><a class="page-link" href="#" data-url="${res.previous}">Prev</a></li>`);
+        if(res.next) p.append(`<li class="page-item"><a class="page-link" href="#" data-url="${res.next}">Next</a></li>`);
+    }
+    $('#paginationControls').on('click','a',function(e){
+        e.preventDefault();
+        loadHardware($(this).data('url'));
     });
 
-    /* =================== AI PRICE SUGGESTION =================== */
-    $('#p_price').on('input', function(){
-        const cost = Number($(this).val() || 0);
-
-        // BASIC → 30% margin
-        const suggested = (cost * 1.3).toFixed(2);
-
-        // Pro-ready hook
-        $('#s_price').attr('placeholder', `AI Suggestion: ${suggested}`);
+    /* =================== MODAL RESET =================== */
+    $('#hardwareModal').on('hidden.bs.modal', function(){
+        editingId=null;
+        $('#hardwareForm')[0].reset();
+        $('#h_group,#brand,#billing_unit').val(null).trigger('change');
+        $('#newGroupWrapper,#newBrandWrapper,#newBillingUnitWrapper').addClass('d-none');
+        $(this).find('.is-invalid').removeClass('is-invalid').next('.invalid-feedback').remove();
+        $('#hardwareModalLabel').text('Add Hardware');
     });
 
     /* =================== INIT =================== */

@@ -1,4 +1,4 @@
-{% extends 'base_crm.html' %}
+{% extends 'base.html' %}
 {% block title %}Leads{% endblock %}
 
 {% block content %}
@@ -62,7 +62,7 @@
 {% block extra_js %}
 <script>
 function fetchLeads() {
-    $.get('/customerCRM/api/leads/', function(data){
+    $.get('/customers/v1/leads/', function(data){
         let rows = '';
         data.forEach(l => {
             rows += `<tr>
@@ -93,7 +93,7 @@ $(document).ready(function(){
         $.ajax({
             type: method,
             url: url,
-            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+            headers: { "X-CSRFToken": window.CSRF_TOKEN },
             data: {
                 name: $('#name').val(),
                 email: $('#email').val(),
@@ -133,7 +133,7 @@ $(document).ready(function(){
         $.ajax({
             type: 'DELETE',
             url: `/customerCRM/api/leads/${id}/`,
-            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+            headers: { "X-CSRFToken": window.CSRF_TOKEN },
             success: function(){ toastr.success('Deleted'); fetchLeads(); },
             error: function(xhr){ toastr.error(xhr.responseText); }
         });

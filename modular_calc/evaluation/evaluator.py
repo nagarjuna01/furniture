@@ -1,7 +1,7 @@
-# evaluation/evaluator.py
+#modular_calc/evaluation/evaluator.py
 from asteval import Interpreter
 from decimal import Decimal
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 _ALLOWED_NAMES = {
     "min": min,
@@ -11,16 +11,29 @@ _ALLOWED_NAMES = {
 }
 
 class ExpressionEvaluator:
-    """Safely evaluate math expressions in a restricted context."""
-
     def __init__(self, context: Dict[str, Any]):
-        self.context = context
+        # Convert Decimals to Floats for asteval compatibility
+        # and ensure all keys are strictly lowercase
+        self.context = {}
+        for k, v in context.items():
+            val = float(v) if isinstance(v, (Decimal, float, int)) else v
+            self.context[k.lower()] = val
 
     def eval(self, expr: str) -> Any:
-        aeval = Interpreter(minimal=True)
-        aeval.symtable.update(_ALLOWED_NAMES)
-        aeval.symtable.update(self.context)
-        result = aeval(expr)
-        if aeval.error:
-            raise ValueError(f"Eval error for '{expr}': {aeval.error[0].get_error()}")
+        if not expr:
+            return None
+            
+        # 1. Standardize expression
+        clean_expr = expr.lower().strip()
+        
+        # 2. Initialize Interpreter with our context as the initial symtable
+        # This is more reliable than updating symtable later
+        aeval = Interpreter(usersyms={**_ALLOWED_NAMES, **self.context}, minimal=True)
+        result = aeval(clean_expr)
+        
+        if len(aeval.error) > 0:
+            # Grab the specific error details
+            err = aeval.error[0]
+            raise ValueError(f"Eval error for '{clean_expr}': {err.msg}")
+            
         return result

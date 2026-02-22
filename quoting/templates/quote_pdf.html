@@ -1,0 +1,31 @@
+{% for solution in quote.solutions %}
+    <div style="background: #f9f9f9; padding: 10px; margin-top: 20px;">
+        <h2 style="color: #333;">Zone: {{ solution.name }}</h2>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Item Description</th>
+                <th class="right">Dimensions (mm)</th>
+                <th class="right">Qty</th>
+                <th class="right">Unit Price</th>
+                <th class="right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in solution.products %}
+            <tr>
+                <td>
+                    <strong>{{ product.product_name }}</strong><br>
+                    <small>{{ product.description|default:"" }}</small>
+                </td>
+                <td class="right">{{ product.length }} x {{ product.width }} x {{ product.height }}</td>
+                <td class="right">{{ product.quantity }}</td>
+                <td class="right">{{ product.unit_sp }}</td>
+                <td class="right">{{ product.total_sp }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endfor %}

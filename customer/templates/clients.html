@@ -1,4 +1,4 @@
-{% extends 'base_crm.html' %}
+{% extends 'base.html' %}
 {% block title %}Clients{% endblock %}
 
 {% block content %}
@@ -39,6 +39,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script>
 function fetchClients() {
     $.get('/customerCRM/api/clients/', function(data){
@@ -67,7 +68,7 @@ $(document).ready(function(){
         $.ajax({
             type: method,
             url: url,
-            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+            headers: { "X-CSRFToken": window.CSRF_TOKEN },
             data: {
                 name: $('#name').val(),
                 email: $('#email').val(),

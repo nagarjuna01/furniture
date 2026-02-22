@@ -46,45 +46,70 @@ def product_svg(request, quote_product_id: int):
             )
 
     # ------------------------------------------------------------------
-    # CASE 2: PART-LEVEL SVG TEMPLATES EXIST  → STITCH INTO ONE SVG
+    # CASE 2: PART-LEVEL STITCHING WITH DYNAMIC VIEWBOX & VISUALIZATION
     # ------------------------------------------------------------------
     stitched = []
-    y = 10
-    stitched.append('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="3000">')
-
+    current_y = 0
+    max_width = 200 # Initial minimum
+    
+    # Pre-render parts to calculate total height/width for viewBox
+    rendered_groups = []
+    
     for p in parts:
-        if p["two_d_template_svg"]:
-            # PART TEMPLATE DEFINED
-            ctx = {
-                "length": float(p["length"]),
-                "width": float(p["width"]),
-                "qty": float(p["quantity"]),
-                "thickness": float(p["thickness"]),
-                "grain_direction": p["grain_direction"],
-            }
+        l = float(p["length"])
+        w = float(p["width"])
+        max_width = max(max_width, l + 300) # Leave room for labels
+        
+        # Edge-banding context (Visualization Lines)
+        # Assuming p["edgebanding"] = {"top": True, "bottom": False, ...}
+        eb = p.get("edgebanding", {})
+        
+        ctx = {
+            "L": l, "W": w, "qty": p["quantity"],
+            "T": p["thickness"], "grain": p.get("grain_direction"),
+            "eb": eb
+        }
 
+        if p.get("two_d_template_svg"):
             try:
-                part_svg = render_svg(p["two_d_template_svg"], ctx)
+                content = render_svg(p["two_d_template_svg"], ctx)
             except Exception as e:
-                part_svg = f'<text x="10" y="{y}" font-size="12" fill="red">Error in {p["name"]}: {str(e)}</text>'
-            
-            stitched.append(f'<g transform="translate(0,{y})">{part_svg}</g>')
-            y += 300
+                content = f'<text y="20" fill="red">Error: {str(e)}</text>'
         else:
-            # NO PART SVG → DRAW SIMPLE OUTLINE
-            w = float(p["length"]) / 5
-            h = float(p["width"]) / 5
-            stitched.append(f'<rect x="10" y="{y}" width="{w:.1f}" height="{h:.1f}" fill="none" stroke="black"/>')
-            stitched.append(
-                f'<text x="{20+w}" y="{y+12}" font-size="14">'
-                f'{p["name"]} {p["length"]}×{p["width"]} (t{p["thickness"]})'
-                '</text>'
-            )
-            y += h + 40
+            # AUTO-GENERATED VISUALIZATION (Rect + Grain + EB)
+            content = generate_fallback_svg(ctx, p["name"])
 
+        rendered_groups.append(f'<g transform="translate(10, {current_y + 20})">{content}</g>')
+        current_y += (w + 60)
+
+    # Wrap in SVG with dynamic viewBox for "Auto-scale"
+    header = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {max_width} {current_y + 50}" preserveAspectRatio="xMidYMid meet">'
+    stitched.append(header)
+    stitched.extend(rendered_groups)
     stitched.append("</svg>")
 
     return HttpResponse("".join(stitched), content_type="image/svg+xml")
+
+def generate_fallback_svg(ctx, name):
+    """Internal helper for standard part visualization."""
+    l, w = ctx["L"], ctx["W"]
+    # Add thicker lines for edgebanded sides
+    eb_lines = ""
+    if ctx["eb"].get("top"): eb_lines += f'<line x1="0" y1="0" x2="{l}" y2="0" stroke="blue" stroke-width="4"/>'
+    
+    # Grain direction arrow
+    grain_arrow = ""
+    if ctx["grain"] == "horizontal":
+        grain_arrow = f'<path d="M{l/2-10} {w/2} L{l/2+10} {w/2} M{l/2+5} {w/2-5} L{l/2+10} {w/2} L{l/2+5} {w/2+5}" stroke="gray" fill="none"/>'
+
+    return f'''
+        <rect width="{l}" height="{w}" fill="none" stroke="black" stroke-width="1"/>
+        {eb_lines}
+        {grain_arrow}
+        <text x="{l + 10}" y="{w/2}" font-family="sans-serif" font-size="12">
+            {name} ({l}x{w})
+        </text>
+    '''
 
 
 # ✔ Auto-scale SVG to fit screen

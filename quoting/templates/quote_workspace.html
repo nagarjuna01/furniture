@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div id="quote-app" data-quote-id="{{ quote.id }}" class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-3">
+            <h5 class="fw-bold" id="quote-number">Syncing...</h5>
+            <div id="solution-list" class="list-group"></div>
+        </div>
+        <div class="col-md-9">
+            <div class="d-flex justify-content-between">
+                <span id="active-zone-badge" class="badge bg-secondary">NO ZONE</span>
+                <h4 id="quote-grand-total" class="fw-bold">₹0.00</h4>
+            </div>
+            <div id="solution-canvas" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

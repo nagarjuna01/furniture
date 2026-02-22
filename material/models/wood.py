@@ -82,7 +82,13 @@ class WoodMaterial(TenantSafeMixin, TenantModel):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    length_mm = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True)
+    width_mm = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True)
+    thickness_mm = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True)
+    cost_price_sft = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True)
+    cost_price_panel  = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True)
+    sell_price_sft =  models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True)
+    sell_price_panel = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True)
     class Meta:
         unique_together = (
             "tenant",
@@ -91,7 +97,31 @@ class WoodMaterial(TenantSafeMixin, TenantModel):
             "material_model",
             "name",
             "brand",
+            "grain",
         )
 
     def __str__(self):
         return self.name
+    def save(self, *args, **kwargs):
+        # A. Get the 'MM' Target Unit for normalization
+        from material.models import MeasurementUnit
+        from material.services.unit_conversion import UnitConversionService
+        from material.services.wood_pricing import WoodPricingService
+        
+        mm_unit = MeasurementUnit.objects.filter(code="MM").first()
+
+        if mm_unit:
+            # B. Auto-Convert Dimensions using your Service
+            self.length_mm = UnitConversionService.convert(self.length_value, self.length_unit, mm_unit)
+            self.width_mm = UnitConversionService.convert(self.width_value, self.width_unit, mm_unit)
+            self.thickness_mm = UnitConversionService.convert(self.thickness_value, self.thickness_unit, mm_unit)
+        
+        try:
+            self.cost_price_sft = WoodPricingService.cost_price_per_sft(self)
+            self.cost_price_panel = WoodPricingService.cost_price_per_panel(self)
+            self.sell_price_sft = WoodPricingService.sell_price_per_sft(self)
+            self.sell_price_panel = WoodPricingService.sell_price_per_panel(self)
+        except Exception as e:
+            # Fallback for Tier 5 safety: Log error or set to 0 to prevent crash
+            print(f"Pricing Error: {e}")
+        super().save(*args, **kwargs)

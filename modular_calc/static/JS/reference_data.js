@@ -72,8 +72,7 @@ function loadModelDropdown(typeId, selectId) {
     el.disabled = false;
 }
 document.addEventListener("DOMContentLoaded", async () => {
-    console.log("Add Product init");
-    
+       
     await loadReferenceData();
 
     loadCategoryDropdown("categoryselect");

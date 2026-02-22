@@ -1,4 +1,4 @@
-{% extends "base_b.html" %}
+{% extends "base.html" %}
 {% block content %}
 
 <div class="container-fluid mt-3">
@@ -34,6 +34,7 @@
           <th>Thickness</th>
           <th>Cost</th>
           <th>Selling</th>
+          <th>Status</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -168,7 +169,7 @@
 
 {% block extra_js %}
 <script>
-window.CURRENT_USER_IS_SUPERUSER = {{ request.user.is_superuser|yesno:"true,false" }};
+// window.CURRENT_USER_IS_SUPERUSER = {{request.user.is_superuser|yesno:"true,false" }};
 </script>
 
 <script>
@@ -254,7 +255,6 @@ function loadEdgebandNames(page=1){
   });
 }
 
-
 function loadEdgeBands(params = {}) {
   const query = new URLSearchParams();
 
@@ -265,7 +265,7 @@ function loadEdgeBands(params = {}) {
   const search = $("#searchInput").val();
   if (search) query.append("search", search);
 
-  // future filters (optional)
+  // filters
   if (params.edgeband_name) query.append("edgeband_name", params.edgeband_name);
   if (params.thickness) query.append("thickness", params.thickness);
   if (params.is_active !== undefined) query.append("is_active", params.is_active);
@@ -275,30 +275,55 @@ function loadEdgeBands(params = {}) {
 
   $.get(url).done(r => {
     const tb = $("#edgebandsTable tbody").empty();
+
     r.results.forEach(e => {
+      // Determine status
+      const statusLabel = e.is_active ? "Active" : "Inactive";
+      const statusClass = e.is_active ? "text-success" : "text-secondary";
+      const btnLabel = e.is_active ? "Deactivate" : "Activate";
+      const btnClass = e.is_active ? "btn-danger" : "btn-success";
+
       tb.append(`
-        <tr data-id="${e.id}">
-          <td>${e.edgeband_name_label}</td>
-          <td>${e.thickness || "-"}</td>
-          <td>${e.cost_price}</td>
-          <td>${e.sell_price}<br><small>Min: ${e.min_price}</small></td>
-          <td>
-            <button class="btn btn-sm btn-warning edit-eb">Edit</button>
-            <button class="btn btn-sm btn-danger del-eb">Deactivate</button>
-          </td>
-        </tr>
+        <tr data-id="${e.id}" data-active="${e.is_active}">
+    <td>${e.edgeband_name_label}</td>
+    <td>${e.thickness || "-"}</td>
+    <td>${e.cost_price}</td>
+    <td>${e.sell_price}</td>
+    <td class="${statusClass}">${statusLabel}</td>
+    <td>
+      <button class="btn btn-sm btn-warning edit-eb">Edit</button>
+      <button class="btn btn-sm ${btnClass} toggle-eb">${btnLabel}</button>
+    </td>
+  </tr>
       `);
     });
 
     ebNext = r.next;
     ebPrev = r.previous;
     edgebandsPage = params.page || 1;
-  });
+  }).fail(err => console.error(err));
 }
 
-$("#searchInput").on("input", debounce(function () {
-  loadEdgeBands({ page: 1 });
-}, 400));
+// toggle button
+$("#edgebandsTable").on("click", ".toggle-eb", function () {
+  const $row = $(this).closest("tr");
+  const id = $row.data("id");
+  const currentState = $row.find("td:nth-child(5)").text() === "Active";
+
+  $.ajax({
+    url: `${API.edgebands}${id}/`,
+    type: "PATCH",
+    contentType: "application/json",
+    data: JSON.stringify({ is_active: !currentState }),
+    headers: { "X-CSRFToken": window.CSRF_TOKEN }
+  })
+  .done(() => loadEdgeBands({ page: edgebandsPage }))
+  .fail(err => console.error(err));
+});
+
+// search debounce
+$("#searchInput").on("input", debounce(() => loadEdgeBands({ page: 1 }), 400));
+
 function debounce(fn, delay = 400) {
   let t;
   return function (...args) {
@@ -361,19 +386,24 @@ $("#edgebandsTable").on("click",".edit-eb",function(){
   });
 });
 
-/* SOFT DELETE */
-$("#edgebandsTable").on("click",".del-eb",function(){
-  const id=$(this).closest("tr").data("id");
-  if(!confirm("Deactivate this EdgeBand?")) return;
+$("#edgebandsTable").on("click", ".del-eb", function(){
+  const $row = $(this).closest("tr");
+  const id = $row.data("id");
+  const currentlyActive = $row.find("td.status").text() === "Active";
+  const action = currentlyActive ? "Deactivate" : "Activate";
+
+  if(!confirm(`${action} this EdgeBand?`)) return;
 
   $.ajax({
-    url: API.edgebands+id+"/",
-    method:"PATCH",
-    headers:{'X-CSRFToken':CSRF_TOKEN},
-    contentType:"application/json",
-    data: JSON.stringify({is_active:false})
-  }).done(()=>loadEdgeBands(edgebandsPage));
+    url: API.edgebands + id + "/",
+    method: "PATCH",
+    headers: { 'X-CSRFToken': CSRF_TOKEN },
+    contentType: "application/json",
+    data: JSON.stringify({ is_active: !currentlyActive })
+  }).done(() => loadEdgeBands(edgebandsPage))
+    .fail(err => console.error(err));
 });
+
 
 /* ================= EDGEBAND NAME CRUD ================= */
 $("#edgebandNameForm").submit(function(e){

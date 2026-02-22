@@ -1,6 +1,6 @@
 # material/views.py
 
-import logging
+
 from decimal import Decimal
 
 from django.shortcuts import render, get_object_or_404
@@ -50,6 +50,8 @@ def brand_list_page(request):
 def hardware_view(request):
     return render(request, "hardware_list.html")
 
+def brand_list_alpine(request):
+    return render(request,"brand_alpine.html")
 
 @login_required(login_url="/accounts/login/")
 def edgeband_list(request):
@@ -124,6 +126,9 @@ class WoodMaterialViewSet(TenantSafeViewSetMixin, ModelViewSet):
 
         if params.get("thickness"):
             qs = qs.filter(thickness_value=params["thickness"])
+        if params.get("grain"):
+            qs = qs.filter(grain=params("grain"))
+
 
         return qs
 
@@ -139,7 +144,7 @@ class WoodMaterialViewSet(TenantSafeViewSetMixin, ModelViewSet):
         return super().destroy(request, *args, **kwargs)
     
 class EdgeBandViewSet(TenantSafeViewSetMixin, ModelViewSet):
-    queryset = EdgeBand.objects.filter(is_active=True)
+    queryset = EdgeBand.objects.all()
     serializer_class = EdgeBandSerializer
     permission_classes = [IsAuthenticated]
 
@@ -163,6 +168,17 @@ class EdgeBandViewSet(TenantSafeViewSetMixin, ModelViewSet):
     def perform_destroy(self, instance):
         instance.is_active = False
         instance.save(update_fields=["is_active"])
+    # def get_queryset(self):
+    #     qs = EdgeBand.objects.all()
+    #     is_active = self.request.query_params.get("is_active")
+    #     if is_active is not None:
+    #         if is_active.lower() in ["true", "1"]:
+    #             qs = qs.filter(is_active=True)
+    #         elif is_active.lower() in ["false", "0"]:
+    #             qs = qs.filter(is_active=False)
+    #     else:
+    #         qs = qs.filter(is_active=True)  # default
+    #     return qs
 
     @action(detail=True, methods=["post"])
     def clone(self, request, pk=None):

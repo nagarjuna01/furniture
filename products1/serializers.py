@@ -10,6 +10,7 @@ from .models import (
     VariantImage,
     AttributeDefinition,
     VariantAttributeValue,
+    ProductBundle,ProductTemplate,
 )
 from material.models import MeasurementUnit, BillingUnit
 
@@ -134,7 +135,7 @@ class ProductVariantInlineSerializer(serializers.ModelSerializer):
             "length",
             "width",
             "height",
-            "weight",
+            
             "measurement_unit",
             "billing_unit",
             "purchase_price",
@@ -171,8 +172,31 @@ class ProductListSerializer(serializers.ModelSerializer):
     tenant = serializers.PrimaryKeyRelatedField(read_only=True)
     sku = serializers.CharField(read_only=True)
 
-    product_type = ProductTypeSerializer(read_only=True)
-    product_series = ProductSeriesSerializer(read_only=True)
+    # Flattened fields for display
+    product_type = serializers.CharField(
+        source="product_type.name",
+        read_only=True
+    )
+    product_series = serializers.CharField(
+        source="product_series.name",
+        read_only=True
+    )
+
+    # Write fields (for POST/PATCH)
+    product_type_id = serializers.PrimaryKeyRelatedField(
+        source='product_type',
+        queryset=ProductType.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    product_series_id = serializers.PrimaryKeyRelatedField(
+        source='product_series',
+        queryset=ProductSeries.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
 
     variants = ProductVariantInlineSerializer(many=True, read_only=True)
 
@@ -184,7 +208,9 @@ class ProductListSerializer(serializers.ModelSerializer):
             "name",
             "sku",
             "product_type",
+            "product_type_id",
             "product_series",
+            "product_series_id",
             "variants",
             "is_active",
             "created_at",
@@ -255,7 +281,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "length",
             "width",
             "height",
-            "weight",
+            
             "measurement_unit_id",
             "billing_unit_id",
             "purchase_price",
@@ -304,3 +330,57 @@ class ProductImageSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         request = self.context.get("request")
         return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+
+class ProductWriteSerializer(serializers.ModelSerializer):
+    tenant = serializers.PrimaryKeyRelatedField(read_only=True)
+    sku = serializers.CharField(read_only=True)
+
+    product_type_id = serializers.PrimaryKeyRelatedField(
+        source="product_type",
+        queryset=ProductType.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
+    product_series_id = serializers.PrimaryKeyRelatedField(
+        source="product_series",
+        queryset=ProductSeries.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "tenant",
+            "name",
+            "sku",
+            "product_type_id",
+            "product_series_id",
+            "is_active",
+        ]
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if request and hasattr(request.user, "tenant"):
+            validated_data["tenant"] = request.user.tenant
+        return super().create(validated_data)
+
+# catalog/serializers.py
+class ProductTemplateSerializer(serializers.ModelSerializer):
+    # Select2 needs 'id' and 'text'
+    text = serializers.CharField(source='name', read_only=True)
+
+    class Meta:
+        model = ProductTemplate
+        fields = ['id', 'text', 'sku', 'category'] # Add 'text' 
+        
+# products1/serializers.py
+class ProductBundleSerializer(serializers.ModelSerializer):
+    text = serializers.CharField(source='name', read_only=True)
+    product_type = serializers.ReadOnlyField(default='standard')
+
+    class Meta:
+        model = ProductBundle
+        fields = ['id', 'name', 'text', 'product_type', 'description']

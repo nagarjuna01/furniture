@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid" id="quote-app" data-quote-id="{{ quote_id }}">
+
+  <div class="card mb-3 border-0 shadow-sm">
+    <div class="card-body d-flex justify-content-between align-items-center">
+      <div>
+        <h4 id="quote-number" class="mb-0 text-primary fw-bold">Quote #---</h4>
+        <div class="d-flex align-items-center gap-2 mt-1">
+          <span class="badge bg-secondary" id="quote-status">LOADING...</span>
+          <small class="text-muted" id="last-saved"></small>
+        </div>
+      </div>
+      <div class="d-flex align-items-center justify-content-between mb-3 p-2 bg-light rounded border">
+    <div class="small text-muted">Target Zone:</div>
+    <div id="active-zone-badge" class="badge bg-danger">NO ZONE SELECTED</div>
+</div>
+      <div class="d-flex gap-2">
+        <button id="btn-approve" class="btn btn-outline-success btn-sm d-none">Approve Quote</button>
+        <button id="btn-lock" class="btn btn-danger btn-sm d-none"><i class="fas fa-lock me-1"></i>Lock</button>
+        <a id="btn-pdf" href="#" target="_blank" class="btn btn-outline-primary btn-sm d-none">
+            <i class="fas fa-file-pdf me-1"></i>Generate PDF
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-3">
+      
+      <div class="card mb-3 border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold py-3">Client Master Data</div>
+        <div class="card-body">
+          <h6 id="client-name-display" class="fw-bold mb-1">---</h6>
+          <p class="small text-muted mb-1"><i class="fas fa-envelope me-2"></i><span id="client-email-display">---</span></p>
+          <p class="small text-muted mb-1"><i class="fas fa-phone me-2"></i><span id="client-phone-display">---</span></p>
+          <hr>
+          <p class="small text-muted mb-0"><strong>Tax ID:</strong> <span id="client-tax-display">---</span></p>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center bg-white py-3">
+          <span class="fw-bold">Project Zones</span>
+          <button class="btn btn-sm btn-primary rounded-circle" id="btn-add-solution" title="Add Zone">+</button>
+        </div>
+        <div class="list-group list-group-flush" id="solution-list">
+            </div>
+      </div>
+
+      <div class="card mt-3 bg-dark text-white border-0 shadow-sm">
+        <div class="card-body">
+            <label class="small text-uppercase opacity-75">Grand Total (Inc. Tax)</label>
+            <h3 class="mb-0 fw-bold" id="quote-grand-total">$0.00</h3>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <label class="small text-muted fw-bold text-uppercase">Revision History</label>
+        <ul class="list-group list-group-flush small" id="revision-list"></ul>
+      </div>
+    </div>
+
+    <div class="col-md-9">
+      <div id="solution-canvas">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-drafting-compass fa-3x text-light mb-3"></i>
+                <h5 class="text-muted">Select a Project Zone to begin configuring DNA</h5>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div> 
+</div>
+
+<div class="modal fade" id="addSolutionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">Create New Project Zone</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label fw-bold">Zone Name</label>
+        <input type="text" id="new-solution-name" class="form-control" placeholder="e.g. Executive Office, Main Kitchen">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="btn-save-solution" class="btn btn-primary px-4">Create Zone</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="addProductModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">Configure Item for <span id="target-solution-name" class="text-info"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group mb-3">
+                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="search-input" class="form-control border-start-0" placeholder="Search Catalog DNA (Cabinets, Tables, Bundles)...">
+                </div>
+
+                <div id="search-results" class="list-group mb-3 border rounded shadow-sm d-none" style="max-height: 200px; overflow-y: auto;">
+                    </div>
+
+                <div id="config-panel" class="d-none">
+                    <div class="card bg-light border-0 mb-3">
+                        <div class="card-body">
+                            <h6 class="fw-bold mb-3"><i class="fas fa-sliders-h me-2"></i>Dimensions & Specs</h6>
+                            <div class="row g-3">
+                                <div class="col-4">
+                                    <label class="small fw-bold">Length (mm)</label>
+                                    <input type="number" id="inp-L" class="form-control" value="0">
+                                </div>
+                                <div class="col-4">
+                                    <label class="small fw-bold">Width (mm)</label>
+                                    <input type="number" id="inp-W" class="form-control" value="0">
+                                </div>
+                                <div class="col-4">
+                                    <label class="small fw-bold">Height (mm)</label>
+                                    <input type="number" id="inp-H" class="form-control" value="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Quantity</label>
+                            <input type="number" id="inp-Qty" class="form-control" value="1" min="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="btn-save-item" class="btn btn-primary d-none px-4">Add to Engine</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="diffModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header"><h5>Revision Audit Log</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" id="diff-content"></div>
+        </div>
+    </div>
+</div>
+{% include "register_component.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/quote_workspace1.js' %}"></script>
+<script src="{% static 'js/registry_engine.js' %}"></script>
+{% endblock %}

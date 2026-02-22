@@ -235,7 +235,11 @@ class WoodMaterialSerializer(serializers.ModelSerializer):
         queryset=Brand.objects.all(),
         allow_null=True, required=False
     )
-    
+    grain_label = serializers.CharField(
+        source="get_grain_display",
+        read_only=True
+    )
+
     length_unit = serializers.PrimaryKeyRelatedField(
         queryset=MeasurementUnit.objects.all()
     )
@@ -258,15 +262,7 @@ class WoodMaterialSerializer(serializers.ModelSerializer):
     material_model_label = serializers.CharField(source="material_model.name", read_only=True)
     brand_label = serializers.CharField(source="brand.name", read_only=True)
 
-    # ---------- Computed prices ----------
-    length_mm = serializers.SerializerMethodField()
-    width_mm = serializers.SerializerMethodField()
-    thickness_mm = serializers.SerializerMethodField()
-    cost_price_sft = serializers.SerializerMethodField(read_only=True)
-    cost_price_panel = serializers.SerializerMethodField(read_only=True)
-    sell_price_sft = serializers.SerializerMethodField(read_only=True)
-    sell_price_panel = serializers.SerializerMethodField(read_only=True)
-
+    
     # ---------- Tenant readonly ----------
     tenant_id = serializers.IntegerField(
         source="tenant.id", read_only=True
@@ -279,27 +275,24 @@ class WoodMaterialSerializer(serializers.ModelSerializer):
         model = WoodMaterial
         fields = [
             "id",
-
             "material_grp",
             "material_type",
             "material_model",
-
             "name",
             "brand",
             "brand_label",
+            "grain",
+            "grain_label",
             "material_grp_label",
-            "material_type_label","material_model_label",
+            "material_type_label",
+            "material_model_label",
             "length_value", "length_unit",
             "width_value", "width_unit",
             "thickness_value", "thickness_unit",
-
             "cost_price", "cost_unit",
             "sell_price", "sell_unit",
-
             "is_sheet",
             "is_active",
-
-            # computed
             "length_mm",
             "width_mm",
             "thickness_mm",
@@ -307,8 +300,6 @@ class WoodMaterialSerializer(serializers.ModelSerializer):
             "cost_price_panel",
             "sell_price_sft",
             "sell_price_panel",
-
-            # tenant
             "tenant_id",
             "tenant_name",
         ]
@@ -316,7 +307,11 @@ class WoodMaterialSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "tenant_id",
             "tenant_name",
-            "brand_label","material_grp_label","material_type_label","material_model_label",
+            "brand_label",
+            "material_grp_label",
+            "material_type_label",
+            "material_model_label",
+            "grain_label",
             "length_mm",
             "width_mm",
             "thickness_mm",
@@ -325,62 +320,26 @@ class WoodMaterialSerializer(serializers.ModelSerializer):
             "sell_price_sft",
             "sell_price_panel",
         )
-    
 
-    def _to_mm(self, value, unit):
-        if not value or not unit:
-            return None
+        extra_kwargs = {
+            "name": {"validators": []},  # 🔥 disables name-only uniqueness
+        }
 
-        mm_unit = MeasurementUnit.objects.get(code="MM")
-
-        return UnitConversionService.convert(
-            value=value,
-            from_unit=unit,
-            to_unit=mm_unit
-        )
-    def get_length_mm(self, obj):
-        return self._to_mm(obj.length_value, obj.length_unit)
-
-    def get_width_mm(self, obj):
-        return self._to_mm(obj.width_value, obj.width_unit)
-
-    def get_thickness_mm(self, obj):
-        return self._to_mm(obj.thickness_value, obj.thickness_unit)
-
-    # ---------- Computed methods ----------
-    def get_cost_price_sft(self, obj):
-        return WoodPricingService.cost_price_per_sft(obj)
-
-    def get_cost_price_panel(self, obj):
-        return WoodPricingService.cost_price_per_panel(obj)
-
-    def get_sell_price_sft(self, obj):
-        return WoodPricingService.sell_price_per_sft(obj)
-
-    def get_sell_price_panel(self, obj):
-        return WoodPricingService.sell_price_per_panel(obj)
-
-    # ---------- Validation ----------
-    def validate_name(self, value):
-        tenant = self.context["request"].user.tenant
-        qs = WoodMaterial.objects.filter(
-            tenant=tenant,
-            name__iexact=value
-        )
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise serializers.ValidationError(
-                f"WoodMaterial '{value}' already exists."
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=WoodMaterial.objects.all(),
+                fields=[
+                    
+                    "material_grp",
+                    "material_type",
+                    "material_model",
+                    "name",
+                    "brand",
+                    "grain",
+                ],
+                message="Material with this combination already exists."
             )
-        return value
-
-    
-
-    @transaction.atomic
-    def update(self, instance, validated_data):
-        return super().update(instance, validated_data)
-
+        ]
 
 # -------------------------------
 # EdgeBand Serializer
@@ -410,7 +369,12 @@ class EdgeBandSerializer(serializers.ModelSerializer):
         source="edgeband_name.name",
         read_only=True
     )
-    
+    depth = serializers.DecimalField(
+        source="edgeband_name.depth", 
+        max_digits=10, 
+        decimal_places=2, 
+        read_only=True
+    )
 
     tenant_id = serializers.IntegerField(
         source="tenant.id",
@@ -433,7 +397,7 @@ class EdgeBandSerializer(serializers.ModelSerializer):
             "wastage_pct",
             "min_price",
             "edgeband_name_label",
-            
+            "depth",
             "tenant_id",
             "tenant_name",
             "is_active",
@@ -443,6 +407,7 @@ class EdgeBandSerializer(serializers.ModelSerializer):
             "tenant_id",
             "tenant_name",
             "min_price",
+            "depth",
         )
 
     def get_min_price(self, obj):
@@ -487,10 +452,20 @@ class HardwareGroupSerializer(serializers.ModelSerializer):
 
     def validate_name(self, value):
         tenant = self.context["request"].user.tenant
-        # Case-insensitive check for this tenant
-        if HardwareGroup.objects.filter(tenant=tenant, name__iexact=value).exists():
+
+        qs = HardwareGroup.objects.filter(
+            tenant=tenant,
+            name__iexact=value
+        )
+
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
             raise serializers.ValidationError("Hardware group already exists")
+
         return value
+
 
     def create(self, validated_data):
         validated_data["tenant"] = self.context["request"].user.tenant

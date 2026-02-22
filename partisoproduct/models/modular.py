@@ -1,13 +1,13 @@
 import uuid
 from django.db import models
-
+from accounts.models.base import GlobalOrTenantModel
 PRODUCT_STATUS_CHOICES = [
     ('draft', 'Draft'),
     ('active', 'Active'),
     ('archived', 'Archived'),
 ]
 
-class Modular1(models.Model):
+class Modular1(GlobalOrTenantModel):
     uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     name = models.CharField(max_length=255, unique=True)
 
@@ -38,7 +38,7 @@ class Modular1(models.Model):
         verbose_name_plural = "Modular Products"
 
 
-class Constraint(models.Model):
+class Constraint(GlobalOrTenantModel):
     modular_product = models.ForeignKey(Modular1, on_delete=models.CASCADE, related_name='product_parameters')
     name = models.CharField(max_length=100)
     abbreviation = models.CharField(max_length=20)
@@ -53,7 +53,7 @@ class Constraint(models.Model):
         return f"{self.abbreviation} = {self.value}"
 
 
-class HardwareRule(models.Model):
+class HardwareRule(GlobalOrTenantModel):
     modular_product = models.ForeignKey(Modular1, on_delete=models.CASCADE, related_name='hardware_rules')
     name = models.CharField(max_length=100, help_text="e.g. '2 per door'")
     equation = models.CharField(max_length=255, help_text="e.g. 'num_doors * 2'")
@@ -67,7 +67,7 @@ class HardwareRule(models.Model):
     def __str__(self):
         return self.name
 
-class AttractiveCosts(models.Model):
+class AttractiveCosts(GlobalOrTenantModel):
     typeofcost = models.CharField(max_length=100)
     
     # Store the equation as a string instead of a hardcoded number

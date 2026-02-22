@@ -28,7 +28,7 @@ urlpatterns = [
     path('products1/', include('products1.urls')),  # Product app URL routing
     path('customers/', include('customer.urls')),  # Customers URLs
     path('accounts/',include('accounts.urls')),
-    path('partiso/', include('partisoproduct.urls')),  # partisoproduct URLs
+    #path('partiso/', include('partisoproduct.urls')),  # partisoproduct URLs
     path('modularcalc/', include('modular_calc.urls')),  # Modular_calc URLs
     path('quoting/', include('quoting.urls')),  # quoting URLs
     #path('standprod/',include('standprod.urls')),

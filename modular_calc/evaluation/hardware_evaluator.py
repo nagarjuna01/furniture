@@ -1,23 +1,28 @@
+#modular_calc/evaluation/hardware_evaluator.py
 from typing import Dict
 from .evaluator import ExpressionEvaluator
 from .context import ProductContext, to_decimal
 from decimal import Decimal
 
 class HardwareEvaluator:
-    """Evaluate hardware quantity per part or product."""
+    """Evaluate hardware quantity per part or product using MAX logic."""
 
     def __init__(self, hardware_rule, context: Dict[str, Decimal]):
         self.hardware_rule = hardware_rule
         self.evaluator = ExpressionEvaluator(context)
 
     def evaluate(self) -> Dict[str, Decimal] | None:
-        # Check applicability condition
+        base_qty = self.evaluator.eval(self.hardware_rule.quantity_equation) or 0
+        
+        condition_val = 0
         if getattr(self.hardware_rule, "applicability_condition", None):
-            if not self.evaluator.eval(self.hardware_rule.applicability_condition):
-                return None  # skip
+            condition_val = self.evaluator.eval(self.hardware_rule.applicability_condition) or 0
 
-        qty = self.evaluator.eval(self.hardware_rule.quantity_equation)
+        final_qty = max(to_decimal(base_qty), to_decimal(condition_val))
+        if final_qty <= 0:
+            return None
         return {
-            "hardware": self.hardware_rule.hardware.name,
-            "quantity": to_decimal(qty)
+            "hardware": self.hardware_rule.hardware.h_name,
+            "quantity": final_qty,
+            "hardware_obj": self.hardware_rule.hardware
         }

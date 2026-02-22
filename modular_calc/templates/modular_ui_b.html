@@ -1,294 +1,223 @@
-
-<!-- =================== GEOMETRY MODAL =================== -->
-<div class="modal fade" id="geometryModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Edit Part Geometry</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-
-        <!-- === SVG UPLOAD & PREVIEW === -->
-        <div class="mb-3">
-          <label for="geom-svg-upload" class="form-label">Upload Part SVG (optional)</label>
-          <input id="geom-svg-upload" type="file" accept=".svg" class="form-control mb-2">
-          <div id="geom-svg-preview" class="p-3 border rounded bg-white" style="min-height:150px;">
-            <p class="text-muted mb-0">SVG preview will appear here after upload</p>
-          </div>
-        </div>
-
-        <!-- === EQUATIONS === -->
-        <h6 class="mt-3">Equations (Optional if using SVG)</h6>
-        <div class="mb-2">
-          <label for="geom-length-eq" class="form-label">Length Equation:</label>
-          <input id="geom-length-eq" class="form-control" placeholder="e.g., product_height">
-        </div>
-
-        <div class="mb-2">
-          <label for="geom-width-eq" class="form-label">Width Equation:</label>
-          <input id="geom-width-eq" class="form-control" placeholder="e.g., product_width - part_thickness">
-        </div>
-
-        <div class="mb-2">
-          <label for="geom-qty-eq" class="form-label">Quantity Equation:</label>
-          <input id="geom-qty-eq" class="form-control" placeholder="e.g., 1 or floor(product_width / 600)">
-        </div>
-
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button id="save-geometry-btn" class="btn btn-primary">Save Geometry</button>
-      </div>
-    </div>
-  </div>
-</div>
-<!-- =============== MATERIAL MODAL ========================== -->
-<div class="modal fade" id="materialModal" tabindex="-1">
+<!-- ================= PART TEMPLATE MODAL ================= -->
+<div class="modal fade" id="partTemplateModal" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
 
       <div class="modal-header">
-        <h5 class="modal-title">Select Materials</h5>
+        <h5 class="modal-title">Part Template</h5>
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
       <div class="modal-body">
 
-        <!-- FILTERS -->
-        <div id="material-filters" class="mb-3">
-          <div class="row g-2 mb-2">
-            <div class="col">
-              <select id="filter-material-group" class="form-select">
+        <!-- PART NAME -->
+        <h5 class="modal-title">
+  Part Template:
+  <div class="mb-3">
+    <label class="form-label fw-bold">Part Name</label>
+    <input type="text" id="part-template-name" class="form-control text-primary fw-bold" placeholder="Enter part name..." disabled>
+</div>
+  
+</h5>
+
+        <!-- TABS -->
+        <ul class="nav nav-tabs mb-2">
+          <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#pt-geometry">Geometry</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#pt-material">Material</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#pt-hardware">Hardware</a></li>
+        </ul>
+
+        <div class="tab-content">
+<div class="tab-pane fade show active" id="pt-geometry">
+    <div class="row g-3">
+        <div class="col-md-7 border-end">
+            <div class="row g-2">
+                <div class="col-12 mb-2">
+                    <label class="form-label fw-bold text-primary">Base Shape Type</label>
+                    <select id="pt-shape-type" class="form-select border-primary bg-light-subtle" onchange="handleShapeChange()">
+                        <optgroup label="Standard">
+                            <option value="RECT">Standard Rectangle</option>
+                            <option value="CIRC">Circular / Disk</option>
+                        </optgroup>
+                        <optgroup label="Complex (CNC Path Required)">
+                            <option value="L_SHAPE">L-Shape (Corner)</option>
+                            <option value="U_SHAPE">U-Shape (Channel)</option>
+                            <option value="RADIUS_CNR">Radius Corner</option>
+                            <option value="CLIP">Clipped Corner</option>
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <div class="col-md-4" id="col-len">
+                    <label id="lbl-len" class="form-label small fw-semibold">Length Equation</label>
+                    <input id="pt-len-eq" class="form-control font-monospace" placeholder="e.g., L">
+                </div>
+                <div class="col-md-4" id="col-wid">
+                    <label id="lbl-wid" class="form-label small fw-semibold">Width Equation</label>
+                    <input id="pt-wid-eq" class="form-control font-monospace" placeholder="e.g., W">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Qty Equation</label>
+                    <input id="pt-qty-eq" class="form-control font-monospace" value="1">
+                </div>
+                
+                <div id="pt-extra-params" class="col-12 mt-2 d-none">
+                    <div class="row g-2">
+                        <div class="col-md-6" id="col-p1">
+                            <label id="lbl-p1" class="form-label small fw-bold text-danger">Param 1</label>
+                            <input id="pt-p1-eq" class="form-control form-control-sm font-monospace">
+                        </div>
+                        <div class="col-md-6" id="col-p2">
+                            <label id="lbl-p2" class="form-label small fw-bold text-danger">Param 2</label>
+                            <input id="pt-p2-eq" class="form-control form-control-sm font-monospace">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <hr class="my-3">
+            <label class="form-label fw-bold m-0 small text-muted">2D SVG / CNC Path</label>
+            <textarea id="pt-svg" rows="3" class="form-control font-monospace small mt-1" oninput="updateSVGPreview()"></textarea>
+        </div>
+
+        <div class="col-md-5">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label small fw-bold text-muted m-0">Edgeband Mapping</label>
+                <button type="button" class="btn btn-link btn-sm p-0 text-danger text-decoration-none" style="font-size: 0.7rem;" onclick="window.resetBanding()">
+                    Reset All
+                </button>
+            </div>
+
+            <div id="pt-svg-preview-container" class="border rounded bg-white d-flex align-items-center justify-content-center shadow-sm" 
+                 style="height: 160px; position: relative; border-style: dashed !important;">
+                
+                <svg id="part-preview-svg" viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+                    <rect x="20" y="20" width="60" height="60" fill="rgba(13, 110, 253, 0.05)" pointer-events="none" />
+                    
+                    <path id="path-top" d="M 20,20 L 80,20" stroke="#dee2e6" stroke-width="8" fill="transparent" onclick="window.toggleEdgeClick('top')" cursor="pointer" />
+                    <path id="path-right" d="M 80,20 L 80,80" stroke="#dee2e6" stroke-width="8" fill="transparent" onclick="window.toggleEdgeClick('right')" cursor="pointer" />
+                    <path id="path-bottom" d="M 80,80 L 20,80" stroke="#dee2e6" stroke-width="8" fill="transparent" onclick="window.toggleEdgeClick('bottom')" cursor="pointer" />
+                    <path id="path-left" d="M 20,80 L 20,20" stroke="#dee2e6" stroke-width="8" fill="transparent" onclick="window.toggleEdgeClick('left')" cursor="pointer" />
+                    
+                    <text x="50" y="53" text-anchor="middle" font-size="6" fill="#adb5bd" pointer-events="none" font-weight="bold">CLICK EDGES</text>
+                </svg>
+
+                <div class="d-none">
+                    <input type="checkbox" id="eb-top">
+                    <input type="checkbox" id="eb-right">
+                    <input type="checkbox" id="eb-bottom">
+                    <input type="checkbox" id="eb-left">
+                </div>
+            </div>
+            
+            <div id="edgeband-summary-text" class="x-small text-center mt-2 text-primary fw-semibold" style="font-size: 0.75rem;">
+                Raw Edges
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="tab-pane fade" id="pt-material">
+    <h6 class="mb-2 fw-bold text-secondary">Advanced Filters</h6>
+    <div class="row g-2 mb-3">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold text-muted">Material Group</label>
+            <select id="filter-material-group" class="form-select form-select-sm">
                 <option value="">All Groups</option>
-              </select>
-            </div>
-
-            <div class="col">
-              <select id="filter-material-type" class="form-select">
+            </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold text-muted">Material Type</label>
+            <select id="filter-material-type" class="form-select form-select-sm">
                 <option value="">All Types</option>
-              </select>
-            </div>
-
-            <div class="col">
-              <select id="filter-material-model" class="form-select">
+            </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold text-muted">Material Model</label>
+            <select id="filter-material-model" class="form-select form-select-sm">
                 <option value="">All Models</option>
-              </select>
-            </div>
-
-            <div class="col">
-              <select id="filter-material-brand" class="form-select">
+            </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">Material Brand</label>
+            <select id="filter-material-brand" class="form-select form-select-sm">
                 <option value="">All Brands</option>
-              </select>
-            </div>
-
-            <div class="col">
-              <select id="filter-material-thickness" class="form-select">
-                <option value="">All Thickness</option>
-              </select>
-            </div>
-          </div>
+            </select>
         </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">Material thickness</label>
+            <select id="filter-material-thickness" class="form-select form-select-sm">
+                <option value="">All Thicknesses</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold text-muted">Grain Direction</label>
+        <select id="filter-material-grain" class="form-select form-select-sm">
+            <option value="">All Grain Types</option>
+        </select>
+    </div>
+    </div>
 
-        <!-- MATERIAL TABLE -->
-        <table class="table table-sm table-bordered">
-          <thead class="table-light">
+    <div class="table-responsive border rounded" style="max-height: 250px; overflow-y: auto;">
+    <table class="table table-sm table-hover align-middle m-0" style="font-size: 0.85rem;">
+        <thead class="table-light sticky-top">
             <tr>
-              <th>Name</th>
-              <th>Thickness</th>
-              <th>Brand</th>
-              <th>Whitelist</th>
-              <th>Default</th>
+                <th>Material Name</th>
+                <th>THK</th>
+                <th class="text-center" style="width: 100px;">Whitelist</th>
             </tr>
-          </thead>
-          <tbody id="material-body"></tbody>
-        </table>
-
-        <!-- SELECTED MATERIALS -->
-        <div class="mt-3">
-          <h6>Selected Materials:</h6>
-          <div id="selected-materials" class="border p-2"></div>
-        </div>
-
-        <div class="mt-3">
-          <h6>Default Material:</h6>
-          <div id="default-material" class="border p-2"></div>
-        </div>
-
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="reset-material-filters">Reset Filters</button>
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button id="save-material-btn" class="btn btn-primary">Save Materials</button>
-      </div>
-
-    </div>
-  </div>
+        </thead>
+        <tbody id="material-body">
+            </tbody>
+    </table>
 </div>
 
-<!-- Edgeband Modal -->
-<div class="modal fade" id="edgebandModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Select Edgebands</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body">
-
-        <div class="row" id="edgeband-sides"></div>
-
-        <hr>
-        <div id="selected-edgebands" class="small text-muted"></div>
-
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-          Cancel
-        </button>
-        <button type="button" class="btn btn-primary" id="save-edgeband-btn">
-          Save
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- =============== HARDWARE MODAL ========================== -->
-
-  <!-- =============== PART HARDWARE MODAL ===================== -->
-<div class="modal fade" id="hardwareModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Part Hardware</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body">
-
-        <!-- Filters -->
-        <div class="row mb-3">
-          <div class="col">
-            <select class="form-select filter-hw-group" data-type="part">
-              <option value="">All Groups</option>
-            </select>
-          </div>
-
-          <div class="col">
-            <select class="form-select filter-hw-name" data-type="part">
-              <option value="">All Hardware</option>
-            </select>
-          </div>
+    <div class="mt-3 p-2 bg-light border rounded">
+    <div class="mb-1">
+        <span class="small fw-bold text-muted text-uppercase">Active Whitelist:</span>
+        <div id="selected-materials" class="mt-1 d-flex flex-wrap gap-1">
+            <span class="text-muted small italic">No materials whitelisted</span>
         </div>
-
-        <table class="table table-sm align-middle">
-  <thead class="table-light">
-    <tr>
-      <th style="width: 5%;" class="text-center">Select</th>
-      <th style="width: 25%;">Hardware</th>
-      <th style="width: 10%;">Unit</th>
-      <th style="width: 30%;">Quantity / Equation</th>
-      <th style="width: 30%;">Condition</th>
-    </tr>
-  </thead>
-  <tbody id="part-hardware-body">
-    </tbody>
-</table>
-
-        <hr>
-
-        <!-- Summary -->
-        <div id="selected-part-hardware"></div>
-
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-primary" id="save-part-hardware-btn">Save</button>
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-      </div>
     </div>
-  </div>
-</div>
+    </div>
+    </div>
 
-
-<div class="modal fade" id="productHardwareModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content shadow-lg">
-
-      <div class="modal-header bg-dark text-white">
-        <h5 class="modal-title"><i class="bi bi-cpu me-2"></i>Product Hardware </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="row g-2 mb-3">
-          <div class="col-md-6">
-            <label class="small fw-bold">Filter Group</label>
-            <select class="form-select filter-hw-group" data-type="product">
-              <option value="">All Groups</option>
+<!-- ================= HARDWARE ================= -->
+          <div class="tab-pane fade" id="pt-hardware">
+    <div class="row g-2 mb-3 bg-light p-2 rounded border">
+        <div class="col-md-6">
+            <select class="form-select form-select-sm" id="hw-filter-group" onchange="renderHardwareTable()">
+                <option value="">All Groups</option>
             </select>
-          </div>
-          <div class="col-md-6">
-            <label class="small fw-bold">Search Hardware</label>
-            <select class="form-select filter-hw-name" data-type="product">
-              <option value="">All Hardware</option>
-            </select>
-          </div>
         </div>
+        <div class="col-md-6">
+            <input type="text" class="form-control form-control-sm" id="hw-search" 
+                   placeholder="Search hardware name..." onkeyup="renderHardwareTable()">
+        </div>
+    </div>
 
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th style="width: 5%;">Select</th>
-                <th style="width: 30%;">Hardware Name</th>
-                <th style="width: 15%;">Unit</th>
-                <th style="width: 50%;">Quantity / Equation Logic</th>
-              </tr>
+    <div class="table-responsive" style="max-height: 400px;">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light sticky-top">
+                <tr>
+                    <th style="width: 40px;"></th>
+                    <th>Hardware Details</th>
+                    <th style="width: 150px;">Quantity Eq.</th>
+                    <th style="width: 150px;">Condition</th>
+                </tr>
             </thead>
-            <tbody id="product-hardware-body">
-              </tbody>
-          </table>
-        </div>
-
-        <div id="selected-product-hardware" class="mt-3"></div>
-      </div>
-
-      <div class="modal-footer bg-light">
-        <div class="me-auto">
-          <small class="text-muted"><i class="bi bi-info-circle"></i> Use equations like <code>L > 10 ? 2 : 1</code> for parametric logic.</small>
-        </div>
-        <button class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
-        <button class="btn btn-primary px-4" id="save-product-hardware-btn">
-          <i class="bi bi-check-lg"></i> Save Hardware Rules
-        </button>
-      </div>
-
+            <tbody id="pt-hardware-body">
+                </tbody>
+        </table>
     </div>
-  </div>
 </div>
 
-<div class="modal fade" id="quotationModal" tabindex="-1">
-  <div class="modal-dialog modal-md">
-    <div class="modal-content">
-
-      <div class="modal-header">
-        <h5 class="modal-title">Generate Quotation</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body">
-          <p>Quotation feature placeholder…</p>
+       
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button class="btn btn-primary">Generate</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-success" id="save-part-template-btn">Save Part</button>
       </div>
 
     </div>

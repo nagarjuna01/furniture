@@ -1,4 +1,4 @@
-{% extends "base_b.html" %}
+{% extends "base.html" %}
 {% load static %}
 {% block title %}Product Master{% endblock %}
 
@@ -210,7 +210,7 @@
 
 
             <!-- Product List -->
-            <div id="product-list-container"></div>
+            <div id="product-list-container" class="row g-3"></div>
 
             <!-- Pagination -->
             <div class="d-flex justify-content-between mt-3">
@@ -314,8 +314,56 @@
 
 </div>
 
+<div class="modal fade" id="productShowcaseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="showcase-title">Product Specification View</h5>
+                
+            </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <h6 class="text-muted border-bottom pb-1">General Info</h6>
+                        <p><strong>Category:</strong> <span id="showcase-category">-</span></p>
+                        <p><strong>Type:</strong> <span id="showcase-type">-</span></p>
+                        <p><strong>Model:</strong> <span id="showcase-model">-</span></p>
+                    </div>
+                    <div class="col-md-8">
+                        <h6 class="text-muted border-bottom pb-1">Logic & Expressions</h6>
+                        <p><strong>Validation Expression:</strong> <code id="showcase-validation" class="bg-light p-1 rounded">-</code></p>
+                    </div>
+                </div>
+                
+                <h6 class="text-muted border-bottom pb-1">Parameters (Input Variables)</h6>
+                <table class="table table-sm table-hover mb-4">
+                    <thead class="table-light">
+                        <tr><th>Name</th><th>Abbreviation</th><th>Default Value</th><th>Description</th></tr>
+                    </thead>
+                    <tbody id="showcase-params-body"></tbody>
+                </table>
+
+                <h6 class="text-muted border-bottom pb-1">Part Templates (Manufacturing Geometry)</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped border">
+                        <thead class="table-dark">
+                            <tr><th>Part Name</th><th>Length Equation</th><th>Width Equation</th><th>Qty</th></tr>
+                        </thead>
+                        <tbody id="showcase-parts-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Finished Viewing</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 {% block extra_js %}
 <script src="{% static 'JS/MProduct.js' %}"></script>
+
+
 {% endblock %}
+

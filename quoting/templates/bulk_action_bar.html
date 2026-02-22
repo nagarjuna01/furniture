@@ -1,0 +1,26 @@
+<div class="card mb-3 border-0 shadow-sm bg-primary text-white" 
+     x-show="bulk.selectedIds.length > 0"
+     x-transition:enter="transition ease-out duration-300"
+     x-transition:enter-start="opacity-0 transform -translate-y-2">
+     
+  <div class="card-body d-flex justify-content-between align-items-center">
+    <div>
+      <i class="fas fa-check-square me-2"></i>
+      <strong>
+        <span x-text="bulk.selectedIds.length"></span> products selected
+      </strong>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-light btn-sm" @click="bulk.runAction('expand')">
+        <i class="fas fa-layer-group me-1"></i> Expand DNA
+      </button>
+      <button class="btn btn-light btn-sm" @click="bulk.runAction('freeze')">
+        <i class="fas fa-snowflake me-1"></i> Freeze Prices
+      </button>
+      <button class="btn btn-warning btn-sm" @click="bulk.runAction('recalc')">
+        <i class="fas fa-sync me-1"></i> Recalculate
+      </button>
+    </div>
+  </div>
+</div>

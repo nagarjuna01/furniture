@@ -2,7 +2,7 @@ from accounts.mixins import TenantSafeMixin
 from rest_framework import serializers
 
 
-class TenantSafeMixin(serializers.Serializer):
+class TenantSafeSerializerMixin(serializers.Serializer):
     tenant_field_map = {}
 
     def validate(self, data):
@@ -24,7 +24,7 @@ from .models import GlobalVariable
 class GlobalVariableSerializer(serializers.ModelSerializer):
     class Meta:
         model = GlobalVariable
-        fields = ['id', 'name', 'abbr', 'value', 'category', 'description']
+        fields = ['id', 'name', 'abbr', 'value', 'category']
         read_only_fields = ['id']
 
     def validate_abbr(self, value):

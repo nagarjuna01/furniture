@@ -233,8 +233,8 @@ $(function() {
                                 <h6 class="mb-1">${product.name}</h6>
                                 <div class="small text-muted">
                                     SKU: ${product.sku || '—'} |
-                                    Type: ${product.product_type?.name || '—'} |
-                                    Model: ${product.product_series?.name || '—'}
+                                    Type: ${product.product_type || '—'} |
+                                    Model: ${product.product_series || '—'}
                                 </div>
                                 <div class="mt-2">${statusBtn}</div>
                             </div>
@@ -355,7 +355,7 @@ $(function() {
         $.ajax({
             url,
             method,
-            headers: { 'X-CSRFToken': csrftoken },
+            headers: { 'X-CSRFToken': Window.CSRF_TOKEN },
             contentType: 'application/json', // Important for sending JSON data
             data: JSON.stringify(payload),
             success: function (productResponse) {
@@ -434,7 +434,7 @@ $(function() {
         const promise = $.ajax({
             url: productImageApi.upload(productId),
             method: 'POST',
-            headers: { 'X-CSRFToken': csrftoken },
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN },
             processData: false,
             contentType: false,
             data: formData,
@@ -532,7 +532,7 @@ $(document).on('click', '.btn-delete-product-image', function () {
         $.ajax({
             url: productApi.detail(productId), // Use productApi.detail for PATCH
             method: 'PATCH',
-            headers: { 'X-CSRFToken': csrftoken },
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN },
             contentType: 'application/json',
             data: JSON.stringify({ is_active: newStatus }),
             success: function (updated) {

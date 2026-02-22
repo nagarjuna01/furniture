@@ -1,139 +1,224 @@
-{% extends 'base_crm.html' %}
+{% extends 'base.html' %}
 {% block title %}Opportunities{% endblock %}
 
 {% block content %}
-<h3>Opportunities</h3>
-<button class="btn btn-primary my-2" data-bs-toggle="modal" data-bs-target="#opportunityModal">Add Opportunity</button>
+<div x-data="opportunityApp()" x-init="init()">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Opportunities</h3>
+        <button class="btn btn-primary" @click="openModal()">Add Opportunity</button>
+    </div>
 
-<table class="table table-bordered" id="opportunities-table">
-    <thead>
-        <tr>
-            <th>ID</th><th>Name</th><th>Lead</th><th>Customer</th><th>Stage</th><th>Expected Close</th><th>Amount</th><th>Actions</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
-
-<!-- Modal for Create/Edit -->
-<div class="modal fade" id="opportunityModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <form id="opportunity-form" class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Opportunity</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        {% csrf_token %}
-        <input type="hidden" id="opportunity-id">
-        <div class="mb-3"><label>Name</label><input type="text" id="name" class="form-control" required></div>
-        <div class="mb-3"><label>Lead ID</label><input type="number" id="lead" class="form-control"></div>
-        <div class="mb-3"><label>Customer ID</label><input type="number" id="customer" class="form-control"></div>
-        <div class="mb-3">
-            <label>Stage</label>
-            <select id="stage" class="form-select">
-                <option value="prospecting">Prospecting</option>
-                <option value="qualification">Qualification</option>
-                <option value="proposal">Proposal</option>
-                <option value="negotiation">Negotiation</option>
-                <option value="closed_won">Closed Won</option>
-                <option value="closed_lost">Closed Lost</option>
-            </select>
+    <div class="card mb-3 shadow-sm">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="small fw-bold">Search Name/Lead</label>
+                    <input type="text" x-model="filters.search" class="form-control" placeholder="Search..." @input.debounce.500ms="fetchOpportunities()">
+                </div>
+                <div class="col-md-4">
+                    <label class="small fw-bold">Stage</label>
+                    <select x-model="filters.stage" class="form-select" @change="fetchOpportunities()">
+                        <option value="">All Stages</option>
+                        <option value="prospecting">Prospecting</option>
+                        <option value="qualification">Qualification</option>
+                        <option value="proposal">Proposal</option>
+                        <option value="negotiation">Negotiation</option>
+                        <option value="closed_won">Closed Won</option>
+                        <option value="closed_lost">Closed Lost</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="small fw-bold">Min Amount</label>
+                    <input type="number" x-model="filters.minAmount" class="form-control" placeholder="0.00" @input.debounce.500ms="fetchOpportunities()">
+                </div>
+            </div>
         </div>
-        <div class="mb-3"><label>Expected Close Date</label><input type="date" id="expected_close_date" class="form-control"></div>
-        <div class="mb-3"><label>Amount</label><input type="number" step="0.01" id="amount" class="form-control"></div>
-        <div class="mb-3"><label>Probability (%)</label><input type="number" step="0.01" id="probability" class="form-control" value="0"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-primary">Save</button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-      </div>
-    </form>
-  </div>
+    </div>
+
+    <table class="table table-hover border">
+        <thead class="table-light">
+            <tr>
+                <th>ID</th><th>Name</th><th>Lead</th><th>Customer</th><th>Stage</th><th>Expected Close</th><th>Amount</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <template x-for="o in opportunities" :key="o.id">
+                <tr>
+                    <td x-text="o.id"></td>
+                    <td class="fw-bold" x-text="o.name"></td>
+                    <td x-text="o.lead || '-'"></td>
+                    <td x-text="o.customer || '-'"></td>
+                    <td>
+                        <span class="badge" :class="getStageClass(o.stage)" x-text="formatStage(o.stage)"></span>
+                    </td>
+                    <td x-text="o.expected_close_date || '-'"></td>
+                    <td x-text="formatCurrency(o.amount)"></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-warning" @click="editOpportunity(o)">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" @click="deleteOpportunity(o.id)">Delete</button>
+                    </td>
+                </tr>
+            </template>
+        </tbody>
+    </table>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div class="text-muted small">
+            Total Records: <span x-text="totalCount"></span>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-outline-secondary btn-sm" :disabled="!pagination.previous" @click="fetchOpportunities(pagination.previous)">Previous</button>
+            <button class="btn btn-outline-secondary btn-sm" :disabled="!pagination.next" @click="fetchOpportunities(pagination.next)">Next</button>
+        </div>
+    </div>
+
+    <div class="modal fade" id="opportunityModal" tabindex="-1" x-ref="modal" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <form @submit.prevent="saveOpportunity" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" x-text="formData.id ? 'Edit Opportunity #' + formData.id : 'Add Opportunity'"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-3"><label class="form-label">Name</label><input type="text" x-model="formData.name" class="form-control" required></div>
+                        <div class="col-md-6 mb-3"><label class="form-label">Lead ID</label><input type="number" x-model="formData.lead" class="form-control"></div>
+                        <div class="col-md-6 mb-3"><label class="form-label">Customer ID</label><input type="number" x-model="formData.customer" class="form-control"></div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Stage</label>
+                            <select x-model="formData.stage" class="form-select">
+                                <option value="prospecting">Prospecting</option>
+                                <option value="qualification">Qualification</option>
+                                <option value="proposal">Proposal</option>
+                                <option value="negotiation">Negotiation</option>
+                                <option value="closed_won">Closed Won</option>
+                                <option value="closed_lost">Closed Lost</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3"><label class="form-label">Expected Close</label><input type="date" x-model="formData.expected_close_date" class="form-control"></div>
+                        <div class="col-md-6 mb-3"><label class="form-label">Amount</label><input type="number" step="0.01" x-model="formData.amount" class="form-control"></div>
+                        <div class="col-md-6 mb-3"><label class="form-label">Probability (%)</label><input type="number" step="1" x-model="formData.probability" class="form-control"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary" x-text="formData.id ? 'Update Changes' : 'Create Opportunity'"></button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script>
-function fetchOpportunities() {
-    $.get('/customerCRM/api/opportunities/', function(data){
-        let rows = '';
-        data.forEach(o => {
-            rows += `<tr>
-                <td>${o.id}</td>
-                <td>${o.name}</td>
-                <td>${o.lead || '-'}</td>
-                <td>${o.customer || '-'}</td>
-                <td>${o.stage}</td>
-                <td>${o.expected_close_date || '-'}</td>
-                <td>${o.amount || '-'}</td>
-                <td>
-                    <button class="btn btn-sm btn-warning edit-opportunity" data-id="${o.id}">Edit</button>
-                    <button class="btn btn-sm btn-danger delete-opportunity" data-id="${o.id}">Delete</button>
-                </td>
-            </tr>`;
-        });
-        $('#opportunities-table tbody').html(rows);
-    });
-}
+document.addEventListener('alpine:init', () => {
+    Alpine.data('opportunityApp', () => ({
+        opportunities: [],
+        totalCount: 0,
+        pagination: { next: null, previous: null },
+        formData: { id: null, name: '', lead: '', customer: '', stage: 'prospecting', expected_close_date: '', amount: '', probability: 0 },
+        filters: { search: '', stage: '', minAmount: '' },
+        modalInstance: null,
+        apiBase: '/customers/v1/opportunities/',
 
-$(document).ready(function(){
-    fetchOpportunities();
+        init() {
+            // Lazy Modal initialization
+            this.$nextTick(() => {
+                if (this.$refs.modal) {
+                    this.modalInstance = new bootstrap.Modal(this.$refs.modal);
+                }
+            });
+            this.fetchOpportunities();
+        },
 
-    $('#opportunity-form').submit(function(e){
-        e.preventDefault();
-        let id = $('#opportunity-id').val();
-        let method = id ? 'PUT' : 'POST';
-        let url = id ? `/customerCRM/api/opportunities/${id}/` : '/customerCRM/api/opportunities/';
-        $.ajax({
-            type: method,
-            url: url,
-            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
-            data: {
-                name: $('#name').val(),
-                lead: $('#lead').val(),
-                customer: $('#customer').val(),
-                stage: $('#stage').val(),
-                expected_close_date: $('#expected_close_date').val(),
-                amount: $('#amount').val(),
-                probability: $('#probability').val()
-            },
-            success: function(){
-                toastr.success('Saved successfully');
-                $('#opportunityModal').modal('hide');
-                fetchOpportunities();
-                $('#opportunity-form')[0].reset();
-                $('#opportunity-id').val('');
-            },
-            error: function(xhr){ toastr.error(xhr.responseText); }
-        });
-    });
+        async fetchOpportunities(url = null) {
+            // Build URL with filters if no pagination URL is provided
+            let targetUrl = url;
+            if (!targetUrl) {
+                const params = new URLSearchParams();
+                if (this.filters.search) params.append('search', this.filters.search);
+                if (this.filters.stage) params.append('stage', this.filters.stage);
+                if (this.filters.minAmount) params.append('min_amount', this.filters.minAmount);
+                targetUrl = `${this.apiBase}?${params.toString()}`;
+            }
 
-    $(document).on('click', '.edit-opportunity', function(){
-        let id = $(this).data('id');
-        $.get(`/customerCRM/api/opportunities/${id}/`, function(o){
-            $('#opportunity-id').val(o.id);
-            $('#name').val(o.name);
-            $('#lead').val(o.lead);
-            $('#customer').val(o.customer);
-            $('#stage').val(o.stage);
-            $('#expected_close_date').val(o.expected_close_date);
-            $('#amount').val(o.amount);
-            $('#probability').val(o.probability);
-            $('#opportunityModal').modal('show');
-        });
-    });
+            try {
+                const res = await fetch(targetUrl);
+                const data = await res.json();
+                
+                // Tier 5 Logic: Handle Paginated vs Simple Lists
+                if (data.results) {
+                    this.opportunities = data.results;
+                    this.pagination.next = data.next;
+                    this.pagination.previous = data.previous;
+                    this.totalCount = data.count;
+                } else {
+                    this.opportunities = data;
+                    this.totalCount = data.length;
+                    this.pagination.next = null;
+                    this.pagination.previous = null;
+                }
+            } catch (err) {
+                window.showToast('Fetch Error: Check console', 'error');
+                console.error(err);
+            }
+        },
 
-    $(document).on('click', '.delete-opportunity', function(){
-        if(!confirm('Delete this opportunity?')) return;
-        let id = $(this).data('id');
-        $.ajax({
-            type: 'DELETE',
-            url: `/customerCRM/api/opportunities/${id}/`,
-            headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
-            success: function(){ toastr.success('Deleted'); fetchOpportunities(); },
-            error: function(xhr){ toastr.error(xhr.responseText); }
-        });
-    });
+        openModal(item = null) {
+            this.formData = item ? { ...item } : { id: null, name: '', lead: '', customer: '', stage: 'prospecting', expected_close_date: '', amount: '', probability: 0 };
+            
+            if (!this.modalInstance && this.$refs.modal) {
+                this.modalInstance = new bootstrap.Modal(this.$refs.modal);
+            }
+            this.modalInstance.show();
+        },
+
+        async saveOpportunity() {
+            const id = this.formData.id;
+            const url = id ? `${this.apiBase}${id}/` : this.apiBase;
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN },
+                    body: JSON.stringify(this.formData)
+                });
+
+                if (res.ok) {
+                    window.showToast('Opportunity saved', 'success');
+                    this.modalInstance.hide();
+                    this.fetchOpportunities();
+                } else {
+                    const error = await res.json();
+                    window.showToast(JSON.stringify(error), 'error');
+                }
+            } catch (err) {
+                window.showToast('Network error', 'error');
+            }
+        },
+
+        async deleteOpportunity(id) {
+            if (!confirm('Permanently delete this?')) return;
+            const res = await fetch(`${this.apiBase}${id}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+            });
+            if (res.ok) {
+                window.showToast('Deleted', 'success');
+                this.fetchOpportunities();
+            }
+        },
+
+        formatStage(s) { return s ? s.replace('_', ' ').toUpperCase() : '-'; },
+        formatCurrency(a) { return a ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(a) : '-'; },
+        getStageClass(s) {
+            const map = { prospecting: 'bg-info', qualification: 'bg-primary', proposal: 'bg-warning text-dark', closed_won: 'bg-success', closed_lost: 'bg-danger' };
+            return map[s] || 'bg-secondary';
+        }
+    }));
 });
 </script>
 {% endblock %}

@@ -1,0 +1,259 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AEVAL CORE | Enterprise Manufacturing Console</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: 'Inter', -apple-system, sans-serif; }
+        .sidebar { background: #0f1113; border-right: 1px solid #2d3238; height: 100vh; position: sticky; top: 0; }
+        .section-header { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.15em; color: #adb5bd; margin-bottom: 0.75rem; display: block; }
+        .price-tag { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+        .text-cp { color: #ff922b; } 
+        .text-sp { color: #20c997; }
+        .solver-console { background: #000; color: #00ff00; font-family: 'Consolas', monospace; font-size: 0.75rem; border: 1px solid #333; height: 160px; overflow-y: auto; }
+        .yield-progress { height: 6px; border-radius: 10px; background: #e9ecef; display: flex; overflow: hidden; }
+        .card-industrial { border: none; border-top: 4px solid #212529; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .hover-row:hover { background-color: #f8f9fa !important; }
+        input[type="number"]::-webkit-inner-spin-button { display: none; }
+    </style>
+</head>
+<body class="bg-dark">
+    {% csrf_token %}
+
+    <div class="container-fluid" x-data="engineHandler" x-init="init()" x-cloak>
+        <div class="row">
+            <div class="col-md-3 sidebar p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="text-white fw-bold mb-0"><i class="bi bi-cpu text-info me-2"></i>AEVAL CORE</h5>
+                    <span class="badge bg-dark border border-secondary text-muted">v5.0-ENT</span>
+                </div>
+
+                <div class="mb-4">
+                    <label class="section-header">CORE MATERIAL</label>
+                    <select class="form-select bg-dark text-white border-secondary shadow-none" 
+                            x-model="materialId" @change="runEngine()">
+                        <template x-for="mat in materials" :key="mat.material">
+                            <option :value="mat.material" x-text="mat.material_details.name"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <label class="section-header">DIMENSIONAL CONSTRAINTS (MM)</label>
+                <div class="row g-2 mb-4">
+                    <template x-for="(val, dim) in dims" :key="dim">
+                        <div class="col-12">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-dark border-secondary text-info w-25 small text-uppercase" x-text="dim"></span>
+                                <input type="number" x-model.debounce.500ms="dims[dim]" @input="runEngine()"
+                                       class="form-control bg-dark text-white border-secondary fw-bold shadow-none">
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <label class="section-header">RECURSIVE SOLVER LOG</label>
+                <div class="solver-console p-3 rounded mb-4">
+                    <div class="text-muted small">>> System Boot: Core Logic Online...</div>
+                    <div class="text-info small" x-show="loading">>> Solving Parametric Equations...</div>
+                    <template x-if="res">
+                        <template x-for="part in res.bom.parts">
+                            <div class="small">>> Stamped: <span class="text-white" x-text="part.name"></span> @ <span x-text="part.length"></span>mm</div>
+                        </template>
+                    </template>
+                    <div class="text-success small" x-show="status === 'SUCCESS'">>> Solve Complete. Logic Validated.</div>
+                    <div class="text-danger small" x-show="status.includes('ERROR')" x-text="'>> ' + status"></div>
+                </div>
+
+                <button class="btn btn-info w-100 fw-bold py-3 text-uppercase letter-spacing-1" 
+                        @click="runEngine()" :disabled="loading">
+                    <span x-show="!loading">Sync Factory Core</span>
+                    <span x-show="loading" class="spinner-border spinner-border-sm"></span>
+                </button>
+            </div>
+
+            <div class="col-md-9 bg-white min-vh-100 p-4">
+                <template x-if="res">
+                    <div class="animate__animated animate__fadeIn">
+                        
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-3 text-center border-end">
+                                <small class="text-muted fw-bold d-block">GROSS MARGIN</small>
+                                <h2 class="fw-black mb-0 price-tag" :class="marginClass" x-text="marginPercent + '%'"></h2>
+                            </div>
+                            <div class="col-md-3 text-center border-end">
+                                <small class="text-muted fw-bold d-block">TOTAL REVENUE (SP)</small>
+                                <h2 class="fw-black mb-0 text-dark price-tag" x-text="'₹' + res.pricing.pricing_options.area.sp.toLocaleString()"></h2>
+                            </div>
+                            <div class="col-md-3 text-center border-end">
+                                <small class="text-muted fw-bold d-block">TOTAL COST (CP)</small>
+                                <h2 class="fw-black mb-0 text-cp price-tag" x-text="'₹' + res.pricing.pricing_options.area.cp.toLocaleString()"></h2>
+                            </div>
+                            <div class="col-md-3 text-center">
+                                <small class="text-muted fw-bold d-block">MATERIAL WASTE</small>
+                                <h2 class="fw-black mb-0 text-danger" x-text="((res.bom.parts[0].quantity_with_wastage - res.bom.parts[0].quantity) * 100).toFixed(1) + '%'"></h2>
+                            </div>
+                        </div>
+
+                        <div class="card card-industrial">
+                            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 fw-bold"><i class="bi bi-layers-half me-2"></i>COMPONENT MANUFACTURING AUDIT</h6>
+                                <button class="btn btn-sm btn-dark px-3 rounded-pill fw-bold small" @click="alert('Exporting CNC Data Packet...')">
+                                    <i class="bi bi-file-earmark-code me-2"></i>EXPORT JSON
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead class="bg-light">
+                                        <tr class="small text-muted text-uppercase letter-spacing-1">
+                                            <th class="ps-4">Part Identity & Geo-Solve</th>
+                                            <th>Yield Efficiency</th>
+                                            <th class="text-center">Factory CP</th>
+                                            <th class="text-center">Market SP</th>
+                                            <th class="text-end pe-4">Profitability</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="part in res.bom.parts" :key="part.name">
+                                            <tr class="hover-row">
+                                                <td class="ps-4 py-3">
+                                                    <div class="fw-black fs-5 mb-0" x-text="part.name"></div>
+                                                    <span class="badge bg-light text-dark border font-monospace small" x-text="`${part.length} x ${part.width} x 18.0` text-uppercase"></span>
+                                                </td>
+                                                <td style="width: 20%;">
+                                                    <div class="d-flex justify-content-between small mb-1">
+                                                        <span class="text-muted">Usage vs Waste</span>
+                                                        <span class="fw-bold text-dark" x-text="((part.quantity / part.quantity_with_wastage) * 100).toFixed(0) + '%'"></span>
+                                                    </div>
+                                                    <div class="yield-progress">
+                                                        <div class="bg-info" :style="`width: ${ (part.quantity / part.quantity_with_wastage) * 100 }%`"></div>
+                                                        <div class="bg-danger" :style="`width: ${ ((part.quantity_with_wastage - part.quantity) / part.quantity_with_wastage) * 100 }%`"></div>
+                                                    </div>
+                                                </td>
+                                                <td class="text-center font-monospace fw-bold text-cp" x-text="'₹' + part.cp.toFixed(2)"></td>
+                                                <td class="text-center font-monospace fw-bold text-sp" x-text="'₹' + part.sp.toFixed(2)"></td>
+                                                <td class="text-end pe-4">
+                                                    <span class="badge rounded-pill px-3 py-2" 
+                                                          :class="((part.sp - part.cp)/part.sp) > 0.25 ? 'bg-success' : 'bg-warning'"
+                                                          x-text="(((part.sp - part.cp) / part.sp) * 100).toFixed(1) + '%'"></span>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </template>
+
+                <div x-show="!res && !loading" class="h-100 d-flex flex-column align-items-center justify-content-center opacity-50">
+                    <i class="bi bi-terminal-split display-1 mb-3 text-muted"></i>
+                    <h3 class="fw-light">CORE READY</h3>
+                    <p class="text-muted">Adjust parametric inputs to generate manufacturing data.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('engineHandler', () => ({
+                productId: '',
+                materialId: '',
+                materials: [],
+                loading: false,
+                status: 'IDLE',
+                res: null,
+                dims: { length: 1200, width: 600, height: 720 },
+
+                async init() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.productId = urlParams.get('product_id');
+                    if (this.productId) await this.fetchMaterials();
+                },
+
+                async fetchMaterials() {
+                    try {
+                        const r = await fetch(`/modularcalc/api/products/${this.productId}/`);
+                        const d = await r.json();
+                        this.materials = d.part_templates?.[0]?.material_whitelist || [];
+                        if (this.materials.length) this.materialId = this.materials[0].material;
+                    } catch (e) { this.status = "INIT ERROR"; }
+                },
+
+                get marginPercent() {
+                    if (!this.res) return 0;
+                    return (((this.res.pricing.pricing_options.area.sp - this.res.pricing.pricing_options.area.cp) / this.res.pricing.pricing_options.area.sp) * 100).toFixed(1);
+                },
+
+                get marginClass() {
+                    return this.marginPercent > 30 ? 'text-success' : (this.marginPercent > 15 ? 'text-warning' : 'text-danger');
+                },
+
+                async runEngine() {
+    if (this.loading) return;
+    this.loading = true;
+    this.status = "CALCULATING";
+
+    try {
+        const l = parseFloat(this.dims.length);
+        const w = parseFloat(this.dims.width);
+        const h = parseFloat(this.dims.height);
+        const q = parseInt(this.dims.qty) || 5;
+
+        const payload = {
+            // Root level keys for backend safe_float calls
+            "product_length": l,
+            "product_width": w,
+            "product_height": h,
+            "quantity": q,
+            "material_id": parseInt(this.materialId),
+            
+            // Nested object for the ProductEngine dictionary
+            "product_dims": {
+                "product_length": l,
+                "product_width": w,
+                "product_height": h,
+                "length": l,
+                "width": w,
+                "height": h
+            },
+            
+            // Array for the quantities loop
+            "quantities": [q]
+        };
+
+        const response = await fetch(`/modularcalc/api/products/${this.productId}/evaluate/`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value 
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Logic Fault");
+
+        this.res = data.engine_output;
+        this.status = "SUCCESS";
+    } catch (e) {
+        this.status = "ERROR: " + e.message;
+    } finally {
+        this.loading = false;
+    }
+}
+            }));
+        });
+    </script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</body>
+</html>

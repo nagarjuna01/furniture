@@ -1,20 +1,20 @@
 from partisoproduct.utils.quote_calculator import QuoteCalculator
 from partisoproduct.models import QuotePartDetail
+from decimal import Decimal
 
-class QuoteRequestService:
+class MvpQuoteRequestService:
     def __init__(self, quote):
         self.quote = quote
         self.calculator = QuoteCalculator(quote)
+        self.tenant = getattr(quote, "tenant", None)
 
     def evaluate(self, material_map: dict, edge_map: dict):
-        """
-        material_map: {part_id: WoodEn instance}
-        edge_map: {part_id: {"top": EdgeBand, "left": ..., ...}}
-        """
-
         results = []
 
         for part in self.quote.modular_product.parts.all():
+            if getattr(part, "tenant", None) and part.tenant != self.tenant:
+                raise ValueError(f"Part {part.id} belongs to a different tenant")
+
             selected_material = material_map.get(part.id)
             edge_dict = edge_map.get(part.id, {
                 'top': part.part_edgematerial_top,
@@ -37,10 +37,12 @@ class QuoteRequestService:
                 evaluated_qty=calc["quantity"],
                 evaluated_area=calc["area_sft"],
                 material_cost=calc["pp"],
-                edge_cost=Decimal('0.00'),  # Optional: break out edge cost separately
-                total_cost=calc["pp"],      # You can expand this later with hardware etc.
+                edge_cost=Decimal(calc.get("edge_cost", 0)),
+                hardware_cost=Decimal(calc.get("hardware_cost", 0)),
+                total_cost=Decimal(calc["pp"]) + Decimal(calc.get("edge_cost", 0)) + Decimal(calc.get("hardware_cost", 0)),
             )
 
             results.append(part_detail)
 
         return results
+

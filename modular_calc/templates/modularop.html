@@ -1,0 +1,293 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Engine | Factory Console</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: 'Inter', -apple-system, sans-serif; }
+        .sidebar { background: #1a1d20; border-right: 1px solid #2d3238; min-height: 100vh; position: sticky; top: 0; }
+        .card-stat { border: none; border-radius: 12px; transition: transform 0.2s; }
+        .card-stat:hover { transform: translateY(-3px); }
+        .section-header { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em; color: #6c757d; margin-bottom: 1rem; display: block; }
+        .price-tag { font-family: 'JetBrains Mono', 'Consolas', monospace; font-weight: 600; }
+        .text-cp { color: #fd7e14; } /* Cost Price Orange */
+        .text-sp { color: #0dcaf0; } /* Sell Price Cyan */
+        .table-custom thead { background: #212529; color: white; font-size: 0.75rem; }
+        .bg-soft-dark { background: #2d3238; }
+    </style>
+</head>
+<body class="bg-dark text-light">
+    {% csrf_token %}
+
+    <div class="container-fluid" x-data="engineHandler" x-init="init()" x-cloak>
+        <div class="row">
+            <div class="col-md-3 sidebar p-4 shadow-lg">
+                <h5 class="text-white fw-bold mb-4"><i class="bi bi-cpu-fill text-info me-2"></i>AEVAL CONSOLE</h5>
+
+                <div class="mb-4">
+                    <label class="section-header">CONFIGURATION</label>
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Material Override</small>
+                        <select class="form-select bg-dark text-white border-secondary shadow-none" x-model="materialId">
+                            <template x-for="mat in materials" :key="mat.material">
+                                <option :value="mat.material" x-text="`${mat.material_details.name} (${mat.material_details.thickness_mm}mm)`"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Batch Quantity</small>
+                        <div class="input-group">
+                            <span class="input-group-text bg-soft-dark border-secondary text-info"><i class="bi bi-stack"></i></span>
+                            <input type="number" x-model.number="dims.qty" min="1" class="form-control bg-dark text-white border-secondary shadow-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="section-header">DIMENSIONS (MM)</label>
+                    <div class="row g-2">
+                        <div class="col-12 mb-2">
+                            <small class="text-muted">Length</small>
+                            <input type="number" x-model.number="dims.length" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Width</small>
+                            <input type="number" x-model.number="dims.width" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Height</small>
+                            <input type="number" x-model.number="dims.height" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-info w-100 fw-bold py-3 shadow-sm mb-3" @click="runEngine()" :disabled="loading">
+                    <span x-show="!loading"><i class="bi bi-play-fill me-1"></i>RUN CALCULATION</span>
+                    <span x-show="loading" class="spinner-border spinner-border-sm"></span>
+                </button>
+                
+                <div class="text-center">
+                    <span class="badge rounded-pill px-3 py-2 border" 
+                          :class="status === 'SUCCESS' ? 'border-success text-success' : 'border-warning text-warning'" 
+                          x-text="status"></span>
+                </div>
+            </div>
+
+            <div class="col-md-9 bg-light text-dark overflow-auto p-4" style="height: 100vh;">
+                <template x-if="res">
+                    <div class="animate__animated animate__fadeIn">
+                        
+                        <div class="row g-3 mb-4 text-center">
+                            <div class="col-md-3">
+                                <div class="card card-stat p-3 bg-white border shadow-sm">
+                                    <small class="text-muted fw-bold">TOTAL COST (CP)</small>
+                                    <h3 class="fw-bold mb-0 text-cp price-tag" x-text="'₹' + res.pricing.pricing_options.area.cp.toLocaleString()"></h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card card-stat p-3 bg-white border shadow-sm">
+                                    <small class="text-muted fw-bold">TOTAL SELL (SP)</small>
+                                    <h3 class="fw-bold mb-0 text-sp price-tag" x-text="'₹' + res.pricing.pricing_options.area.sp.toLocaleString()"></h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card card-stat p-3 bg-success text-white shadow-sm">
+                                    <small class="opacity-75 fw-bold">GROSS MARGIN</small>
+                                    <h3 class="fw-bold mb-0 price-tag" x-text="'₹' + (res.pricing.pricing_options.area.sp - res.pricing.pricing_options.area.cp).toLocaleString()"></h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card card-stat p-3 bg-dark text-white shadow-sm">
+                                    <small class="opacity-75 fw-bold">WASTE %</small>
+                                    <h3 class="fw-bold mb-0 price-tag" x-text="res.cutlist.total_waste_percent + '%'"></h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 fw-bold"><i class="bi bi-layers me-2"></i>BOM Component Analysis</h6>
+                                <span class="badge bg-light text-dark border" x-text="res.cutlist.total_sheets + ' Sheets Required'"></span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead class="table-dark">
+                                        <tr class="small text-uppercase">
+                                            <th class="ps-3">Part</th>
+                                            <th>Dims (LxW)</th>
+                                            <th class="text-center">Mat. CP</th>
+                                            <th class="text-center">Hrd. CP</th>
+                                            <th class="text-center">Total CP</th>
+                                            <th class="text-end pe-3">Total SP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="part in res.bom.parts" :key="part.name">
+                                            <tr class="border-bottom">
+                                                <td class="ps-3">
+                                                    <div class="fw-bold" x-text="part.name"></div>
+                                                    <small class="text-muted" x-text="'Template ID: ' + part.template_id"></small>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-light text-dark border font-monospace" x-text="part.length + 'x' + part.width"></span>
+                                                </td>
+                                                <td class="text-center text-muted small" x-text="'₹'+part.material_cost.cp"></td>
+                                                <td class="text-center text-muted small" x-text="'₹'+part.hardware_cost.cp"></td>
+                                                <td class="text-center fw-bold text-cp price-tag" x-text="'₹' + part.cp.toLocaleString()"></td>
+                                                <td class="text-end pe-3 fw-bold text-sp price-tag" x-text="'₹' + part.sp.toLocaleString()"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white py-3"><h6 class="mb-0 fw-bold"><i class="bi bi-cart-check me-2"></i>Hardware Aggregation</h6></div>
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr class="small text-muted">
+                                            <th class="ps-3">Item</th>
+                                            <th class="text-center">Qty</th>
+                                            <th class="text-center">Total CP</th>
+                                            <th class="text-end pe-3">Total SP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="item in res.bom.hardware" :key="item.name">
+                                            <tr>
+                                                <td class="ps-3 fw-medium" x-text="item.name"></td>
+                                                <td class="text-center" x-text="item.quantity"></td>
+                                                <td class="text-center text-cp fw-bold" x-text="'₹' + item.cp.toLocaleString()"></td>
+                                                <td class="text-end pe-3 text-sp fw-bold" x-text="'₹' + item.sp.toLocaleString()"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </template>
+
+                <div x-show="!res && !loading" class="h-100 d-flex flex-column align-items-center justify-content-center opacity-25">
+                    <i class="bi bi-calculator display-1 mb-3"></i>
+                    <h3>Engine Ready</h3>
+                    <p>Enter parameters and click Run to start evaluation.</p>
+                </div>
+
+                <div x-show="loading" class="h-100 d-flex flex-column align-items-center justify-content-center">
+                    <div class="spinner-border text-info mb-3" style="width: 3rem; height: 3rem;"></div>
+                    <h5 class="text-muted">Analyzing Constraints...</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+       
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('engineHandler', () => ({
+            productId: '',
+            materialId: '',
+            materials: [],
+            loading: false,
+            status: 'IDLE',
+            res: null,
+            dims: { 
+                length: 1000, 
+                width: 600, 
+                height: 720,
+                qty: 1 
+            },
+
+            async init() {
+                const urlParams = new URLSearchParams(window.location.search);
+                this.productId = urlParams.get('product_id');
+                if (this.productId) {
+                    await this.fetchMaterials();
+                } else {
+                    this.status = "NO PRODUCT ID";
+                }
+            },
+
+            async fetchMaterials() {
+                try {
+                    const response = await fetch(`/modularcalc/api/products/${this.productId}/`);
+                    if (!response.ok) throw new Error();
+                    const data = await response.json();
+                    this.materials = data.part_templates?.[0]?.material_whitelist || [];
+                    if (this.materials.length) this.materialId = this.materials[0].material;
+                } catch (e) {
+                    this.status = "FETCH ERROR";
+                }
+            },
+
+            async runEngine() {
+                if (!this.productId || !this.materialId) return;
+                
+                this.loading = true;
+                this.status = "SOLVING";
+                this.res = null;
+                
+                try {
+                    const l = parseFloat(this.dims.length);
+                    const w = parseFloat(this.dims.width);
+                    const h = parseFloat(this.dims.height);
+
+                    // Flattened Payload for Tier 5 Backend Compatibility
+                    const payload = {
+                        "product_id": this.productId,
+                        "material_id": parseInt(this.materialId),
+                        "quantity": parseInt(this.dims.qty),
+                        "length": l,
+                        "width": w,
+                        "height": h,
+                        "product_length": l,
+                        "product_width": w,
+                        "product_height": h,
+                        "L": l,
+                        "W": w,
+                        "H": h,
+                        "product_dims": {
+                            "length": l,
+                            "width": w,
+                            "height": h
+                        }
+                    };
+
+                    const response = await fetch(`/modularcalc/api/products/${this.productId}/evaluate/`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value 
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || "Eval Failed");
+
+                    this.res = data.engine_output;
+                    this.status = "SUCCESS";
+                } catch (e) {
+                    this.status = "ERROR: " + e.message;
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }));
+    });
+</script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</body>
+</html>

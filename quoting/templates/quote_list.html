@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.min.js"></script>
+
+<div class="container-fluid py-4" x-data="quotePipeline()" x-init="init()" x-cloak>
+    
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <div>
+            <h1 class="h4 fw-bold text-dark mb-0">Quotation Pipeline</h1>
+            <p class="text-muted small mb-0">Deep-Nested CRM Integration</p>
+        </div>
+        <button class="btn btn-primary shadow-sm d-flex align-items-center gap-2" @click="openModal()">
+            <i class="bi bi-plus-circle"></i> <span>Create New Quote</span>
+        </button>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body">
+                    <small class="text-uppercase fw-bold opacity-75">Active Pipeline</small>
+                    <h3 class="mb-0" x-text="stats.new_leads + ' Quotes'">0 Quotes</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4">Quote Number</th>
+                        <th>Client / Project</th>
+                        <th>Status</th>
+                        <th>Grand Total</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-if="quotes.length === 0">
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <div x-show="loading" class="spinner-border spinner-border-sm me-2 text-primary"></div>
+                                <span x-text="loading ? 'Handshaking with Engine...' : 'No active quotes found.'"></span>
+                            </td>
+                        </tr>
+                    </template>
+
+                    <template x-for="quote in quotes" :key="quote.id">
+                        <tr>
+                            <td class="ps-4 fw-bold text-primary" x-text="quote.quote_number"></td>
+                            <td>
+                                <div class="fw-bold text-dark" x-text="quote.customer_display_name"></div>
+                                <small class="text-muted" x-text="quote.client?.email || 'Walk-in Customer'"></small>
+                            </td>
+                            <td>
+                                <span class="badge rounded-pill" 
+                                      :class="{
+                                          'bg-warning text-dark': quote.status === 'draft',
+                                          'bg-success': quote.status === 'approved',
+                                          'bg-info': quote.status === 'locked'
+                                      }"
+                                      x-text="quote.status"></span>
+                            </td>
+                            <td class="fw-bold text-dark" x-text="'₹' + Number(quote.grand_total).toLocaleString('en-IN', {minimumFractionDigits: 2})"></td>
+                            <td class="text-end pe-4">
+                                <a :href="`/quoting/workspace/${quote.id}/`" class="btn btn-sm btn-outline-dark px-3">
+                                    Open Workspace <i class="bi bi-arrow-right-short"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal fade" :class="{ 'show d-block': showModal, 'd-none': !showModal }" 
+         tabindex="-1" role="dialog" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <form @submit.prevent="submitForm">
+                    <div class="modal-header border-0 bg-light">
+                        <h5 class="modal-title fw-bold text-dark">Initialize Project</h5>
+                        <button type="button" class="btn-close" @click="closeModal()"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Project Name</label>
+                                <input type="text" x-model="form.name" class="form-control border-2" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Source</label>
+                                <select x-model="form.source" class="form-select border-2">
+                                    <option value="website">Website</option>
+                                    <option value="referral">Referral</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Client Email</label>
+                                <input type="email" x-model="form.email" class="form-control border-2" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 p-3 bg-light">
+                        <button type="button" class="btn btn-outline-secondary px-4" @click="closeModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4 shadow" :disabled="loading">
+                            <span x-show="!loading">Launch Workspace</span>
+                            <span x-show="loading" class="spinner-border spinner-border-sm"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+    .modal.show { display: block; opacity: 1; transition: opacity 0.2s linear; }
+</style>
+
+<script>
+function quotePipeline() {
+    return {
+        showModal: false,
+        loading: false,
+        quotes: [],
+        stats: { new_leads: 0 },
+        form: { name: '', email: '', source: 'website', status: 'new', notes: '' },
+
+        async init() {
+            console.log("🚀 Pipeline Engine Active");
+            await this.loadQuotes();
+        },
+
+        async loadQuotes() {
+            this.loading = true;
+            try {
+                // Using Dynamic URL injection based on your Shell test
+                const endpoint = "{% url 'quoting:quote-request-list' %}";
+                const response = await fetch(endpoint);
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                this.quotes = data.results;
+                this.stats.new_leads = data.count;
+                console.log("✅ Sync Complete:", this.quotes);
+            } catch (err) {
+                console.error("❌ Handshake Failed:", err);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        openModal() { this.showModal = true; },
+        closeModal() { this.showModal = false; },
+
+        async submitForm() {
+            this.loading = true;
+            try {
+                const response = await fetch("{% url 'quoting:project-init' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify(this.form)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw errorData;
+                }
+
+                const data = await response.json();
+                // Redirecting to the modular workspace
+                window.location.href = `/quoting/workspace/${data.id}/`;
+
+            } catch (err) {
+                this.loading = false;
+                console.error("Critical Validation Failure:", err);
+                alert("Validation Error: Please check JSON logs in console.");
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

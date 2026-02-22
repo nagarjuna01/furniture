@@ -50,7 +50,7 @@
                     data: {
                         'cart_item_id': cart_item_id,
                         'quantity': quantity,
-                        'csrfmiddlewaretoken': '{{ csrf_token }}'
+                        'csrfmiddlewaretoken': '{{ window.CSRF_TOKEN }}'
                     },
                     success: function(response) {
                         alert(response.message);

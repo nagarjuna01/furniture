@@ -1,7 +1,50 @@
-{% extends 'base_b.html'%}
+{% extends 'base.html'%}
 {% block content %}
 
 <style>
+  
+/* common grain box */
+.grain-box {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 auto;
+}
+
+/* NONE → empty box with border */
+.grain-none {
+  background-color: transparent;
+  border: 1px solid #444;
+}
+
+/* Horizontal grain → 4 lines only, no border */
+.grain-h {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    #444,
+    #444 2px,
+    transparent 2px,
+    transparent 3px
+  );
+  background-size: 100% 25%;
+}
+
+/* Vertical grain → 4 lines only, no border */
+.grain-v {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to right,
+    #444,
+    #444 2px,
+    transparent 2px,
+    transparent 3px
+  );
+  background-size: 25% 100%;
+}
+
+
   .table-responsive {
   overflow-x: auto;   /* allow scrolling if table too wide */
 }
@@ -166,8 +209,10 @@
         <th>Length(mm)</th>
         <th>Width(mm)</th>
         <th>Thickness(mm)</th>
+        <th>Grain</th>
         <th>Purchase Price (Panel / Sqft)</th>
         <th>Selling Price (Panel / Sqft)</th>
+        
         <th>Actions</th>
       </tr>
     </thead>
@@ -309,8 +354,8 @@
           <label class="form-label">Grain</label>
           <select id="woodenGrain" class="form-select">
             <option value="NONE">None</option>
-            <option value="HORIZONTAL">Horizontal</option>
-            <option value="VERTICAL">Vertical</option>
+            <option value="H">Horizontal</option>
+            <option value="V">Vertical</option>
           </select>
         </div>
 
@@ -611,23 +656,99 @@ $("#categoryTypeForm").on("submit", function(e){
 });
 
 // Edit & Delete
-$("#categoryTypesTable").on("click", ".btn-edit-type", function(){
+$("#categoryTypesTable").on("click", ".btn-edit-type", function () {
     const id = $(this).closest("tr").data("id");
-    $.get(API.categoryTypes+id+"/", function(t){
+
+    $.get(API.categoryTypes + id + "/", function (t) {
         $("#categoryTypeId").val(t.id);
         $("#categoryTypeName").val(t.name);
-        $("#categoryTypeCategoryId").val(t.category?.id ?? "");
+
+        loadDropdown(
+            API.categories,
+            "#categoryTypeCategoryId",
+            {
+                placeholder: "Select Category",
+                onLoaded: () => {
+                    $("#categoryTypeCategoryId").val(t.category?.id || "");
+                }
+            }
+        );
+
         $("#categoryTypeModalTitle").text("Edit Category Type");
         $("#categoryTypeModal").modal("show");
     }).fail(handleApiError);
 });
+// ===== GLOBAL DROPDOWN LOADER =====
+window.loadDropdown = function (url, selectors, opts = {}) {
+    const {
+        placeholder = "-- Select --",
+        valueKey = "id",
+        labelKey = "name",
+        extraLabelKey = null,
+        allowEmpty = true,
+        onLoaded = null,
+    } = opts;
+
+    const $targets = Array.isArray(selectors)
+        ? selectors.map(s => (s instanceof jQuery ? s : $(s)))
+        : [(selectors instanceof jQuery ? selectors : $(selectors))];
+
+    console.log("[loadDropdown] URL:", url);
+
+    $.get(url)
+        .done(res => {
+            const items = res?.results || res || [];
+
+            let options = allowEmpty
+                ? `<option value="">${placeholder}</option>`
+                : "";
+
+            options += items.map(item => {
+                const extra = extraLabelKey && item[extraLabelKey]
+                    ? ` (${item[extraLabelKey]})`
+                    : "";
+                return `<option value="${item[valueKey]}">${item[labelKey]}${extra}</option>`;
+            }).join("");
+
+            $targets.forEach($el => {
+                if (!$el || !$el.length) {
+                    console.warn("[loadDropdown] Target not found");
+                    return;
+                }
+                $el.html(options);
+            });
+
+            if (typeof onLoaded === "function") {
+                onLoaded(items);
+            }
+        })
+        .fail(err => {
+            console.error(`[loadDropdown] Failed: ${url}`, err);
+            if (window.showToast) {
+                showToast("Failed to load dropdown", "error");
+            }
+        });
+};
+
 $("#categoryTypesTable").on("click", ".btn-del-type", function(){
     if(!confirm("Delete this type?")) return;
     const id = $(this).closest("tr").data("id");
     $.ajax({ url: API.categoryTypes+id+"/", type:"DELETE",headers:{ "X-CSRFToken": window.CSRF_TOKEN } }).done(()=> loadCategoryTypes()).fail(handleApiError);
 });
 $("#categoryTypeSearch").on("input", debounce(()=> loadCategoryTypes(), 400));
-$("#addCategoryTypeBtn").click(()=> { $("#categoryTypeModalTitle").text("Add Category Type"); $("#categoryTypeForm")[0].reset(); $("#categoryTypeId").val(""); loadCategoriesOptions(); $("#categoryTypeModal").modal("show"); });
+$("#addCategoryTypeBtn").click(() => {
+    $("#categoryTypeModalTitle").text("Add Category Type");
+    $("#categoryTypeForm")[0].reset();
+    $("#categoryTypeId").val("");
+
+    loadDropdown(
+        API.categories,
+        "#categoryTypeCategoryId",
+        { placeholder: "Select Category" }
+    );
+
+    $("#categoryTypeModal").modal("show");
+});
 
 
 // ======== CATEGORY MODELS CRUD =========
@@ -747,6 +868,39 @@ $("#resetWoodenFilters").on("click", function() {
     // 4. Reload the table
     loadWoodens();
 });
+$("#woodensTable").on("click", ".btn-toggle-wood", function () {
+  const row = $(this).closest("tr");
+  const id = row.data("id");
+  const isActive = row.data("active");
+
+  console.log("Toggling wood material:", id, "current:", isActive);
+
+  // optimistic UI
+  row.find(".btn-toggle-wood").prop("disabled", true);
+
+  $.ajax({
+    url: `${API.woodens}${id}/`,
+    method: "PATCH",
+    contentType: "application/json",
+    headers: {
+      "X-CSRFToken": window.CSRF_TOKEN
+    },
+    data: JSON.stringify({
+      is_active: !isActive
+    })
+  })
+  .done(() => {
+    console.log("Status updated");
+
+    // refresh row state (safe approach)
+    loadWoodens();
+  })
+  .fail(xhr => {
+    console.error("Failed to toggle status", xhr.responseText);
+    alert("Failed to update status");
+    row.find(".btn-toggle-wood").prop("disabled", false);
+  });
+});
 // ======== WOODENS CRUD =========
 
 function bindCategoryTypeModel($category, $type, $model, options = {}) {
@@ -856,33 +1010,48 @@ bindCategoryTypeModel(
 console.log("🔗 Fetch URL:", buildWoodenFilterUrl(API.woodens));
 function loadWoodens(url) {
   console.log("loadWoodens called with:", url);
+
   const fetchUrl = url || buildWoodenFilterUrl(API.woodens);
   console.log("fetchUrl ->", fetchUrl);
-
 
   $.get(fetchUrl, function (res) {
     const data = res.results ? res : { results: res };
 
     const rows = data.results.length
-      ? data.results.map(w => `
-          <tr data-id="${w.id}">
-            <td>${w.name || '-'}</td>
-            <td>${w.material_grp_label || '-'}</td>
-            <td>${w.material_type_label || '-'}</td>
-            <td>${w.material_model_label || '-'}</td>
-            <td>${w.brand_label || '-'}</td>
-            <td>${w.length_mm || '-'}</td>
-            <td>${w.width_mm || '-'}</td>
-            <td>${w.thickness_mm || '-'}</td>
-            <td>${w.cost_price_panel ?? '-'}/${w.cost_price_sft ?? '-'}</td>
-            <td>${w.sell_price_panel ?? '-'}/${w.sell_price_sft ?? '-'}</td>
-            <td class="text-nowrap">
-              <button class="btn btn-sm btn-warning me-1 btn-edit-wood">Edit</button>
-              <button class="btn btn-sm btn-danger btn-del-wood">Delete</button>
+      ? data.results.map(w => {
+          const isActive = w.is_active;
+          const statusBadge = isActive
+            ? `<span class="badge bg-success">Active</span>`
+            : `<span class="badge bg-secondary">Inactive</span>`;
+
+          const toggleBtn = isActive
+            ? `<button class="btn btn-sm btn-outline-danger btn-toggle-wood">Deactivate</button>`
+            : `<button class="btn btn-sm btn-outline-success btn-toggle-wood">Activate</button>`;
+
+          return `
+            <tr data-id="${w.id}" data-active="${isActive}">
+              <td>${w.name || '-'}</td>
+              <td>${w.material_grp_label || '-'}</td>
+              <td>${w.material_type_label || '-'}</td>
+              <td>${w.material_model_label || '-'}</td>
+              <td>${w.brand_label || '-'}</td>
+              <td>${w.length_mm ?? '-'}</td>
+              <td>${w.width_mm ?? '-'}</td>
+              <td>${w.thickness_mm ?? '-'}</td>
+              <td class="text-center">${renderGrain(w.grain)}</td>
+              <td>${w.cost_price_panel ?? '-'}/${w.cost_price_sft ?? '-'}</td>
+              <td>${w.sell_price_panel ?? '-'}/${w.sell_price_sft ?? '-'}</td>
+              
+              
+              <td class="text-nowrap">
+                <button class="btn btn-sm btn-warning me-1 btn-edit-wood">Edit</button>
+                ${toggleBtn}
             </td>
-          </tr>
-        `).join("")
-      : `<tr><td colspan="11" class="text-center">No records found</td></tr>`;
+            </tr>
+          `;
+        }).join("")
+      : `<tr><td colspan="13" class="text-center">No records found</td></tr>`;
+
 
     $("#woodensTable tbody").html(rows);
 
@@ -918,6 +1087,15 @@ function loadWoodens(url) {
         mode: "modal"
     }
 );
+function renderGrain(grain) {
+  if (grain === "H") {
+    return `<span class="grain-box grain-h" title="Horizontal grain"></span>`;
+  }
+  if (grain === "V") {
+    return `<span class="grain-box grain-v" title="Vertical grain"></span>`;
+  }
+  return `<span class="grain-box grain-none" title="No grain"></span>`;
+}
 
 
     // --- Search/Filter Listeners ---

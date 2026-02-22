@@ -1,0 +1,224 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Engine | Factory Console</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        .sidebar { background: #1a1d20; border-right: 1px solid #2d3238; min-height: 100vh; }
+        .section-header { font-size: 0.70rem; font-weight: 800; letter-spacing: 0.1em; color: #6c757d; margin-bottom: 0.5rem; display: block; }
+        .text-cp { color: #fd7e14; } 
+        .text-sp { color: #0dcaf0; }
+        input.form-control:focus { background-color: #2b3035 !important; color: white !important; border-color: #0dcaf0; box-shadow: none; }
+    </style>
+</head>
+<body class="bg-dark text-light">
+    {% csrf_token %}
+
+    <div class="container-fluid" x-data="engineHandler" x-init="init()" x-cloak>
+        <div class="row">
+            <!-- Sidebar: Input Controls -->
+            <div class="col-md-3 sidebar p-4 shadow-lg position-fixed">
+                <h5 class="text-white fw-bold mb-4"><i class="bi bi-cpu-fill text-info me-2"></i>AEVAL CONSOLE</h5>
+
+                <div class="mb-3">
+                    <label class="section-header">MODEL SELECTION</label>
+                    <select class="form-select bg-dark text-white border-secondary" x-model="productId" @change="fetchMaterials()">
+                        <option value="{{ product.id }}">{{ product.name }}</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="section-header">MATERIAL OVERRIDE</label>
+                    <select class="form-select bg-dark text-white border-secondary" x-model="materialId">
+                        <template x-for="mat in materials" :key="mat.material">
+                            <option :value="mat.material" x-text="`${mat.material_details.name} (${mat.material_details.thickness_mm}mm)`"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <label class="section-header">LIVE DIMENSIONS (MM)</label>
+                <div class="row g-2 mb-4">
+                    <div class="col-12">
+                        <input type="number" x-model.number="dims.length" placeholder="Length" class="form-control bg-dark text-white border-secondary mb-2">
+                    </div>
+                    <div class="col-6">
+                        <input type="number" x-model.number="dims.width" placeholder="Width" class="form-control bg-dark text-white border-secondary">
+                    </div>
+                    <div class="col-6">
+                        <input type="number" x-model.number="dims.height" placeholder="Height" class="form-control bg-dark text-white border-secondary">
+                    </div>
+                </div>
+
+                <button class="btn btn-info w-100 fw-bold py-3 shadow-sm mb-3" @click="runEngine()" :disabled="loading">
+                    <span x-show="!loading">RUN CALCULATION</span>
+                    <span x-show="loading" class="spinner-border spinner-border-sm"></span>
+                </button>
+                
+                <div class="text-center">
+                    <span class="badge rounded-pill px-3 py-2" :class="status.includes('ERROR') ? 'bg-danger' : 'bg-secondary'" x-text="status"></span>
+                </div>
+            </div>
+
+            <!-- Main Content: Output -->
+            <div class="col-md-9 offset-md-3 bg-light text-dark p-4" style="min-height: 100vh;">
+                <template x-if="res">
+                    <div>
+                        <!-- Pricing Summary -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <div class="card p-3 border-0 shadow-sm bg-white">
+                                    <small class="text-muted fw-bold">TOTAL COST (CP)</small>
+                                    <h3 class="fw-bold text-cp" x-text="'₹' + (res.pricing?.pricing_options?.area?.cp || res.pricing?.cp || 0).toLocaleString()"></h3>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card p-3 border-0 shadow-sm bg-white">
+                                    <small class="text-muted fw-bold">TOTAL SELL (SP)</small>
+                                    <h3 class="fw-bold text-sp" x-text="'₹' + (res.pricing?.pricing_options?.area?.sp || res.pricing?.sp || 0).toLocaleString()"></h3>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card p-3 border-0 shadow-sm bg-dark text-white">
+                                    <small class="opacity-75 fw-bold">MARGIN %</small>
+                                    <h3 class="fw-bold" x-text="calculateMargin()"></h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parts Table -->
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white py-3 fw-bold">Calculated BOM for <span x-text="dims.length + 'x' + dims.width"></span></div>
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr class="small">
+                                            <th>Part Name</th>
+                                            <th>Computed Size</th>
+                                            <th class="text-center">CP</th>
+                                            <th class="text-center">SP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="part in (res.bom?.parts || res.parts || [])">
+                                            <tr>
+                                                <td class="fw-bold" x-text="part.name"></td>
+                                                <td x-text="`${part.length || part.cut_length} x ${part.width || part.cut_width}mm`"></td>
+                                                <td class="text-center text-cp fw-bold" x-text="'₹' + (part.cp || 0)"></td>
+                                                <td class="text-center text-sp fw-bold" x-text="'₹' + (part.sp || 0)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <div x-show="!res && !loading" class="h-100 d-flex align-items-center justify-content-center opacity-25" style="min-height: 60vh;">
+                    <div class="text-center">
+                        <i class="bi bi-calculator display-1"></i>
+                        <h3>Ready for Calculation</h3>
+                    </div>
+                </div>
+
+                <div x-show="loading" class="h-100 d-flex align-items-center justify-content-center" style="min-height: 60vh;">
+                    <div class="spinner-border text-info" style="width: 3rem; height: 3rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('engineHandler', () => ({
+                productId: '',
+                materialId: '',
+                materials: [],
+                loading: false,
+                status: 'IDLE',
+                res: null,
+                dims: { length: 1500, width: 600, height: 720 },
+
+                async init() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.productId = urlParams.get('product_id') || document.querySelector('select')?.value;
+                    if (this.productId) await this.fetchMaterials();
+                },
+
+                calculateMargin() {
+                    if (!this.res || !this.res.pricing) return '0%';
+                    const cp = this.res.pricing?.pricing_options?.area?.cp || this.res.pricing?.cp || 0;
+                    const sp = this.res.pricing?.pricing_options?.area?.sp || this.res.pricing?.sp || 0;
+                    if (sp === 0) return '0%';
+                    return (((sp - cp) / sp) * 100).toFixed(1) + '%';
+                },
+
+                async fetchMaterials() {
+                    try {
+                        const res = await fetch(`/modularcalc/api/products/${this.productId}/`);
+                        const data = await res.json();
+                        this.materials = data.part_templates?.[0]?.material_whitelist || [];
+                        if (this.materials.length) this.materialId = this.materials[0].material;
+                    } catch (e) { this.status = "SYNC ERROR"; }
+                },
+
+                async runEngine() {
+                    this.loading = true;
+                    this.status = "CALCULATING...";
+                    this.res = null;
+                    
+                    try {
+                        const payload = {
+                            "product_id": this.productId,
+                            "material_id": parseInt(this.materialId),
+                            "quantity": 1,
+                            "length": parseFloat(this.dims.length),
+                            "width": parseFloat(this.dims.width),
+                            "height": parseFloat(this.dims.height),
+                            "product_length": parseFloat(this.dims.length),
+                            "product_width": parseFloat(this.dims.width),
+                            "product_height": parseFloat(this.dims.height),
+                            "L": parseFloat(this.dims.length),
+                            "W": parseFloat(this.dims.width),
+                            "H": parseFloat(this.dims.height),
+                            "product_dims": {
+                                "length": parseFloat(this.dims.length),
+                                "width": parseFloat(this.dims.width),
+                                "height": parseFloat(this.dims.height)
+                            }
+                        };
+
+                        const response = await fetch(`/modularcalc/api/products/${this.productId}/evaluate/`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value 
+                            },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.error || "Engine Fault");
+
+                        // Handle both possible response structures (nested engine_output or direct)
+                        this.res = data.engine_output || data;
+                        this.status = "SUCCESS";
+                    } catch (e) {
+                        this.status = "ERROR: " + e.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }));
+        });
+    </script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+<div x-data="{ 
+    length: 600, 
+    width: 600, 
+    height: 720, 
+    price: 0,
+    loading: false,
+
+    // This function sends data to your Django 'run' action
+    async calculate() {
+        this.loading = true;
+        const response = await fetch('/api/evaluate/products/{{ product_id }}/run/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                product_dims: { length: this.length, width: this.width, height: this.height }
+            })
+        });
+        const result = await response.json();
+        this.price = result.total_sp; // Update the price on screen
+        this.loading = false;
+    }
+}" x-init="calculate()"> <div>
+        <label>Length:</label>
+        <input type="number" x-model="length" @input.debounce.500ms="calculate()">
+    </div>
+
+    <div>
+        <label>Width:</label>
+        <input type="number" x-model="width" @input.debounce.500ms="calculate()">
+    </div>
+
+    <div style="margin-top: 20px;">
+        <h3>Estimated Price: 
+            <span x-show="!loading" x-text="'₹' + price"></span>
+            <span x-show="loading">Calculating...</span>
+        </h3>
+    </div>
+</div>
